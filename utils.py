@@ -3,7 +3,7 @@ import string
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
-from models import db, ActivityLog, TemplateTask, Task, Project
+from models import db, ActivityLog, TemplateTask, Task, Project, Client
 
 def generate_access_code(length=12):
     characters = string.ascii_uppercase + string.digits
@@ -19,6 +19,31 @@ def create_activity_log(action, user_id, project_id=None, task_id=None, details=
     )
     db.session.add(log)
     db.session.commit()
+
+def calculate_task_due_date(project_start_date, template_task):
+    """Calculate due date for a task based on project start and template settings"""
+    if template_task.days_from_start:
+        return project_start_date + timedelta(days=template_task.days_from_start)
+    elif template_task.recurrence_rule:
+        return calculate_next_due_date(template_task.recurrence_rule, project_start_date)
+    return None
+
+def find_or_create_client(client_name, firm_id):
+    """Find existing client or create a new one with minimal info"""
+    # Check if client already exists
+    client = Client.query.filter_by(name=client_name.strip(), firm_id=firm_id).first()
+    
+    if not client:
+        # Create new client with basic info
+        client = Client(
+            name=client_name.strip(),
+            firm_id=firm_id,
+            entity_type='Individual'  # Default
+        )
+        db.session.add(client)
+        db.session.flush()  # Get the ID
+    
+    return client
 
 def calculate_next_due_date(recurrence_rule, base_date=None):
     if not recurrence_rule:

@@ -13,10 +13,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 os.makedirs('instance', exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment
 
 db.init_app(app)
-from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date
+from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
 # Database initialization handled by init_db.py
 
@@ -181,37 +181,66 @@ def create_project():
         firm_id = session['firm_id']
         template_id = request.form.get('template_id')
         client_name = request.form.get('client_name')
+        project_name = request.form.get('project_name')
         start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
+        due_date = request.form.get('due_date')
+        if due_date:
+            due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        priority = request.form.get('priority', 'Medium')
+        
+        # Find or create client
+        client = find_or_create_client(client_name, firm_id)
+        
+        # Check if this was a new client
+        was_new_client = client.email is None
         
         project = Project(
-            client_name=client_name,
+            name=project_name or f"{client.name} - {Template.query.get(template_id).name}",
+            client_id=client.id,
             start_date=start_date,
+            due_date=due_date,
+            priority=priority,
             firm_id=firm_id,
             template_origin_id=template_id
         )
         db.session.add(project)
         db.session.flush()
         
+        # Create tasks from template
         template = Template.query.get(template_id)
         for template_task in template.template_tasks:
+            # Calculate due date
+            task_due_date = calculate_task_due_date(start_date, template_task)
+            
             task = Task(
                 title=template_task.title,
                 description=template_task.description,
+                due_date=task_due_date,
+                priority=template_task.default_priority or 'Medium',
+                estimated_hours=template_task.estimated_hours,
                 project_id=project.id,
                 assignee_id=template_task.default_assignee_id,
                 template_task_origin_id=template_task.id
             )
-            if template_task.recurrence_rule:
-                task.due_date = calculate_next_due_date(template_task.recurrence_rule, start_date)
             db.session.add(task)
         
         db.session.commit()
-        flash('Project created successfully!', 'success')
+        
+        # Activity log
+        user_id = session.get('user_id', 1)  # We'll implement proper user selection later
+        create_activity_log(f'Project "{project.name}" created', user_id, project.id)
+        
+        success_msg = 'Project created successfully!'
+        if was_new_client:
+            success_msg += f' New client "{client.name}" was added. Please complete their information in the Clients section.'
+        
+        flash(success_msg, 'success')
         return redirect(url_for('view_project', id=project.id))
     
     firm_id = session['firm_id']
     templates = Template.query.filter_by(firm_id=firm_id).all()
-    return render_template('create_project.html', templates=templates)
+    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    return render_template('create_project.html', templates=templates, clients=clients)
 
 @app.route('/projects/<int:id>')
 def view_project(id):
