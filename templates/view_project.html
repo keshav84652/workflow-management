@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.client_name }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ project.client_name }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="badge bg-{{ 'success' if project.status == 'Active' else 'secondary' }} me-2">{{ project.status }}</span>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Project Details</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Client:</strong> {{ project.client_name }}</p>
+                <p><strong>Template:</strong> {{ project.template_origin.name if project.template_origin else 'N/A' }}</p>
+                <p><strong>Start Date:</strong> {{ project.start_date.strftime('%Y-%m-%d') }}</p>
+                <p><strong>Status:</strong> {{ project.status }}</p>
+                
+                {% set completed_tasks = tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
+                {% set total_tasks = tasks|length %}
+                <div class="progress mb-2">
+                    <div class="progress-bar" role="progressbar" style="width: {{ (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0 }}%">
+                        {{ completed_tasks }}/{{ total_tasks }}
+                    </div>
+                </div>
+                <small class="text-muted">{{ "%.1f"|format((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0) }}% complete</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                {% if activity_logs %}
+                <div style="max-height: 300px; overflow-y: auto;">
+                    {% for log in activity_logs %}
+                    <div class="mb-2 pb-2 border-bottom">
+                        <small class="text-muted">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                        <br>{{ log.action }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No activity yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h4>Tasks</h4>
+        {% if tasks %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Due Date</th>
+                        <th>Assignee</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr class="{% if task.is_overdue %}task-overdue{% endif %}">
+                        <td>
+                            <strong>{{ task.title }}</strong>
+                            {% if task.description %}
+                                <br><small class="text-muted">{{ task.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if task.due_date %}
+                                {{ task.due_date.strftime('%Y-%m-%d') }}
+                                {% if task.is_overdue %}
+                                    <br><span class="badge bg-danger">Overdue</span>
+                                {% endif %}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ task.assignee.name if task.assignee else 'Unassigned' }}</td>
+                        <td>
+                            <select class="form-select form-select-sm status-select" data-task-id="{{ task.id }}">
+                                <option value="Not Started" {% if task.status == 'Not Started' %}selected{% endif %}>Not Started</option>
+                                <option value="In Progress" {% if task.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                <option value="Needs Review" {% if task.status == 'Needs Review' %}selected{% endif %}>Needs Review</option>
+                                <option value="Completed" {% if task.status == 'Completed' %}selected{% endif %}>Completed</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#taskModal{{ task.id }}">
+                                Details
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No tasks found for this project.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.status-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const taskId = this.dataset.taskId;
+        const newStatus = this.value;
+        
+        fetch(`/tasks/${taskId}/update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({status: newStatus})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating task status');
+            }
+        })
+        .catch(error => {
+            alert('Error updating task status');
+            console.error('Error:', error);
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Template - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Template: {{ template.name }}</h1>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="mb-3">
+                <label for="name" class="form-label">Template Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ template.name }}" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ template.description or '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Tasks</label>
+                <div id="tasks-container">
+                    {% for task in template.template_tasks|sort(attribute='order') %}
+                    <div class="task-item border p-3 mb-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="tasks" value="{{ task.title }}" placeholder="Task title" required>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="task_descriptions" value="{{ task.description or '' }}" placeholder="Description (optional)">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-task">Remove</button>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <select class="form-select" name="recurrence_rules">
+                                    <option value="">No recurrence</option>
+                                    <option value="daily" {% if task.recurrence_rule == 'daily' %}selected{% endif %}>Daily</option>
+                                    <option value="weekly" {% if task.recurrence_rule == 'weekly' %}selected{% endif %}>Weekly</option>
+                                    <option value="monthly" {% if task.recurrence_rule == 'monthly' %}selected{% endif %}>Monthly</option>
+                                    <option value="monthly:15" {% if task.recurrence_rule == 'monthly:15' %}selected{% endif %}>Monthly on 15th</option>
+                                    <option value="monthly:last_day" {% if task.recurrence_rule == 'monthly:last_day' %}selected{% endif %}>Monthly last day</option>
+                                    <option value="monthly:last_biz_day" {% if task.recurrence_rule == 'monthly:last_biz_day' %}selected{% endif %}>Monthly last business day</option>
+                                    <option value="quarterly" {% if task.recurrence_rule == 'quarterly' %}selected{% endif %}>Quarterly</option>
+                                    <option value="quarterly:last_biz_day" {% if task.recurrence_rule == 'quarterly:last_biz_day' %}selected{% endif %}>Quarterly last business day</option>
+                                    <option value="annually" {% if task.recurrence_rule == 'annually' %}selected{% endif %}>Annually</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not template.template_tasks %}
+                    <div class="task-item border p-3 mb-2">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" name="tasks" placeholder="Task title" required>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="task_descriptions" placeholder="Description (optional)">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-task">Remove</button>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <select class="form-select" name="recurrence_rules">
+                                    <option value="">No recurrence</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                    <option value="monthly:15">Monthly on 15th</option>
+                                    <option value="monthly:last_day">Monthly last day</option>
+                                    <option value="monthly:last_biz_day">Monthly last business day</option>
+                                    <option value="quarterly">Quarterly</option>
+                                    <option value="quarterly:last_biz_day">Quarterly last business day</option>
+                                    <option value="annually">Annually</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <button type="button" class="btn btn-outline-secondary" id="add-task">
+                    <i class="bi bi-plus"></i> Add Task
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <button type="submit" class="btn btn-primary">Update Template</button>
+        <a href="{{ url_for('templates') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('add-task').addEventListener('click', function() {
+    const container = document.getElementById('tasks-container');
+    const newTask = container.children[0].cloneNode(true);
+    
+    // Clear input values
+    newTask.querySelectorAll('input').forEach(input => input.value = '');
+    newTask.querySelectorAll('select').forEach(select => select.value = '');
+    
+    container.appendChild(newTask);
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-task')) {
+        const container = document.getElementById('tasks-container');
+        if (container.children.length > 1) {
+            e.target.closest('.task-item').remove();
+        }
+    }
+});
+</script>
+{% endblock %}

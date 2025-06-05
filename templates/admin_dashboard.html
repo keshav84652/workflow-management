@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Admin Dashboard</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Generate New Access Code</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('generate_access_code_route') }}">
+                    <div class="mb-3">
+                        <label for="firm_name" class="form-label">Firm Name</label>
+                        <input type="text" class="form-control" id="firm_name" name="firm_name" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Access Code</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h4>Existing Firms</h4>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Firm Name</th>
+                        <th>Access Code</th>
+                        <th>Active</th>
+                        <th>Created</th>
+                        <th>Users</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for firm in firms %}
+                    <tr>
+                        <td>{{ firm.id }}</td>
+                        <td>{{ firm.name }}</td>
+                        <td><code>{{ firm.access_code }}</code></td>
+                        <td>
+                            {% if firm.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ firm.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ firm.users|length }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

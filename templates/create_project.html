@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Create Project - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create Project</h1>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="client_name" class="form-label">Client Name</label>
+                <input type="text" class="form-control" id="client_name" name="client_name" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="template_id" class="form-label">Template</label>
+                <select class="form-select" id="template_id" name="template_id" required>
+                    <option value="">Select a template</option>
+                    {% for template in templates %}
+                    <option value="{{ template.id }}">{{ template.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="mb-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" required>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div id="template-preview" class="border p-3" style="display: none;">
+                <h6>Template Preview</h6>
+                <div id="template-tasks"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <button type="submit" class="btn btn-primary">Create Project</button>
+        <a href="{{ url_for('projects') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const templates = {
+    {% for template in templates %}
+    {{ template.id }}: {
+        name: "{{ template.name }}",
+        description: "{{ template.description }}",
+        tasks: [
+            {% for task in template.template_tasks %}
+            {
+                title: "{{ task.title }}",
+                description: "{{ task.description }}",
+                recurrence: "{{ task.recurrence_rule or '' }}"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+document.getElementById('template_id').addEventListener('change', function() {
+    const templateId = this.value;
+    const preview = document.getElementById('template-preview');
+    const tasksDiv = document.getElementById('template-tasks');
+    
+    if (templateId && templates[templateId]) {
+        const template = templates[templateId];
+        let html = '<p><strong>' + template.name + '</strong></p>';
+        if (template.description) {
+            html += '<p class="text-muted">' + template.description + '</p>';
+        }
+        html += '<ol>';
+        template.tasks.forEach(task => {
+            html += '<li>' + task.title;
+            if (task.recurrence) {
+                html += ' <span class="badge bg-info">' + task.recurrence + '</span>';
+            }
+            html += '</li>';
+        });
+        html += '</ol>';
+        
+        tasksDiv.innerHTML = html;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

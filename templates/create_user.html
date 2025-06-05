@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Create User - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create User</h1>
+</div>
+
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            
+            <div class="mb-3">
+                <label for="role" class="form-label">Role</label>
+                <select class="form-select" id="role" name="role" required>
+                    <option value="Member">Member</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <div class="mb-3">
+        <button type="submit" class="btn btn-primary">Create User</button>
+        <a href="{{ url_for('users') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+</form>
+{% endblock %}

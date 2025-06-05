@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('create_project') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-plus"></i> New Project
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Active Projects</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ projects|length }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-folder text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Overdue Tasks</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ overdue_tasks }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <h4>Active Projects</h4>
+        {% if projects %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Client Name</th>
+                        <th>Template</th>
+                        <th>Start Date</th>
+                        <th>Tasks</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.client_name }}</td>
+                        <td>{{ project.template_origin.name if project.template_origin else 'N/A' }}</td>
+                        <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            {% set completed_tasks = project.tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
+                            {% set total_tasks = project.tasks|length %}
+                            {{ completed_tasks }}/{{ total_tasks }} completed
+                        </td>
+                        <td>
+                            <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No active projects found. <a href="{{ url_for('create_project') }}">Create your first project</a>.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Projects - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Projects</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('create_project') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-plus"></i> New Project
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if projects %}
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Client Name</th>
+                <th>Template</th>
+                <th>Start Date</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for project in projects %}
+            <tr>
+                <td>{{ project.client_name }}</td>
+                <td>{{ project.template_origin.name if project.template_origin else 'N/A' }}</td>
+                <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
+                <td>
+                    <span class="badge bg-{{ 'success' if project.status == 'Active' else 'secondary' }}">
+                        {{ project.status }}
+                    </span>
+                </td>
+                <td>
+                    {% set completed_tasks = project.tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
+                    {% set total_tasks = project.tasks|length %}
+                    <div class="progress" style="width: 100px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0 }}%">
+                        </div>
+                    </div>
+                    <small>{{ completed_tasks }}/{{ total_tasks }}</small>
+                </td>
+                <td>
+                    <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i> No projects found. <a href="{{ url_for('create_project') }}">Create your first project</a>.
+</div>
+{% endif %}
+{% endblock %}
