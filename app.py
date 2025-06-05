@@ -612,6 +612,114 @@ def view_task(id):
     
     return render_template('view_task.html', task=task, activity_logs=activity_logs)
 
+@app.route('/tasks/bulk-update', methods=['POST'])
+def bulk_update_tasks():
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+    firm_id = session['firm_id']
+    
+    if not task_ids:
+        return jsonify({'success': False, 'message': 'No tasks selected'})
+    
+    try:
+        # Get tasks that belong to the firm
+        tasks = Task.query.outerjoin(Project).filter(
+            Task.id.in_(task_ids),
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).all()
+        
+        if not tasks:
+            return jsonify({'success': False, 'message': 'No valid tasks found'})
+        
+        updated_count = 0
+        for task in tasks:
+            # Update status if provided
+            if 'status' in data:
+                old_status = task.status
+                task.status = data['status']
+                if old_status != task.status:
+                    # Log status change
+                    create_activity_log(
+                        f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
+                        session['user_id'],
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+            
+            # Update priority if provided
+            if 'priority' in data:
+                old_priority = task.priority
+                task.priority = data['priority']
+                if old_priority != task.priority:
+                    # Log priority change
+                    create_activity_log(
+                        f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
+                        session['user_id'],
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+            
+            updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully updated {updated_count} tasks'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+@app.route('/tasks/bulk-delete', methods=['POST'])
+def bulk_delete_tasks():
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+    firm_id = session['firm_id']
+    
+    if not task_ids:
+        return jsonify({'success': False, 'message': 'No tasks selected'})
+    
+    try:
+        # Get tasks that belong to the firm
+        tasks = Task.query.outerjoin(Project).filter(
+            Task.id.in_(task_ids),
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).all()
+        
+        if not tasks:
+            return jsonify({'success': False, 'message': 'No valid tasks found'})
+        
+        deleted_count = 0
+        for task in tasks:
+            # Log deletion
+            create_activity_log(
+                f'Task "{task.title}" deleted (bulk operation)',
+                session['user_id'],
+                task.project_id if task.project_id else None,
+                None  # task_id will be None since task is being deleted
+            )
+            db.session.delete(task)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted {deleted_count} tasks'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
 @app.route('/tasks/<int:id>/update', methods=['POST'])
 def update_task(id):
     task = Task.query.get_or_404(id)
@@ -706,6 +814,132 @@ def view_client(id):
     
     projects = Project.query.filter_by(client_id=id).order_by(Project.created_at.desc()).all()
     return render_template('view_client.html', client=client, projects=projects)
+
+@app.route('/calendar')
+def calendar_view():
+    firm_id = session['firm_id']
+    
+    # Get year and month from query parameters or use current date
+    year = int(request.args.get('year', date.today().year))
+    month = int(request.args.get('month', date.today().month))
+    
+    # Create date object for the requested month
+    current_date = date(year, month, 1)
+    
+    # Get start and end dates for the calendar view (include previous/next month days)
+    start_of_month = date(year, month, 1)
+    
+    # Get the first day of the week for the month
+    first_weekday = start_of_month.weekday()
+    # Adjust for Sunday start (weekday() returns 0=Monday, we want 0=Sunday)
+    days_back = (first_weekday + 1) % 7
+    calendar_start = start_of_month - timedelta(days=days_back)
+    
+    # Get end of month
+    if month == 12:
+        end_of_month = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        end_of_month = date(year, month + 1, 1) - timedelta(days=1)
+    
+    # Calculate days forward to complete the calendar grid (6 weeks * 7 days = 42 days)
+    days_shown = (end_of_month - calendar_start).days + 1
+    days_needed = 42 - days_shown
+    calendar_end = end_of_month + timedelta(days=days_needed)
+    
+    # Query tasks for the calendar period - include both project and independent tasks
+    tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.due_date.between(calendar_start, calendar_end)
+    ).order_by(Task.due_date.asc()).all()
+    
+    # Organize tasks by date
+    calendar_data = {}
+    for task in tasks:
+        if task.due_date:
+            date_str = task.due_date.strftime('%Y-%m-%d')
+            if date_str not in calendar_data:
+                calendar_data[date_str] = []
+            
+            # Prepare task data for JSON serialization
+            task_data = {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'status': task.status,
+                'priority': task.priority,
+                'is_overdue': task.is_overdue,
+                'is_due_soon': task.is_due_soon,
+                'project_name': task.project.client_name if task.project else None,
+                'assignee_name': task.assignee.name if task.assignee else None
+            }
+            calendar_data[date_str].append(task_data)
+    
+    return render_template('calendar.html', 
+                         calendar_data=calendar_data,
+                         current_date=current_date,
+                         year=year,
+                         month=month)
+
+@app.route('/kanban')
+def kanban_view():
+    firm_id = session['firm_id']
+    
+    # Get filter parameters
+    project_filter = request.args.get('project')
+    assignee_filter = request.args.get('assignee')
+    priority_filter = request.args.get('priority')
+    
+    # Base query - include both project and independent tasks
+    query = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        )
+    )
+    
+    # Apply filters
+    if project_filter:
+        query = query.filter(Task.project_id == project_filter)
+    if assignee_filter:
+        query = query.filter(Task.assignee_id == assignee_filter)
+    if priority_filter:
+        query = query.filter(Task.priority == priority_filter)
+    
+    # Get all tasks
+    tasks = query.order_by(Task.created_at.desc()).all()
+    
+    # Organize tasks by status
+    tasks_by_status = {
+        'Not Started': [],
+        'In Progress': [],
+        'Needs Review': [],
+        'Completed': []
+    }
+    
+    task_counts = {
+        'Not Started': 0,
+        'In Progress': 0,
+        'Needs Review': 0,
+        'Completed': 0
+    }
+    
+    for task in tasks:
+        if task.status in tasks_by_status:
+            tasks_by_status[task.status].append(task)
+            task_counts[task.status] += 1
+    
+    # Get filter options
+    users = User.query.filter_by(firm_id=firm_id).all()
+    projects = Project.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('kanban.html', 
+                         tasks_by_status=tasks_by_status,
+                         task_counts=task_counts,
+                         users=users, 
+                         projects=projects)
 
 @app.route('/clients/<int:id>/edit', methods=['GET', 'POST'])
 def edit_client(id):

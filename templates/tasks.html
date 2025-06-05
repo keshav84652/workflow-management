@@ -6,6 +6,23 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">All Tasks</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2" id="bulk-actions" style="display: none;">
+            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-gear"></i> Bulk Actions
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdateStatus('Not Started')">Mark as Not Started</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdateStatus('In Progress')">Mark as In Progress</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdateStatus('Needs Review')">Mark as Needs Review</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdateStatus('Completed')">Mark as Completed</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdatePriority('High')">Set High Priority</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdatePriority('Medium')">Set Medium Priority</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkUpdatePriority('Low')">Set Low Priority</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="bulkDelete()">Delete Selected</a></li>
+            </ul>
+        </div>
         <a href="{{ url_for('create_task') }}" class="btn btn-primary">
             <i class="bi bi-plus-circle"></i> Create Task
         </a>
@@ -75,6 +92,9 @@
     <table class="table table-striped">
         <thead>
             <tr>
+                <th width="50">
+                    <input type="checkbox" id="select-all" class="form-check-input">
+                </th>
                 <th>Task</th>
                 <th>Priority</th>
                 <th>Project</th>
@@ -87,6 +107,9 @@
         <tbody>
             {% for task in tasks %}
             <tr class="{% if task.is_overdue %}task-overdue{% endif %}">
+                <td>
+                    <input type="checkbox" class="form-check-input task-select" value="{{ task.id }}">
+                </td>
                 <td>
                     <strong>{{ task.title }}</strong>
                     {% if task.description %}
@@ -184,6 +207,125 @@
 
 {% block scripts %}
 <script>
+// Bulk operations functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const taskCheckboxes = document.querySelectorAll('.task-select');
+    const bulkActionsDiv = document.getElementById('bulk-actions');
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        taskCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        toggleBulkActions();
+    });
+    
+    // Individual checkbox functionality
+    taskCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Update select all checkbox state
+            const checkedCount = document.querySelectorAll('.task-select:checked').length;
+            selectAllCheckbox.checked = checkedCount === taskCheckboxes.length;
+            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < taskCheckboxes.length;
+            
+            toggleBulkActions();
+        });
+    });
+    
+    function toggleBulkActions() {
+        const checkedCount = document.querySelectorAll('.task-select:checked').length;
+        bulkActionsDiv.style.display = checkedCount > 0 ? 'block' : 'none';
+    }
+});
+
+// Bulk action functions
+function getSelectedTaskIds() {
+    return Array.from(document.querySelectorAll('.task-select:checked')).map(cb => cb.value);
+}
+
+function bulkUpdateStatus(status) {
+    const taskIds = getSelectedTaskIds();
+    if (taskIds.length === 0) {
+        alert('Please select tasks to update');
+        return;
+    }
+    
+    if (confirm(`Update ${taskIds.length} tasks to "${status}" status?`)) {
+        fetch('/tasks/bulk-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_ids: taskIds, status: status })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating tasks: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred');
+        });
+    }
+}
+
+function bulkUpdatePriority(priority) {
+    const taskIds = getSelectedTaskIds();
+    if (taskIds.length === 0) {
+        alert('Please select tasks to update');
+        return;
+    }
+    
+    if (confirm(`Set ${taskIds.length} tasks to "${priority}" priority?`)) {
+        fetch('/tasks/bulk-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_ids: taskIds, priority: priority })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error updating tasks: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred');
+        });
+    }
+}
+
+function bulkDelete() {
+    const taskIds = getSelectedTaskIds();
+    if (taskIds.length === 0) {
+        alert('Please select tasks to delete');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete ${taskIds.length} tasks? This action cannot be undone.`)) {
+        fetch('/tasks/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task_ids: taskIds })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting tasks: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred');
+        });
+    }
+}
+
+// Individual task status update
 document.querySelectorAll('.status-select').forEach(select => {
     select.addEventListener('change', function() {
         const taskId = this.dataset.taskId;
