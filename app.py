@@ -22,16 +22,29 @@ from utils import generate_access_code, create_activity_log, process_recurring_t
 
 @app.before_request
 def check_access():
+    # Skip authentication for public endpoints
     if request.endpoint in ['static', 'admin_login', 'admin_dashboard', 'generate_access_code_route', 'admin_authenticate']:
         return
     
-    if 'firm_id' not in session and request.endpoint not in ['login', 'authenticate']:
+    # Skip for login flow
+    if request.endpoint in ['login', 'authenticate', 'select_user', 'set_user']:
+        return
+    
+    # Check firm access
+    if 'firm_id' not in session:
         return redirect(url_for('login'))
+    
+    # Check user selection (except for user selection pages)
+    if 'user_id' not in session:
+        return redirect(url_for('select_user'))
 
 @app.route('/')
 def login():
     if 'firm_id' in session:
-        return redirect(url_for('dashboard'))
+        if 'user_id' in session:
+            return redirect(url_for('dashboard'))
+        else:
+            return redirect(url_for('select_user'))
     return render_template('login.html')
 
 @app.route('/authenticate', methods=['POST'])
@@ -42,10 +55,44 @@ def authenticate():
     if firm:
         session['firm_id'] = firm.id
         session['firm_name'] = firm.name
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('select_user'))
     else:
         flash('Invalid access code', 'error')
         return redirect(url_for('login'))
+
+@app.route('/select-user')
+def select_user():
+    if 'firm_id' not in session:
+        return redirect(url_for('login'))
+    
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    return render_template('select_user.html', users=users)
+
+@app.route('/set-user', methods=['POST'])
+def set_user():
+    if 'firm_id' not in session:
+        return redirect(url_for('login'))
+    
+    user_id = request.form.get('user_id')
+    user = User.query.filter_by(id=user_id, firm_id=session['firm_id']).first()
+    
+    if user:
+        session['user_id'] = user.id
+        session['user_name'] = user.name
+        session['user_role'] = user.role
+        flash(f'Welcome, {user.name}!', 'success')
+        return redirect(url_for('dashboard'))
+    else:
+        flash('Invalid user selection', 'error')
+        return redirect(url_for('select_user'))
+
+@app.route('/switch-user')
+def switch_user():
+    session.pop('user_id', None)
+    session.pop('user_name', None)
+    session.pop('user_role', None)
+    return redirect(url_for('select_user'))
 
 @app.route('/logout')
 def logout():
@@ -227,7 +274,7 @@ def create_project():
         db.session.commit()
         
         # Activity log
-        user_id = session.get('user_id', 1)  # We'll implement proper user selection later
+        user_id = session.get('user_id')
         create_activity_log(f'Project "{project.name}" created', user_id, project.id)
         
         success_msg = 'Project created successfully!'
@@ -311,6 +358,76 @@ def create_user():
         return redirect(url_for('users'))
     
     return render_template('create_user.html')
+
+@app.route('/clients')
+def clients():
+    firm_id = session['firm_id']
+    clients = Client.query.filter_by(firm_id=firm_id).order_by(Client.name.asc()).all()
+    return render_template('clients.html', clients=clients)
+
+@app.route('/clients/create', methods=['GET', 'POST'])
+def create_client():
+    if request.method == 'POST':
+        firm_id = session['firm_id']
+        
+        client = Client(
+            name=request.form.get('name'),
+            email=request.form.get('email'),
+            phone=request.form.get('phone'),
+            address=request.form.get('address'),
+            contact_person=request.form.get('contact_person'),
+            entity_type=request.form.get('entity_type', 'Individual'),
+            tax_id=request.form.get('tax_id'),
+            notes=request.form.get('notes'),
+            firm_id=firm_id
+        )
+        db.session.add(client)
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Client "{client.name}" created', session['user_id'])
+        
+        flash('Client created successfully!', 'success')
+        return redirect(url_for('clients'))
+    
+    return render_template('create_client.html')
+
+@app.route('/clients/<int:id>')
+def view_client(id):
+    client = Client.query.get_or_404(id)
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('clients'))
+    
+    projects = Project.query.filter_by(client_id=id).order_by(Project.created_at.desc()).all()
+    return render_template('view_client.html', client=client, projects=projects)
+
+@app.route('/clients/<int:id>/edit', methods=['GET', 'POST'])
+def edit_client(id):
+    client = Client.query.get_or_404(id)
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('clients'))
+    
+    if request.method == 'POST':
+        client.name = request.form.get('name')
+        client.email = request.form.get('email')
+        client.phone = request.form.get('phone')
+        client.address = request.form.get('address')
+        client.contact_person = request.form.get('contact_person')
+        client.entity_type = request.form.get('entity_type')
+        client.tax_id = request.form.get('tax_id')
+        client.notes = request.form.get('notes')
+        
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Client "{client.name}" updated', session['user_id'])
+        
+        flash('Client updated successfully!', 'success')
+        return redirect(url_for('view_client', id=client.id))
+    
+    return render_template('edit_client.html', client=client)
 
 if __name__ == '__main__':
     app.run(debug=True)

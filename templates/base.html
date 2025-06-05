@@ -28,6 +28,22 @@
                     <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
                         <span>{{ session.firm_name }}</span>
                     </h6>
+                    {% if session.user_name %}
+                    <div class="px-3 mb-3">
+                        <div class="user-info p-2 bg-light rounded">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-person-circle me-2 text-primary"></i>
+                                <div class="flex-grow-1">
+                                    <small class="fw-bold">{{ session.user_name }}</small>
+                                    <br><small class="text-muted">{{ session.user_role }}</small>
+                                </div>
+                                <a href="{{ url_for('switch_user') }}" class="btn btn-sm btn-outline-secondary" title="Switch User">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('dashboard') }}">
@@ -47,6 +63,11 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('tasks') }}">
                                 <i class="bi bi-check-square"></i> Tasks
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('clients') }}">
+                                <i class="bi bi-briefcase"></i> Clients
                             </a>
                         </li>
                         <li class="nav-item">

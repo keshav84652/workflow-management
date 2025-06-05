@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Select User - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">
+                        <i class="bi bi-person-circle text-primary"></i>
+                        Select Your Account
+                    </h2>
+                    <p class="text-center text-muted mb-4">
+                        Firm: <strong>{{ session.firm_name }}</strong>
+                    </p>
+                    
+                    {% if users %}
+                    <form method="POST" action="{{ url_for('set_user') }}">
+                        <div class="row">
+                            {% for user in users %}
+                            <div class="col-md-6 mb-3">
+                                <label class="card user-card" for="user_{{ user.id }}">
+                                    <input type="radio" name="user_id" value="{{ user.id }}" id="user_{{ user.id }}" class="d-none" required>
+                                    <div class="card-body text-center">
+                                        <div class="user-avatar mb-2">
+                                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0d6efd;"></i>
+                                        </div>
+                                        <h5 class="card-title">{{ user.name }}</h5>
+                                        <span class="badge bg-{{ 'primary' if user.role == 'Admin' else 'secondary' }}">
+                                            {{ user.role }}
+                                        </span>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Continue
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning text-center">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        No users found for this firm. Please contact your administrator.
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    <div class="text-center">
+                        <a href="{{ url_for('logout') }}" class="text-muted">
+                            <i class="bi bi-arrow-left"></i> Back to Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.user-card {
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 2px solid transparent;
+}
+
+.user-card:hover {
+    border-color: #0d6efd;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+input[type="radio"]:checked + .card-body {
+    background-color: #e7f3ff;
+}
+
+input[type="radio"]:checked ~ .user-card {
+    border-color: #0d6efd;
+}
+
+.user-avatar {
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.user-card:hover .user-avatar {
+    opacity: 1;
+}
+</style>
+{% endblock %}
