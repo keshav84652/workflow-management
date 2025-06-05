@@ -102,7 +102,8 @@ class Task(db.Model):
     actual_hours = db.Column(db.Float, default=0)
     status = db.Column(db.String(20), default='Not Started', nullable=False)
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
-    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     template_task_origin_id = db.Column(db.Integer, db.ForeignKey('template_task.id'))
     completed_at = db.Column(db.DateTime)

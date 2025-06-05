@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Task - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Task</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('view_task', id=task.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Task
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Task Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ task.title }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ task.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assignee_id" class="form-label">Assignee</label>
+                                <select class="form-select" id="assignee_id" name="assignee_id">
+                                    <option value="">Unassigned</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if task.assignee_id == user.id %}selected{% endif %}>
+                                        {{ user.name }} ({{ user.role }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="Not Started" {% if task.status == 'Not Started' %}selected{% endif %}>Not Started</option>
+                                    <option value="In Progress" {% if task.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Needs Review" {% if task.status == 'Needs Review' %}selected{% endif %}>Needs Review</option>
+                                    <option value="Completed" {% if task.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="High" {% if task.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Medium" {% if task.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                                    <option value="Low" {% if task.priority == 'Low' %}selected{% endif %}>Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label">Due Date</label>
+                                <input type="date" class="form-control" id="due_date" name="due_date" 
+                                       value="{{ task.due_date.strftime('%Y-%m-%d') if task.due_date else '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" id="estimated_hours" name="estimated_hours" 
+                                       step="0.5" min="0" value="{{ task.estimated_hours or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comments" class="form-label">Comments</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="3">{{ task.comments or '' }}</textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('view_task', id=task.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Task Information</h5>
+                {% if task.project %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">PROJECT</label>
+                    <div>
+                        <a href="{{ url_for('view_project', id=task.project.id) }}" class="text-decoration-none">
+                            {{ task.project.client_name }}
+                        </a>
+                        <br><small class="text-muted">{{ task.project.name }}</small>
+                    </div>
+                </div>
+                {% else %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TYPE</label>
+                    <div>
+                        <span class="badge bg-info">Independent Task</span>
+                        <br><small class="text-muted">Not associated with any project</small>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if task.template_task_origin_id %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TEMPLATE ORIGIN</label>
+                    <div><span class="badge bg-light text-dark">From Template</span></div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CREATED</label>
+                    <div>{{ task.created_at.strftime('%m/%d/%Y %I:%M %p') if task.created_at else 'N/A' }}</div>
+                </div>
+                
+                {% if task.is_overdue %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Overdue!</strong><br>
+                    This task was due {{ task.due_date.strftime('%m/%d/%Y') }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Quick Actions</h5>
+                <div class="d-grid gap-2">
+                    {% if task.project %}
+                        <a href="{{ url_for('view_project', id=task.project.id) }}" class="btn btn-outline-primary">
+                            <i class="bi bi-folder"></i> View Project
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('create_project') }}" class="btn btn-outline-info">
+                            <i class="bi bi-plus-circle"></i> Create Project
+                        </a>
+                    {% endif %}
+                    <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-list-task"></i> All Tasks
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

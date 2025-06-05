@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ project.name }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Project</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Project
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Project Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Project Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ project.name }}" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label">Start Date *</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" 
+                                       value="{{ project.start_date.strftime('%Y-%m-%d') }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label">Due Date</label>
+                                <input type="date" class="form-control" id="due_date" name="due_date" 
+                                       value="{{ project.due_date.strftime('%Y-%m-%d') if project.due_date else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="High" {% if project.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Medium" {% if project.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                                    <option value="Low" {% if project.priority == 'Low' %}selected{% endif %}>Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="Active" {% if project.status == 'Active' %}selected{% endif %}>Active</option>
+                                    <option value="Completed" {% if project.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                    <option value="On Hold" {% if project.status == 'On Hold' %}selected{% endif %}>On Hold</option>
+                                    <option value="Cancelled" {% if project.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update Project
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Client Information -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Client Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CLIENT</label>
+                    <div>
+                        <a href="{{ url_for('view_client', id=project.client_id) }}" class="text-decoration-none">
+                            <i class="bi bi-building"></i> {{ project.client_name }}
+                        </a>
+                        {% if project.client %}
+                            <br><small class="text-muted">{{ project.client.entity_type }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if project.template_origin %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TEMPLATE ORIGIN</label>
+                    <div><span class="badge bg-light text-dark">{{ project.template_origin.name }}</span></div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CREATED</label>
+                    <div>{{ project.created_at.strftime('%m/%d/%Y %I:%M %p') if project.created_at else 'N/A' }}</div>
+                </div>
+                
+                {% set completed_tasks = project.tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
+                {% set total_tasks = project.tasks|length %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">PROGRESS</label>
+                    <div class="progress mt-1" style="height: 8px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0 }}%"></div>
+                    </div>
+                    <small class="text-muted">{{ completed_tasks }}/{{ total_tasks }} tasks completed</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Project Limits -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Important Notes</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Note:</strong> Changing the start date may affect task due dates if they were calculated from the template.
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>Client Assignment:</strong> The client assignment cannot be changed after project creation. Create a new project if needed.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('view_client', id=project.client_id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-building"></i> View Client
+                    </a>
+                    <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" class="btn btn-outline-success">
+                        <i class="bi bi-plus-circle"></i> Add Task
+                    </a>
+                    <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-list"></i> All Projects
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -77,6 +77,22 @@
             backdrop-filter: blur(10px);
         }
 
+        /* Overdue Task Styling */
+        .task-overdue {
+            background-color: rgba(220, 53, 69, 0.1) !important;
+            border-left: 4px solid #dc3545 !important;
+        }
+        
+        .overdue-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
         .user-info small {
             color: #e2e8f0;
         }

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}Create Task - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create New Task</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Tasks
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Task Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" required 
+                               placeholder="Enter task title">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Describe the task details"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="project_id" class="form-label">Project</label>
+                                <select class="form-select" id="project_id" name="project_id">
+                                    <option value="">Independent Task (No Project)</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}" {% if selected_project == project.id|string %}selected{% endif %}>
+                                        {{ project.client_name }} - {{ project.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Leave blank to create an independent task not tied to any project</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="assignee_id" class="form-label">Assignee</label>
+                                <select class="form-select" id="assignee_id" name="assignee_id">
+                                    <option value="">Unassigned</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.name }} ({{ user.role }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="Medium" selected>Medium</option>
+                                    <option value="High">High</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="due_date" class="form-label">Due Date</label>
+                                <input type="date" class="form-control" id="due_date" name="due_date">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" id="estimated_hours" name="estimated_hours" 
+                                       step="0.5" min="0" placeholder="0.0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Initial Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="Not Started" selected>Not Started</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Needs Review">Needs Review</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="comments" class="form-label">Comments</label>
+                        <textarea class="form-control" id="comments" name="comments" rows="2"
+                                  placeholder="Additional notes or comments"></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Create Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Task Creation Tips</h5>
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-lightbulb text-warning"></i>
+                        <small>Use clear, actionable titles that describe what needs to be done</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-calendar-event text-info"></i>
+                        <small>Set realistic due dates to help with workload planning</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-person-check text-success"></i>
+                        <small>Assign tasks to team members based on their expertise</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-flag text-danger"></i>
+                        <small>Use High priority for urgent client deliverables</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-clock text-primary"></i>
+                        <small>Estimate hours for better resource planning and billing</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

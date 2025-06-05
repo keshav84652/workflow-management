@@ -134,9 +134,10 @@
                 <div class="alert alert-info">
                     <h6 class="alert-heading">Recent Activity</h6>
                     <p class="mb-0 small">
-                        Last project: {{ client.projects|sort(attribute='created_at', reverse=true)|first.name }}
+                        {% set latest_project = client.projects|sort(attribute='created_at', reverse=true)|first %}
+                        Last project: {{ latest_project.name }}
                         <br>
-                        <small class="text-muted">{{ client.projects|sort(attribute='created_at', reverse=true)|first.created_at.strftime('%m/%d/%Y') }}</small>
+                        <small class="text-muted">{{ latest_project.created_at.strftime('%m/%d/%Y') }}</small>
                     </p>
                 </div>
                 {% endif %}

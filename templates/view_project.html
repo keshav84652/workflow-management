@@ -6,6 +6,14 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">{{ project.client_name }}</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('edit_project', id=project.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit Project
+            </a>
+            <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
         <span class="badge bg-{{ 'success' if project.status == 'Active' else 'secondary' }} me-2">{{ project.status }}</span>
     </div>
 </div>
@@ -17,10 +25,62 @@
                 <h5>Project Details</h5>
             </div>
             <div class="card-body">
-                <p><strong>Client:</strong> {{ project.client_name }}</p>
-                <p><strong>Template:</strong> {{ project.template_origin.name if project.template_origin else 'N/A' }}</p>
-                <p><strong>Start Date:</strong> {{ project.start_date.strftime('%Y-%m-%d') }}</p>
-                <p><strong>Status:</strong> {{ project.status }}</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CLIENT</label>
+                    <div>
+                        <a href="{{ url_for('view_client', id=project.client_id) }}" class="text-decoration-none">
+                            <i class="bi bi-building"></i> {{ project.client_name }}
+                        </a>
+                        {% if project.client %}
+                            <br><small class="text-muted">{{ project.client.entity_type }}</small>
+                            {% if project.client.contact_person %}
+                                <br><small class="text-muted">Contact: {{ project.client.contact_person }}</small>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">PROJECT NAME</label>
+                    <div>{{ project.name }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TEMPLATE</label>
+                    <div>
+                        {% if project.template_origin %}
+                            <span class="badge bg-light text-dark">{{ project.template_origin.name }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Custom Project</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">START DATE</label>
+                    <div>{{ project.start_date.strftime('%m/%d/%Y') }}</div>
+                </div>
+                {% if project.due_date %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">DUE DATE</label>
+                    <div>{{ project.due_date.strftime('%m/%d/%Y') }}</div>
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">PRIORITY</label>
+                    <div>
+                        {% if project.priority == 'High' %}
+                            <span class="badge bg-danger">{{ project.priority }}</span>
+                        {% elif project.priority == 'Medium' %}
+                            <span class="badge bg-warning">{{ project.priority }}</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ project.priority }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">STATUS</label>
+                    <div>
+                        <span class="badge bg-{{ 'success' if project.status == 'Active' else 'secondary' }}">{{ project.status }}</span>
+                    </div>
+                </div>
                 
                 {% set completed_tasks = tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
                 {% set total_tasks = tasks|length %}

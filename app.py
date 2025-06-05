@@ -103,13 +103,86 @@ def logout():
 def dashboard():
     firm_id = session['firm_id']
     projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
-    overdue_tasks = Task.query.join(Project).filter(
-        Project.firm_id == firm_id,
+    
+    # Basic counts - include both project tasks and independent tasks
+    total_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        )
+    ).count()
+    completed_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.status == 'Completed'
+    ).count()
+    overdue_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
         Task.due_date < date.today(),
         Task.status != 'Completed'
     ).count()
+    active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
     
-    return render_template('dashboard.html', projects=projects, overdue_tasks=overdue_tasks)
+    # Task status distribution
+    task_status_data = {}
+    for status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
+        count = Task.query.join(Project).filter(
+            Project.firm_id == firm_id,
+            Task.status == status
+        ).count()
+        task_status_data[status] = count
+    
+    # Priority distribution
+    priority_data = {}
+    for priority in ['High', 'Medium', 'Low']:
+        count = Task.query.join(Project).filter(
+            Project.firm_id == firm_id,
+            Task.priority == priority
+        ).count()
+        priority_data[priority] = count
+    
+    # Recent activity (last 7 days)
+    week_ago = datetime.now() - timedelta(days=7)
+    recent_tasks = Task.query.join(Project).filter(
+        Project.firm_id == firm_id,
+        Task.created_at >= week_ago
+    ).count()
+    
+    # Workload by user
+    user_workload = {}
+    users = User.query.filter_by(firm_id=firm_id).all()
+    for user in users:
+        active_tasks = Task.query.join(Project).filter(
+            Project.firm_id == firm_id,
+            Task.assignee_id == user.id,
+            Task.status.in_(['Not Started', 'In Progress', 'Needs Review'])
+        ).count()
+        user_workload[user.name] = active_tasks
+    
+    # Upcoming deadlines (next 7 days)
+    next_week = date.today() + timedelta(days=7)
+    upcoming_tasks = Task.query.join(Project).filter(
+        Project.firm_id == firm_id,
+        Task.due_date.between(date.today(), next_week),
+        Task.status != 'Completed'
+    ).order_by(Task.due_date.asc()).limit(5).all()
+    
+    return render_template('dashboard.html', 
+                         projects=projects, 
+                         total_tasks=total_tasks,
+                         completed_tasks=completed_tasks,
+                         overdue_tasks=overdue_tasks,
+                         active_clients=active_clients,
+                         task_status_data=task_status_data,
+                         priority_data=priority_data,
+                         recent_tasks=recent_tasks,
+                         user_workload=user_workload,
+                         upcoming_tasks=upcoming_tasks)
 
 @app.route('/admin')
 def admin_login():
@@ -301,19 +374,231 @@ def view_project(id):
     
     return render_template('view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
+@app.route('/projects/<int:id>/edit', methods=['GET', 'POST'])
+def edit_project(id):
+    project = Project.query.get_or_404(id)
+    if project.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('projects'))
+    
+    if request.method == 'POST':
+        # Update project details
+        project.name = request.form.get('name')
+        project.priority = request.form.get('priority', 'Medium')
+        project.status = request.form.get('status', 'Active')
+        
+        # Handle due date
+        due_date = request.form.get('due_date')
+        if due_date:
+            project.due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        else:
+            project.due_date = None
+        
+        # Handle start date
+        start_date = request.form.get('start_date')
+        if start_date:
+            project.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Project "{project.name}" updated', session['user_id'], project.id)
+        
+        flash('Project updated successfully!', 'success')
+        return redirect(url_for('view_project', id=project.id))
+    
+    # GET request - show form
+    return render_template('edit_project.html', project=project)
+
 @app.route('/tasks')
 def tasks():
     firm_id = session['firm_id']
-    tasks = Task.query.join(Project).filter(
-        Project.firm_id == firm_id
-    ).order_by(Task.due_date.asc()).all()
     
-    return render_template('tasks.html', tasks=tasks)
+    # Get filter parameters
+    status_filter = request.args.get('status')
+    priority_filter = request.args.get('priority')
+    assignee_filter = request.args.get('assignee')
+    project_filter = request.args.get('project')
+    overdue_filter = request.args.get('overdue')
+    
+    # Base query - include both project tasks and independent tasks
+    query = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        )
+    )
+    
+    # Apply filters
+    if status_filter:
+        query = query.filter(Task.status == status_filter)
+    if priority_filter:
+        query = query.filter(Task.priority == priority_filter)
+    if assignee_filter:
+        query = query.filter(Task.assignee_id == assignee_filter)
+    if project_filter:
+        query = query.filter(Task.project_id == project_filter)
+    if overdue_filter == 'true':
+        query = query.filter(Task.due_date < date.today(), Task.status != 'Completed')
+    
+    # Order by due date
+    tasks = query.order_by(Task.due_date.asc()).all()
+    
+    # Get filter options
+    users = User.query.filter_by(firm_id=firm_id).all()
+    projects = Project.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('tasks.html', tasks=tasks, users=users, projects=projects)
+
+@app.route('/tasks/create', methods=['GET', 'POST'])
+def create_task():
+    if request.method == 'POST':
+        firm_id = session['firm_id']
+        
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        project_id = request.form.get('project_id')
+        assignee_id = request.form.get('assignee_id')
+        priority = request.form.get('priority', 'Medium')
+        due_date = request.form.get('due_date')
+        estimated_hours = request.form.get('estimated_hours')
+        
+        # Convert due_date
+        due_date_obj = None
+        if due_date:
+            due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+        
+        # Convert estimated_hours
+        estimated_hours_float = None
+        if estimated_hours:
+            try:
+                estimated_hours_float = float(estimated_hours)
+            except ValueError:
+                pass
+        
+        # Verify project belongs to firm (if project selected)
+        if project_id:
+            project = Project.query.filter_by(id=project_id, firm_id=firm_id).first()
+            if not project:
+                flash('Invalid project selected', 'error')
+                return redirect(url_for('create_task'))
+        
+        # Create task
+        task = Task(
+            title=title,
+            description=description,
+            due_date=due_date_obj,
+            priority=priority,
+            estimated_hours=estimated_hours_float,
+            project_id=project_id if project_id else None,
+            firm_id=firm_id,
+            assignee_id=assignee_id if assignee_id else None
+        )
+        db.session.add(task)
+        db.session.commit()
+        
+        # Activity log
+        if project_id:
+            create_activity_log(f'Task "{task.title}" created', session['user_id'], project_id, task.id)
+        else:
+            create_activity_log(f'Independent task "{task.title}" created', session['user_id'], None, task.id)
+        
+        flash('Task created successfully!', 'success')
+        return redirect(url_for('tasks'))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
+    users = User.query.filter_by(firm_id=firm_id).all()
+    
+    # Pre-select project if provided
+    selected_project = request.args.get('project_id')
+    
+    return render_template('create_task.html', projects=projects, users=users, selected_project=selected_project)
+
+@app.route('/tasks/<int:id>/edit', methods=['GET', 'POST'])
+def edit_task(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks'))
+    elif not task.project and task.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks'))
+    
+    if request.method == 'POST':
+        # Get form data
+        task.title = request.form.get('title')
+        task.description = request.form.get('description')
+        assignee_id = request.form.get('assignee_id')
+        task.assignee_id = assignee_id if assignee_id else None
+        task.priority = request.form.get('priority', 'Medium')
+        task.status = request.form.get('status', task.status)
+        
+        # Handle due date
+        due_date = request.form.get('due_date')
+        if due_date:
+            task.due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        else:
+            task.due_date = None
+        
+        # Handle estimated hours
+        estimated_hours = request.form.get('estimated_hours')
+        if estimated_hours:
+            try:
+                task.estimated_hours = float(estimated_hours)
+            except ValueError:
+                task.estimated_hours = None
+        else:
+            task.estimated_hours = None
+        
+        # Handle comments
+        comments = request.form.get('comments')
+        if comments:
+            task.comments = comments
+        
+        db.session.commit()
+        
+        # Activity log
+        if task.project_id:
+            create_activity_log(f'Task "{task.title}" updated', session['user_id'], task.project_id, task.id)
+        else:
+            create_activity_log(f'Independent task "{task.title}" updated', session['user_id'], None, task.id)
+        
+        flash('Task updated successfully!', 'success')
+        return redirect(url_for('view_task', id=task.id))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('edit_task.html', task=task, users=users)
+
+@app.route('/tasks/<int:id>')
+def view_task(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks'))
+    elif not task.project and task.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks'))
+    
+    # Get task activity logs
+    activity_logs = ActivityLog.query.filter_by(task_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
+    
+    return render_template('view_task.html', task=task, activity_logs=activity_logs)
 
 @app.route('/tasks/<int:id>/update', methods=['POST'])
 def update_task(id):
     task = Task.query.get_or_404(id)
-    if task.project.firm_id != session['firm_id']:
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'error': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
         return jsonify({'error': 'Access denied'}), 403
     
     old_status = task.status
@@ -325,9 +610,9 @@ def update_task(id):
         
         if old_status != new_status:
             create_activity_log(
-                f'Task status changed from "{old_status}" to "{new_status}"',
+                f'Task "{task.title}" status changed from "{old_status}" to "{new_status}"',
                 session.get('user_id', 1),
-                task.project_id,
+                task.project_id if task.project_id else None,
                 task.id
             )
         

@@ -196,6 +196,7 @@ def init_database():
                     actual_hours=random.uniform(0.5, template_task.estimated_hours * 1.2) if status == 'Completed' else 0,
                     status=status,
                     project_id=project.id,
+                    firm_id=demo_firm.id,
                     assignee_id=template_task.default_assignee_id,
                     template_task_origin_id=template_task.id
                 )

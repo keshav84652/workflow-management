@@ -5,6 +5,69 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">All Tasks</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('create_task') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Task
+        </a>
+    </div>
+</div>
+
+<!-- Task Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Filter Tasks</h5>
+        <form method="GET" class="row g-3">
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" name="status" id="status">
+                    <option value="">All Statuses</option>
+                    <option value="Not Started" {% if request.args.get('status') == 'Not Started' %}selected{% endif %}>Not Started</option>
+                    <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>In Progress</option>
+                    <option value="Needs Review" {% if request.args.get('status') == 'Needs Review' %}selected{% endif %}>Needs Review</option>
+                    <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Completed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="priority" class="form-label">Priority</label>
+                <select class="form-select" name="priority" id="priority">
+                    <option value="">All Priorities</option>
+                    <option value="High" {% if request.args.get('priority') == 'High' %}selected{% endif %}>High</option>
+                    <option value="Medium" {% if request.args.get('priority') == 'Medium' %}selected{% endif %}>Medium</option>
+                    <option value="Low" {% if request.args.get('priority') == 'Low' %}selected{% endif %}>Low</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="assignee" class="form-label">Assignee</label>
+                <select class="form-select" name="assignee" id="assignee">
+                    <option value="">All Assignees</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if request.args.get('assignee') == user.id|string %}selected{% endif %}>{{ user.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="project" class="form-label">Project</label>
+                <select class="form-select" name="project" id="project">
+                    <option value="">All Projects</option>
+                    {% for project in projects %}
+                    <option value="{{ project.id }}" {% if request.args.get('project') == project.id|string %}selected{% endif %}>{{ project.client_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="overdue" class="form-label">Due Date</label>
+                <select class="form-select" name="overdue" id="overdue">
+                    <option value="">All Tasks</option>
+                    <option value="true" {% if request.args.get('overdue') == 'true' %}selected{% endif %}>Overdue Only</option>
+                    <option value="false" {% if request.args.get('overdue') == 'false' %}selected{% endif %}>Not Overdue</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary me-2">Filter</button>
+                <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
 </div>
 
 {% if tasks %}
@@ -13,6 +76,7 @@
         <thead>
             <tr>
                 <th>Task</th>
+                <th>Priority</th>
                 <th>Project</th>
                 <th>Due Date</th>
                 <th>Assignee</th>
@@ -28,21 +92,59 @@
                     {% if task.description %}
                         <br><small class="text-muted">{{ task.description }}</small>
                     {% endif %}
+                    {% if task.estimated_hours %}
+                        <br><small class="text-info"><i class="bi bi-clock"></i> {{ task.estimated_hours }}h estimated</small>
+                    {% endif %}
                 </td>
                 <td>
-                    <a href="{{ url_for('view_project', id=task.project.id) }}">{{ task.project.client_name }}</a>
+                    {% if task.priority %}
+                        {% if task.priority == 'High' %}
+                            <span class="badge bg-danger">{{ task.priority }}</span>
+                        {% elif task.priority == 'Medium' %}
+                            <span class="badge bg-warning">{{ task.priority }}</span>
+                        {% elif task.priority == 'Low' %}
+                            <span class="badge bg-success">{{ task.priority }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ task.priority }}</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">Medium</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if task.project %}
+                        <a href="{{ url_for('view_project', id=task.project.id) }}" class="text-decoration-none">
+                            {{ task.project.client_name }}
+                        </a>
+                        <br><small class="text-muted">{{ task.project.name }}</small>
+                    {% else %}
+                        <span class="badge bg-info">Independent Task</span>
+                        <br><small class="text-muted">No project assigned</small>
+                    {% endif %}
                 </td>
                 <td>
                     {% if task.due_date %}
-                        {{ task.due_date.strftime('%Y-%m-%d') }}
                         {% if task.is_overdue %}
-                            <br><span class="badge bg-danger">Overdue</span>
+                            <span class="text-danger fw-bold overdue-indicator">
+                                {{ task.due_date.strftime('%Y-%m-%d') }}
+                            </span>
+                            <br><span class="badge bg-danger">
+                                <i class="bi bi-exclamation-triangle"></i> Overdue
+                            </span>
+                        {% else %}
+                            {{ task.due_date.strftime('%Y-%m-%d') }}
                         {% endif %}
                     {% else %}
-                        N/A
+                        <span class="text-muted">No due date</span>
                     {% endif %}
                 </td>
-                <td>{{ task.assignee.name if task.assignee else 'Unassigned' }}</td>
+                <td>
+                    {% if task.assignee %}
+                        <i class="bi bi-person-circle"></i> {{ task.assignee.name }}
+                    {% else %}
+                        <span class="text-muted">Unassigned</span>
+                    {% endif %}
+                </td>
                 <td>
                     <select class="form-select form-select-sm status-select" data-task-id="{{ task.id }}">
                         <option value="Not Started" {% if task.status == 'Not Started' %}selected{% endif %}>Not Started</option>
@@ -52,7 +154,14 @@
                     </select>
                 </td>
                 <td>
-                    <a href="{{ url_for('view_project', id=task.project.id) }}" class="btn btn-sm btn-outline-primary">View Project</a>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('view_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                        <a href="{{ url_for('edit_task', id=task.id) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil"></i> Edit
+                        </a>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
