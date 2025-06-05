@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ client.name }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 text-dark fw-bold">
+        <i class="bi bi-pencil-square text-primary me-2"></i>
+        Edit Client: {{ client.name }}
+    </h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card fade-in">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-gear me-2"></i>
+                    Client Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label fw-bold">Client Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ client.name }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="entity_type" class="form-label fw-bold">Entity Type</label>
+                                <select class="form-select" id="entity_type" name="entity_type">
+                                    <option value="Individual" {% if client.entity_type == 'Individual' %}selected{% endif %}>Individual</option>
+                                    <option value="Corporation" {% if client.entity_type == 'Corporation' %}selected{% endif %}>Corporation</option>
+                                    <option value="LLC" {% if client.entity_type == 'LLC' %}selected{% endif %}>LLC</option>
+                                    <option value="Partnership" {% if client.entity_type == 'Partnership' %}selected{% endif %}>Partnership</option>
+                                    <option value="S-Corp" {% if client.entity_type == 'S-Corp' %}selected{% endif %}>S-Corporation</option>
+                                    <option value="Trust" {% if client.entity_type == 'Trust' %}selected{% endif %}>Trust</option>
+                                    <option value="Estate" {% if client.entity_type == 'Estate' %}selected{% endif %}>Estate</option>
+                                    <option value="Nonprofit" {% if client.entity_type == 'Nonprofit' %}selected{% endif %}>Nonprofit</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="contact_person" class="form-label fw-bold">Contact Person</label>
+                                <input type="text" class="form-control" id="contact_person" name="contact_person" value="{{ client.contact_person or '' }}">
+                                <div class="form-text">Primary contact for this client</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tax_id" class="form-label fw-bold">Tax ID (EIN/SSN)</label>
+                                <input type="text" class="form-control" id="tax_id" name="tax_id" value="{{ client.tax_id or '' }}">
+                                <div class="form-text">Federal tax identification number</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <h6 class="fw-bold text-primary mt-4 mb-3">Contact Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label fw-bold">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email" value="{{ client.email or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label fw-bold">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="{{ client.phone or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label fw-bold">Mailing Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3">{{ client.address or '' }}</textarea>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-4">
+                        <label for="notes" class="form-label fw-bold">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Additional notes about this client...">{{ client.notes or '' }}</textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update Client
+                        </button>
+                        <a href="{{ url_for('view_client', id=client.id) }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Summary Panel -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-graph-up text-success me-2"></i>
+                    Client Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">PROJECTS</label>
+                    <div class="h4 text-primary">{{ client.projects|length }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">ACTIVE PROJECTS</label>
+                    <div class="h4 text-success">{{ client.projects|selectattr('status', 'equalto', 'Active')|list|length }}</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CLIENT SINCE</label>
+                    <div>{{ client.created_at.strftime('%B %Y') }}</div>
+                </div>
+
+                {% if client.projects %}
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">Recent Activity</h6>
+                    <p class="mb-0 small">
+                        Last project: {{ client.projects|sort(attribute='created_at', reverse=true)|first.name }}
+                        <br>
+                        <small class="text-muted">{{ client.projects|sort(attribute='created_at', reverse=true)|first.created_at.strftime('%m/%d/%Y') }}</small>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-lightning text-warning me-2"></i>
+                    Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-circle"></i> New Project
+                    </a>
+                    <a href="{{ url_for('view_client', id=client.id) }}" class="btn btn-outline-info">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

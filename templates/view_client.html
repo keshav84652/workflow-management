@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}{{ client.name }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 text-dark fw-bold">
+        <i class="bi bi-person-circle text-primary me-2"></i>
+        {{ client.name }}
+        <span class="badge bg-{{ 'success' if client.is_active else 'secondary' }} ms-2">
+            {{ 'Active' if client.is_active else 'Inactive' }}
+        </span>
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('edit_client', id=client.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> Edit Client
+            </a>
+            <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Project
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Client Information Card -->
+    <div class="col-lg-4 mb-4">
+        <div class="card fade-in">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Client Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">ENTITY TYPE</label>
+                    <div><span class="badge bg-secondary">{{ client.entity_type or 'Individual' }}</span></div>
+                </div>
+
+                {% if client.tax_id %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TAX ID</label>
+                    <div class="font-monospace">{{ client.tax_id }}</div>
+                </div>
+                {% endif %}
+
+                {% if client.contact_person %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CONTACT PERSON</label>
+                    <div>{{ client.contact_person }}</div>
+                </div>
+                {% endif %}
+
+                <hr>
+
+                <h6 class="fw-bold text-primary mb-3">Contact Information</h6>
+                
+                {% if client.email %}
+                <div class="mb-2">
+                    <i class="bi bi-envelope text-muted me-2"></i>
+                    <a href="mailto:{{ client.email }}" class="text-decoration-none">{{ client.email }}</a>
+                </div>
+                {% endif %}
+
+                {% if client.phone %}
+                <div class="mb-2">
+                    <i class="bi bi-telephone text-muted me-2"></i>
+                    <a href="tel:{{ client.phone }}" class="text-decoration-none">{{ client.phone }}</a>
+                </div>
+                {% endif %}
+
+                {% if client.address %}
+                <div class="mb-2">
+                    <i class="bi bi-geo-alt text-muted me-2"></i>
+                    <div class="d-inline-block">{{ client.address|replace('\n', '<br>')|safe }}</div>
+                </div>
+                {% endif %}
+
+                {% if not client.email and not client.phone and not client.address %}
+                <div class="text-muted text-center py-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    No contact information available
+                </div>
+                {% endif %}
+
+                {% if client.notes %}
+                <hr>
+                <h6 class="fw-bold text-primary mb-2">Notes</h6>
+                <div class="text-muted">{{ client.notes }}</div>
+                {% endif %}
+
+                <hr>
+                <small class="text-muted">
+                    <i class="bi bi-calendar3 me-1"></i>
+                    Created {{ client.created_at.strftime('%B %d, %Y') }}
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Section -->
+    <div class="col-lg-8">
+        <!-- Project Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <div class="kpi-number text-primary">{{ projects|length }}</div>
+                        <div class="kpi-label text-muted">Total Projects</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <div class="kpi-number text-success">{{ projects|selectattr('status', 'equalto', 'Completed')|list|length }}</div>
+                        <div class="kpi-label text-muted">Completed</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <div class="kpi-number text-warning">{{ projects|selectattr('status', 'equalto', 'Active')|list|length }}</div>
+                        <div class="kpi-label text-muted">Active</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <div class="kpi-number text-danger">{{ projects|selectattr('is_overdue')|list|length }}</div>
+                        <div class="kpi-label text-muted">Overdue</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects List -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-folder me-2"></i>
+                    Projects
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                {% if projects %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Project Name</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Progress</th>
+                                <th>Due Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr class="{% if project.is_overdue %}table-danger{% endif %}">
+                                <td>
+                                    <div class="fw-bold">{{ project.name }}</div>
+                                    {% if project.template_origin %}
+                                        <small class="text-muted">{{ project.template_origin.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if project.status == 'Completed' else 'warning' if project.status == 'Active' else 'secondary' }}">
+                                        {{ project.status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge priority-{{ project.priority.lower() }}">
+                                        {{ project.priority }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar" style="width: {{ project.progress_percentage }}%"></div>
+                                    </div>
+                                    <small class="text-muted">{{ project.progress_percentage }}%</small>
+                                </td>
+                                <td>
+                                    {% if project.due_date %}
+                                        {{ project.due_date.strftime('%m/%d/%Y') }}
+                                        {% if project.is_overdue %}
+                                            <br><small class="text-danger">Overdue</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">No due date</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-folder-x text-muted" style="font-size: 3rem;"></i>
+                    <h5 class="mt-3 text-muted">No projects yet</h5>
+                    <p class="text-muted">Create the first project for {{ client.name }}</p>
+                    <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Create First Project
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

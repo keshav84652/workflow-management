@@ -7,15 +7,301 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-navy: #1e3a8a;
+            --primary-blue: #3b82f6;
+            --secondary-gray: #64748b;
+            --light-gray: #f1f5f9;
+            --success-green: #10b981;
+            --warning-amber: #f59e0b;
+            --danger-red: #ef4444;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            background-color: var(--light-gray);
+            color: var(--text-dark);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* Sidebar Styling */
         .sidebar {
             min-height: 100vh;
-            background-color: #f8f9fa;
+            background: linear-gradient(180deg, var(--primary-navy) 0%, #1e40af 100%);
+            box-shadow: var(--shadow-lg);
+            border-right: none;
         }
+
+        .sidebar .nav-link {
+            color: #cbd5e1;
+            padding: 0.75rem 1.5rem;
+            margin: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .sidebar .nav-link.active {
+            background-color: var(--primary-blue);
+            color: white;
+            box-shadow: var(--shadow-md);
+        }
+
+        .sidebar .nav-link i {
+            width: 20px;
+            margin-right: 0.75rem;
+        }
+
+        .sidebar-heading {
+            color: #e2e8f0 !important;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .user-info {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .user-info small {
+            color: #e2e8f0;
+        }
+
+        .user-info .fw-bold {
+            color: white;
+        }
+
+        /* Main Content */
+        main {
+            background-color: var(--light-gray);
+            min-height: 100vh;
+        }
+
+        /* Card Components */
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid var(--border-light);
+            border-radius: 0.75rem 0.75rem 0 0 !important;
+            padding: 1.25rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* Status Colors */
         .task-overdue {
-            background-color: #f8d7da;
+            background-color: #fef2f2;
+            border-left: 4px solid var(--danger-red);
         }
+
         .task-due-soon {
-            background-color: #fff3cd;
+            background-color: #fffbeb;
+            border-left: 4px solid var(--warning-amber);
+        }
+
+        .task-completed {
+            background-color: #f0fdf4;
+            border-left: 4px solid var(--success-green);
+        }
+
+        /* Priority Colors */
+        .priority-high {
+            color: var(--danger-red);
+            background-color: #fef2f2;
+        }
+
+        .priority-medium {
+            color: var(--warning-amber);
+            background-color: #fffbeb;
+        }
+
+        .priority-low {
+            color: var(--success-green);
+            background-color: #f0fdf4;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+            box-shadow: var(--shadow-sm);
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-navy);
+            border-color: var(--primary-navy);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-outline-primary {
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        /* Tables */
+        .table {
+            background-color: white;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table thead th {
+            background-color: var(--light-gray);
+            border-bottom: 2px solid var(--border-light);
+            font-weight: 600;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .table-responsive {
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .alert-success {
+            background-color: #f0fdf4;
+            color: #166534;
+            border-left: 4px solid var(--success-green);
+        }
+
+        .alert-danger {
+            background-color: #fef2f2;
+            color: #dc2626;
+            border-left: 4px solid var(--danger-red);
+        }
+
+        .alert-warning {
+            background-color: #fffbeb;
+            color: #d97706;
+            border-left: 4px solid var(--warning-amber);
+        }
+
+        .alert-info {
+            background-color: #eff6ff;
+            color: #2563eb;
+            border-left: 4px solid var(--primary-blue);
+        }
+
+        /* Progress bars */
+        .progress {
+            height: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: var(--border-light);
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--success-green) 0%, #22c55e 100%);
+            border-radius: 0.5rem;
+        }
+
+        /* Badges */
+        .badge {
+            font-weight: 500;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.5rem;
+        }
+
+        .bg-primary { background-color: var(--primary-blue) !important; }
+        .bg-success { background-color: var(--success-green) !important; }
+        .bg-warning { background-color: var(--warning-amber) !important; }
+        .bg-danger { background-color: var(--danger-red) !important; }
+        .bg-secondary { background-color: var(--secondary-gray) !important; }
+
+        /* Form Controls */
+        .form-control, .form-select {
+            border: 1px solid var(--border-light);
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.1);
+        }
+
+        /* KPI Cards */
+        .kpi-card {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-navy) 100%);
+            color: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .kpi-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .kpi-label {
+            opacity: 0.9;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Animation */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: relative;
+                min-height: auto;
+            }
+            
+            .kpi-number {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>

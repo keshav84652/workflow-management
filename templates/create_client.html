@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Create Client - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2 text-dark fw-bold">
+        <i class="bi bi-plus-circle text-primary me-2"></i>
+        Add New Client
+    </h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card fade-in">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-plus me-2"></i>
+                    Client Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label fw-bold">Client Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="entity_type" class="form-label fw-bold">Entity Type</label>
+                                <select class="form-select" id="entity_type" name="entity_type">
+                                    <option value="Individual">Individual</option>
+                                    <option value="Corporation">Corporation</option>
+                                    <option value="LLC">LLC</option>
+                                    <option value="Partnership">Partnership</option>
+                                    <option value="S-Corp">S-Corporation</option>
+                                    <option value="Trust">Trust</option>
+                                    <option value="Estate">Estate</option>
+                                    <option value="Nonprofit">Nonprofit</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="contact_person" class="form-label fw-bold">Contact Person</label>
+                                <input type="text" class="form-control" id="contact_person" name="contact_person">
+                                <div class="form-text">Primary contact for this client</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tax_id" class="form-label fw-bold">Tax ID (EIN/SSN)</label>
+                                <input type="text" class="form-control" id="tax_id" name="tax_id">
+                                <div class="form-text">Federal tax identification number</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <h6 class="fw-bold text-primary mt-4 mb-3">Contact Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="email" class="form-label fw-bold">Email Address</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="phone" class="form-label fw-bold">Phone Number</label>
+                                <input type="tel" class="form-control" id="phone" name="phone">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label fw-bold">Mailing Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mb-4">
+                        <label for="notes" class="form-label fw-bold">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="Additional notes about this client..."></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Client
+                        </button>
+                        <a href="{{ url_for('clients') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-info-circle text-info me-2"></i>
+                    Client Setup Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">Entity Types</h6>
+                    <ul class="mb-0 small">
+                        <li><strong>Individual:</strong> Personal tax returns</li>
+                        <li><strong>Corporation:</strong> Form 1120</li>
+                        <li><strong>S-Corp:</strong> Form 1120S</li>
+                        <li><strong>LLC:</strong> Form 1065 or Schedule C</li>
+                        <li><strong>Partnership:</strong> Form 1065</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">Tax ID Requirements</h6>
+                    <p class="mb-0 small">
+                        <strong>EIN:</strong> Required for businesses<br>
+                        <strong>SSN:</strong> For individuals only<br>
+                        Always verify tax ID accuracy before filing.
+                    </p>
+                </div>
+
+                <div class="alert alert-success">
+                    <h6 class="alert-heading">Quick Start</h6>
+                    <p class="mb-0 small">
+                        You can create a client with just a name and add detailed information later. The system will prompt you to complete missing information when creating projects.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
