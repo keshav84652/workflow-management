@@ -19,7 +19,7 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>Client Name</th>
+                <th>Client & Project</th>
                 <th>Template</th>
                 <th>Start Date</th>
                 <th>Status</th>
@@ -30,7 +30,10 @@
         <tbody>
             {% for project in projects %}
             <tr>
-                <td>{{ project.client_name }}</td>
+                <td>
+                    <strong>{{ project.client_name }}</strong>
+                    <br><small class="text-muted">{{ project.name }}</small>
+                </td>
                 <td>{{ project.template_origin.name if project.template_origin else 'N/A' }}</td>
                 <td>{{ project.start_date.strftime('%Y-%m-%d') }}</td>
                 <td>

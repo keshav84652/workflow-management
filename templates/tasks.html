@@ -131,6 +131,13 @@
                             <br><span class="badge bg-danger">
                                 <i class="bi bi-exclamation-triangle"></i> Overdue
                             </span>
+                        {% elif task.is_due_soon %}
+                            <span class="text-warning fw-bold">
+                                {{ task.due_date.strftime('%Y-%m-%d') }}
+                            </span>
+                            <br><span class="badge bg-warning">
+                                <i class="bi bi-clock"></i> Due Soon
+                            </span>
                         {% else %}
                             {{ task.due_date.strftime('%Y-%m-%d') }}
                         {% endif %}

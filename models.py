@@ -90,6 +90,10 @@ class Project(db.Model):
         return round((completed_tasks / len(self.tasks)) * 100)
     
     @property
+    def client_name(self):
+        return self.client.name if self.client else 'Unknown Client'
+    
+    @property
     def is_overdue(self):
         return self.due_date and self.due_date < date.today() and self.status != 'Completed'
 

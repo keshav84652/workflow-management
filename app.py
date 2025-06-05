@@ -153,21 +153,27 @@ def dashboard():
         Task.created_at >= week_ago
     ).count()
     
-    # Workload by user
+    # Workload by user - include both project tasks and independent tasks
     user_workload = {}
     users = User.query.filter_by(firm_id=firm_id).all()
     for user in users:
-        active_tasks = Task.query.join(Project).filter(
-            Project.firm_id == firm_id,
+        active_tasks = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
             Task.assignee_id == user.id,
             Task.status.in_(['Not Started', 'In Progress', 'Needs Review'])
         ).count()
         user_workload[user.name] = active_tasks
     
-    # Upcoming deadlines (next 7 days)
+    # Upcoming deadlines (next 7 days) - include both project tasks and independent tasks
     next_week = date.today() + timedelta(days=7)
-    upcoming_tasks = Task.query.join(Project).filter(
-        Project.firm_id == firm_id,
+    upcoming_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
         Task.due_date.between(date.today(), next_week),
         Task.status != 'Completed'
     ).order_by(Task.due_date.asc()).limit(5).all()
@@ -529,11 +535,16 @@ def edit_task(id):
         return redirect(url_for('tasks'))
     
     if request.method == 'POST':
+        # Track original values for change detection
+        original_assignee_id = task.assignee_id
+        original_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+        
         # Get form data
         task.title = request.form.get('title')
         task.description = request.form.get('description')
         assignee_id = request.form.get('assignee_id')
-        task.assignee_id = assignee_id if assignee_id else None
+        new_assignee_id = assignee_id if assignee_id else None
+        task.assignee_id = new_assignee_id
         task.priority = request.form.get('priority', 'Medium')
         task.status = request.form.get('status', task.status)
         
@@ -561,7 +572,16 @@ def edit_task(id):
         
         db.session.commit()
         
-        # Activity log
+        # Log assignee change if it occurred
+        if original_assignee_id != new_assignee_id:
+            new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+            assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
+            if task.project_id:
+                create_activity_log(assignee_log_msg, session['user_id'], task.project_id, task.id)
+            else:
+                create_activity_log(assignee_log_msg, session['user_id'], None, task.id)
+        
+        # General activity log
         if task.project_id:
             create_activity_log(f'Task "{task.title}" updated', session['user_id'], task.project_id, task.id)
         else:
