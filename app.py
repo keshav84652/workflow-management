@@ -178,6 +178,26 @@ def dashboard():
         Task.status != 'Completed'
     ).order_by(Task.due_date.asc()).limit(5).all()
     
+    # Critical notifications - overdue and due today
+    today_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.due_date == date.today(),
+        Task.status != 'Completed'
+    ).count()
+    
+    # Due this week count
+    due_this_week = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.due_date.between(date.today(), next_week),
+        Task.status != 'Completed'
+    ).count()
+    
     return render_template('dashboard.html', 
                          projects=projects, 
                          total_tasks=total_tasks,
@@ -188,7 +208,9 @@ def dashboard():
                          priority_data=priority_data,
                          recent_tasks=recent_tasks,
                          user_workload=user_workload,
-                         upcoming_tasks=upcoming_tasks)
+                         upcoming_tasks=upcoming_tasks,
+                         today_tasks=today_tasks,
+                         due_this_week=due_this_week)
 
 @app.route('/admin')
 def admin_login():
@@ -610,7 +632,56 @@ def view_task(id):
     # Get task activity logs
     activity_logs = ActivityLog.query.filter_by(task_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
     
-    return render_template('view_task.html', task=task, activity_logs=activity_logs)
+    # Get task comments
+    comments = TaskComment.query.filter_by(task_id=id).order_by(TaskComment.created_at.desc()).all()
+    
+    return render_template('view_task.html', task=task, activity_logs=activity_logs, comments=comments)
+
+@app.route('/tasks/<int:id>/comments', methods=['POST'])
+def add_task_comment(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    comment_text = request.form.get('comment', '').strip()
+    if not comment_text:
+        return jsonify({'success': False, 'message': 'Comment cannot be empty'})
+    
+    try:
+        # Create comment
+        comment = TaskComment(
+            comment=comment_text,
+            task_id=task.id,
+            user_id=session['user_id']
+        )
+        db.session.add(comment)
+        
+        # Create activity log
+        create_activity_log(
+            f'Comment added to task "{task.title}"',
+            session['user_id'],
+            task.project_id if task.project_id else None,
+            task.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': comment.id,
+                'comment': comment.comment,
+                'user_name': comment.user.name,
+                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/tasks/bulk-update', methods=['POST'])
 def bulk_update_tasks():
@@ -940,6 +1011,76 @@ def kanban_view():
                          task_counts=task_counts,
                          users=users, 
                          projects=projects)
+
+@app.route('/search')
+def search():
+    firm_id = session['firm_id']
+    query = request.args.get('q', '').strip()
+    search_type = request.args.get('type', 'all')
+    
+    results = {
+        'tasks': [],
+        'projects': [],
+        'clients': [],
+        'query': query,
+        'search_type': search_type
+    }
+    
+    if not query:
+        return render_template('search.html', **results)
+    
+    # Search tasks
+    if search_type in ['all', 'tasks']:
+        task_query = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        )
+        
+        # Search in task title, description, and comments
+        task_filters = db.or_(
+            Task.title.ilike(f'%{query}%'),
+            Task.description.ilike(f'%{query}%'),
+            Task.comments.ilike(f'%{query}%')
+        )
+        
+        results['tasks'] = task_query.filter(task_filters).order_by(Task.created_at.desc()).limit(20).all()
+    
+    # Search projects
+    if search_type in ['all', 'projects']:
+        project_query = Project.query.filter_by(firm_id=firm_id)
+        
+        # Search in project name and client name
+        project_filters = db.or_(
+            Project.name.ilike(f'%{query}%')
+        )
+        
+        # Also search by client name if client relationship exists
+        project_query = project_query.join(Client, Project.client_id == Client.id, isouter=True)
+        project_filters = db.or_(
+            project_filters,
+            Client.name.ilike(f'%{query}%')
+        )
+        
+        results['projects'] = project_query.filter(project_filters).order_by(Project.created_at.desc()).limit(20).all()
+    
+    # Search clients
+    if search_type in ['all', 'clients']:
+        client_query = Client.query.filter_by(firm_id=firm_id)
+        
+        # Search in client name, email, contact person, and notes
+        client_filters = db.or_(
+            Client.name.ilike(f'%{query}%'),
+            Client.email.ilike(f'%{query}%'),
+            Client.contact_person.ilike(f'%{query}%'),
+            Client.notes.ilike(f'%{query}%'),
+            Client.tax_id.ilike(f'%{query}%')
+        )
+        
+        results['clients'] = client_query.filter(client_filters).order_by(Client.created_at.desc()).limit(20).all()
+    
+    return render_template('search.html', **results)
 
 @app.route('/clients/<int:id>/edit', methods=['GET', 'POST'])
 def edit_client(id):

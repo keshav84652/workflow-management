@@ -346,6 +346,17 @@
                         </div>
                     </div>
                     {% endif %}
+                    
+                    <!-- Search Box -->
+                    <div class="px-3 mb-3">
+                        <form action="{{ url_for('search') }}" method="GET" class="d-flex">
+                            <input class="form-control form-control-sm me-2" type="search" placeholder="Search..." name="q" style="font-size: 0.875rem;">
+                            <button class="btn btn-outline-primary btn-sm" type="submit">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </form>
+                    </div>
+                    
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('dashboard') }}">

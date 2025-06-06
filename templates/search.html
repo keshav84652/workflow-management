@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Search - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Search</h1>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-6">
+                <label for="search-query" class="form-label">Search Query</label>
+                <input type="text" class="form-control" id="search-query" name="q" 
+                       value="{{ query }}" placeholder="Search tasks, projects, clients..." 
+                       autofocus>
+            </div>
+            <div class="col-md-3">
+                <label for="search-type" class="form-label">Search In</label>
+                <select class="form-select" name="type" id="search-type">
+                    <option value="all" {% if search_type == 'all' %}selected{% endif %}>All</option>
+                    <option value="tasks" {% if search_type == 'tasks' %}selected{% endif %}>Tasks Only</option>
+                    <option value="projects" {% if search_type == 'projects' %}selected{% endif %}>Projects Only</option>
+                    <option value="clients" {% if search_type == 'clients' %}selected{% endif %}>Clients Only</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if query %}
+<div class="row">
+    <div class="col-12">
+        <h4>Search Results for "{{ query }}"</h4>
+        
+        {% if not tasks and not projects and not clients %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i> No results found for your search query.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tasks Results -->
+{% if tasks %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-check-square text-primary"></i> Tasks ({{ tasks|length }})
+                </h5>
+                <a href="{{ url_for('tasks') }}?q={{ query }}" class="btn btn-sm btn-outline-primary">View All Tasks</a>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for task in tasks %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('view_task', id=task.id) }}" class="text-decoration-none">
+                                        {{ task.title }}
+                                    </a>
+                                </h6>
+                                {% if task.description %}
+                                <p class="mb-1 text-muted">{{ task.description[:150] }}{% if task.description|length > 150 %}...{% endif %}</p>
+                                {% endif %}
+                                <small class="text-muted">
+                                    {% if task.project %}
+                                        <i class="bi bi-folder"></i> {{ task.project.client_name }} - {{ task.project.name }}
+                                    {% else %}
+                                        <i class="bi bi-star"></i> Independent Task
+                                    {% endif %}
+                                    {% if task.assignee %}
+                                        • <i class="bi bi-person"></i> {{ task.assignee.name }}
+                                    {% endif %}
+                                    {% if task.due_date %}
+                                        • <i class="bi bi-calendar-event"></i> Due {{ task.due_date.strftime('%m/%d/%Y') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                {% if task.status == 'Completed' %}
+                                    <span class="badge bg-success">{{ task.status }}</span>
+                                {% elif task.is_overdue %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% elif task.is_due_soon %}
+                                    <span class="badge bg-warning">Due Soon</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ task.status }}</span>
+                                {% endif %}
+                                {% if task.priority == 'High' %}
+                                    <br><span class="badge bg-danger">High Priority</span>
+                                {% elif task.priority == 'Medium' %}
+                                    <br><span class="badge bg-warning">Medium</span>
+                                {% elif task.priority == 'Low' %}
+                                    <br><span class="badge bg-success">Low</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Projects Results -->
+{% if projects %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-folder text-primary"></i> Projects ({{ projects|length }})
+                </h5>
+                <a href="{{ url_for('projects') }}" class="btn btn-sm btn-outline-primary">View All Projects</a>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for project in projects %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('view_project', id=project.id) }}" class="text-decoration-none">
+                                        {{ project.client_name }} - {{ project.name }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> Started {{ project.start_date.strftime('%m/%d/%Y') }}
+                                    {% if project.template_origin %}
+                                        • <i class="bi bi-file-earmark-text"></i> {{ project.template_origin.name }}
+                                    {% endif %}
+                                    {% if project.due_date %}
+                                        • <i class="bi bi-calendar-event"></i> Due {{ project.due_date.strftime('%m/%d/%Y') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ 'success' if project.status == 'Active' else 'secondary' }}">
+                                    {{ project.status }}
+                                </span>
+                                <br><small class="text-muted">{{ project.progress_percentage }}% complete</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Clients Results -->
+{% if clients %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-briefcase text-primary"></i> Clients ({{ clients|length }})
+                </h5>
+                <a href="{{ url_for('clients') }}" class="btn btn-sm btn-outline-primary">View All Clients</a>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for client in clients %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    <a href="{{ url_for('view_client', id=client.id) }}" class="text-decoration-none">
+                                        {{ client.name }}
+                                    </a>
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="bi bi-building"></i> {{ client.entity_type or 'Individual' }}
+                                    {% if client.email %}
+                                        • <i class="bi bi-envelope"></i> {{ client.email }}
+                                    {% endif %}
+                                    {% if client.contact_person %}
+                                        • <i class="bi bi-person"></i> {{ client.contact_person }}
+                                    {% endif %}
+                                    {% if client.tax_id %}
+                                        • <i class="bi bi-card-text"></i> {{ client.tax_id }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-{{ 'success' if client.is_active else 'secondary' }}">
+                                    {{ 'Active' if client.is_active else 'Inactive' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- Search Instructions -->
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-search text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3 mb-3">Search Your Workspace</h4>
+                <p class="text-muted mb-4">
+                    Find tasks, projects, and clients across your entire workspace. 
+                    Search by title, description, names, or any other details.
+                </p>
+                <div class="row text-start">
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-check-square text-primary"></i> Tasks</h6>
+                        <small class="text-muted">Search in titles, descriptions, and comments</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-folder text-primary"></i> Projects</h6>
+                        <small class="text-muted">Search in project names and client names</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-briefcase text-primary"></i> Clients</h6>
+                        <small class="text-muted">Search in names, emails, contact info, and notes</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-focus search input and handle Enter key
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-query');
+    
+    // Focus search input
+    searchInput.focus();
+    
+    // Clear placeholder on focus, restore on blur if empty
+    const originalPlaceholder = searchInput.placeholder;
+    searchInput.addEventListener('focus', function() {
+        if (this.value === '') {
+            this.placeholder = '';
+        }
+    });
+    
+    searchInput.addEventListener('blur', function() {
+        if (this.value === '') {
+            this.placeholder = originalPlaceholder;
+        }
+    });
+});
+</script>
+{% endblock %}

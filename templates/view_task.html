@@ -98,14 +98,51 @@
                     </div>
                 </div>
                 
-                {% if task.comments %}
+                <!-- Comments Section -->
                 <div class="mb-4">
                     <h5>Comments</h5>
-                    <div class="bg-light p-3 rounded">
-                        <p class="mb-0">{{ task.comments }}</p>
+                    
+                    <!-- Add Comment Form -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <form id="comment-form">
+                                <div class="mb-3">
+                                    <textarea class="form-control" name="comment" rows="3" 
+                                              placeholder="Add a comment..." required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-chat-dots"></i> Add Comment
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Comments List -->
+                    <div id="comments-list">
+                        {% if comments %}
+                            {% for comment in comments %}
+                            <div class="card mb-2">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <strong>{{ comment.user.name }}</strong>
+                                            <small class="text-muted ms-2">
+                                                {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <p class="mb-0">{{ comment.comment }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-4" id="no-comments">
+                                <i class="bi bi-chat" style="font-size: 3rem; opacity: 0.5;"></i>
+                                <p class="mt-2">No comments yet. Be the first to comment!</p>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
             </div>
         </div>
         
@@ -295,6 +332,100 @@ function updateTaskStatus(newStatus) {
         alert('Error updating task status');
         console.error('Error:', error);
     });
+}
+
+// Comment functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const commentForm = document.getElementById('comment-form');
+    
+    commentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(commentForm);
+        const submitButton = commentForm.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        
+        // Show loading state
+        submitButton.innerHTML = '<i class="bi bi-hourglass-split"></i> Adding...';
+        submitButton.disabled = true;
+        
+        fetch(`/tasks/{{ task.id }}/comments`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Clear form
+                commentForm.reset();
+                
+                // Hide "no comments" message if it exists
+                const noComments = document.getElementById('no-comments');
+                if (noComments) {
+                    noComments.style.display = 'none';
+                }
+                
+                // Add new comment to the top of the list
+                const commentsList = document.getElementById('comments-list');
+                const newComment = document.createElement('div');
+                newComment.className = 'card mb-2';
+                newComment.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <strong>${data.comment.user_name}</strong>
+                                <small class="text-muted ms-2">
+                                    ${new Date(data.comment.created_at).toLocaleString()}
+                                </small>
+                            </div>
+                        </div>
+                        <p class="mb-0">${data.comment.comment}</p>
+                    </div>
+                `;
+                
+                // Insert at the beginning of comments list
+                if (noComments) {
+                    commentsList.insertBefore(newComment, noComments);
+                } else {
+                    commentsList.insertBefore(newComment, commentsList.firstChild);
+                }
+                
+                // Show success message
+                showToast('Comment added successfully', 'success');
+                
+            } else {
+                showToast('Error adding comment: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Network error occurred', 'error');
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            // Restore button state
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        });
+    });
+});
+
+// Toast notification function
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close ms-2" onclick="this.parentElement.remove()"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 3000);
 }
 </script>
 {% endblock %}

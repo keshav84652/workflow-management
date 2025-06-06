@@ -17,6 +17,43 @@
     </div>
 </div>
 
+<!-- Critical Alerts -->
+{% if overdue_tasks > 0 or today_tasks > 0 %}
+<div class="row mb-4">
+    <div class="col-12">
+        {% if overdue_tasks > 0 %}
+        <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <div>
+                <strong>Urgent:</strong> You have {{ overdue_tasks }} overdue task{{ 's' if overdue_tasks != 1 else '' }}.
+                <a href="{{ url_for('tasks', overdue='true') }}" class="alert-link">View overdue tasks</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if today_tasks > 0 %}
+        <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-clock-fill me-2"></i>
+            <div>
+                <strong>Today:</strong> {{ today_tasks }} task{{ 's' if today_tasks != 1 else '' }} due today.
+                <a href="{{ url_for('tasks') }}?due_date={{ 'today' }}" class="alert-link">View today's tasks</a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if due_this_week > 5 %}
+        <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
+            <i class="bi bi-calendar-week-fill me-2"></i>
+            <div>
+                <strong>This Week:</strong> {{ due_this_week }} tasks due this week. Plan your schedule accordingly.
+                <a href="{{ url_for('calendar_view') }}" class="alert-link">View calendar</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- KPI Cards Row -->
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-4">
