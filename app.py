@@ -802,7 +802,7 @@ def tasks():
     users = User.query.filter_by(firm_id=firm_id).all()
     projects = Project.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('tasks.html', tasks=tasks, users=users, projects=projects)
+    return render_template('tasks_modern.html', tasks=tasks, users=users, projects=projects, today=date.today())
 
 @app.route('/tasks/<int:id>/delete', methods=['POST'])
 def delete_task(id):
@@ -1627,14 +1627,14 @@ def kanban_view():
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('kanban.html', 
+    return render_template('kanban_modern.html', 
                          projects_by_status=projects_by_status,
                          project_counts=project_counts,
                          kanban_statuses=kanban_statuses,
                          current_work_type=current_work_type,
                          work_types=work_types,
                          users=users,
-                         date=date)
+                         today=date.today())
 
 @app.route('/projects/<int:project_id>/move-status', methods=['POST'])
 def move_project_status(project_id):
