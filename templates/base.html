@@ -308,6 +308,60 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* Dark mode styles */
+        [data-theme="dark"] {
+            --background-color: #1a1a1a;
+            --text-color: #e2e8f0;
+            --card-background: #2d3748;
+            --border-color: #4a5568;
+            --navbar-bg: #2d3748;
+            --sidebar-bg: #1a202c;
+        }
+
+        [data-theme="dark"] body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .card {
+            background-color: var(--card-background);
+            border-color: var(--border-color);
+        }
+
+        [data-theme="dark"] .sidebar {
+            background-color: var(--sidebar-bg);
+        }
+
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select {
+            background-color: var(--card-background);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .table {
+            color: var(--text-color);
+        }
+
+        [data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > td {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Theme toggle button */
+        .theme-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .sidebar {
@@ -428,7 +482,161 @@
         </div>
     </div>
 
+    <!-- Theme Toggle Button -->
+    <button class="btn btn-outline-secondary theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
+        <i class="bi bi-moon-fill" id="theme-icon"></i>
+    </button>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Global Keyboard Shortcuts -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Theme toggle functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const body = document.body;
+        
+        // Load saved theme or default to light
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        setTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', function() {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+        
+        function setTheme(theme) {
+            body.setAttribute('data-theme', theme);
+            if (theme === 'dark') {
+                themeIcon.className = 'bi bi-sun-fill';
+                themeToggle.title = 'Switch to light mode';
+            } else {
+                themeIcon.className = 'bi bi-moon-fill';
+                themeToggle.title = 'Switch to dark mode';
+            }
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ignore if user is typing in input/textarea
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+            
+            // Ctrl/Cmd + K - Quick Search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.querySelector('input[name="q"]');
+                if (searchInput) {
+                    searchInput.focus();
+                } else {
+                    window.location.href = '{{ url_for("search") }}';
+                }
+            }
+            
+            // N - New Task
+            if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("create_task") }}';
+            }
+            
+            // P - New Project
+            if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("create_project") }}';
+            }
+            
+            // C - New Client
+            if (e.key === 'c' || e.key === 'C') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("create_client") }}';
+            }
+            
+            // D - Dashboard
+            if (e.key === 'd' || e.key === 'D') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("dashboard") }}';
+            }
+            
+            // T - Tasks
+            if (e.key === 't' || e.key === 'T') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("tasks") }}';
+            }
+            
+            // B - Kanban Board
+            if (e.key === 'b' || e.key === 'B') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("kanban_view") }}';
+            }
+            
+            // V - Calendar View
+            if (e.key === 'v' || e.key === 'V') {
+                e.preventDefault();
+                window.location.href = '{{ url_for("calendar_view") }}';
+            }
+            
+            // ? - Show shortcuts help
+            if (e.key === '?') {
+                e.preventDefault();
+                showShortcutsModal();
+            }
+        });
+        
+        // Show shortcuts modal
+        function showShortcutsModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'shortcutsModal';
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Keyboard Shortcuts</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Navigation</h6>
+                                    <ul class="list-unstyled">
+                                        <li><kbd>D</kbd> Dashboard</li>
+                                        <li><kbd>T</kbd> Tasks</li>
+                                        <li><kbd>B</kbd> Kanban Board</li>
+                                        <li><kbd>V</kbd> Calendar View</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Actions</h6>
+                                    <ul class="list-unstyled">
+                                        <li><kbd>N</kbd> New Task</li>
+                                        <li><kbd>P</kbd> New Project</li>
+                                        <li><kbd>C</kbd> New Client</li>
+                                        <li><kbd>Ctrl</kbd> + <kbd>K</kbd> Search</li>
+                                        <li><kbd>?</kbd> Show shortcuts</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+            
+            // Remove modal from DOM when hidden
+            modal.addEventListener('hidden.bs.modal', function() {
+                modal.remove();
+            });
+        }
+    });
+    </script>
+    
     {% block scripts %}{% endblock %}
 </body>
 </html>
