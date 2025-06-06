@@ -80,7 +80,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <a href="{{ url_for('create_task') }}" class="btn btn-primary">Add New Task</a>
+                <a href="{{ url_for('create_task') }}" class="btn btn-primary" id="add-task-link">Add New Task</a>
             </div>
         </div>
     </div>
@@ -359,6 +359,10 @@ function showTasksForDate(date) {
         html += '</div>';
         modalTasks.innerHTML = html;
     }
+    
+    // Update "Add New Task" link with selected date
+    const addTaskLink = document.getElementById('add-task-link');
+    addTaskLink.href = `/tasks/create?due_date=${dateStr}`;
     
     // Show modal
     new bootstrap.Modal(document.getElementById('taskModal')).show();

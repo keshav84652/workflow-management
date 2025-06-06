@@ -32,68 +32,202 @@
 <!-- Task Filters -->
 <div class="card mb-4">
     <div class="card-body">
-        <h5 class="card-title">Filter Tasks</h5>
-        <form method="GET" class="row g-3">
-            <div class="col-md-2">
-                <label for="status" class="form-label">Status</label>
-                <select class="form-select" name="status" id="status">
-                    <option value="">All Statuses</option>
-                    <option value="Not Started" {% if request.args.get('status') == 'Not Started' %}selected{% endif %}>Not Started</option>
-                    <option value="In Progress" {% if request.args.get('status') == 'In Progress' %}selected{% endif %}>In Progress</option>
-                    <option value="Needs Review" {% if request.args.get('status') == 'Needs Review' %}selected{% endif %}>Needs Review</option>
-                    <option value="Completed" {% if request.args.get('status') == 'Completed' %}selected{% endif %}>Completed</option>
-                </select>
+        <h5 class="card-title">
+            <i class="bi bi-funnel"></i> Advanced Filters
+            <span id="active-filters-count" class="badge bg-primary ms-2" style="display: none;">0</span>
+        </h5>
+        
+        <!-- Quick Filter Buttons -->
+        <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-warning me-2" onclick="quickFilter('due_today')">
+                <i class="bi bi-calendar-day"></i> Due Today
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-orange me-2" onclick="quickFilter('due_soon')">
+                <i class="bi bi-clock"></i> Due Soon (3 days)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger me-2" onclick="quickFilter('overdue')">
+                <i class="bi bi-exclamation-triangle"></i> Overdue
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-info me-2" onclick="quickFilter('exclude_completed')">
+                <i class="bi bi-eye-slash"></i> Hide Completed
+            </button>
+        </div>
+        
+        <form method="GET" id="filterForm" class="row g-3">
+            <!-- Status Filter -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Status</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown">
+                        <span id="status-display">All Statuses</span>
+                    </button>
+                    <div class="dropdown-menu w-100 p-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Not Started" id="status-not-started"
+                                {% if 'Not Started' in request.args.getlist('status') %}checked{% endif %}>
+                            <label class="form-check-label" for="status-not-started">Not Started</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="In Progress" id="status-in-progress"
+                                {% if 'In Progress' in request.args.getlist('status') %}checked{% endif %}>
+                            <label class="form-check-label" for="status-in-progress">In Progress</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Needs Review" id="status-needs-review"
+                                {% if 'Needs Review' in request.args.getlist('status') %}checked{% endif %}>
+                            <label class="form-check-label" for="status-needs-review">Needs Review</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="status" value="Completed" id="status-completed"
+                                {% if 'Completed' in request.args.getlist('status') %}checked{% endif %}>
+                            <label class="form-check-label" for="status-completed">Completed</label>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="selectAllInGroup('status')">Select All</button>
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="clearGroup('status')">Clear</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Priority Filter -->
             <div class="col-md-2">
-                <label for="priority" class="form-label">Priority</label>
-                <select class="form-select" name="priority" id="priority">
-                    <option value="">All Priorities</option>
-                    <option value="High" {% if request.args.get('priority') == 'High' %}selected{% endif %}>High</option>
-                    <option value="Medium" {% if request.args.get('priority') == 'Medium' %}selected{% endif %}>Medium</option>
-                    <option value="Low" {% if request.args.get('priority') == 'Low' %}selected{% endif %}>Low</option>
-                </select>
+                <label class="form-label fw-bold">Priority</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown">
+                        <span id="priority-display">All Priorities</span>
+                    </button>
+                    <div class="dropdown-menu w-100 p-2">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="priority" value="High" id="priority-high"
+                                {% if 'High' in request.args.getlist('priority') %}checked{% endif %}>
+                            <label class="form-check-label" for="priority-high">
+                                <span class="badge bg-danger">High</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="priority" value="Medium" id="priority-medium"
+                                {% if 'Medium' in request.args.getlist('priority') %}checked{% endif %}>
+                            <label class="form-check-label" for="priority-medium">
+                                <span class="badge bg-warning">Medium</span>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="priority" value="Low" id="priority-low"
+                                {% if 'Low' in request.args.getlist('priority') %}checked{% endif %}>
+                            <label class="form-check-label" for="priority-low">
+                                <span class="badge bg-success">Low</span>
+                            </label>
+                        </div>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="selectAllInGroup('priority')">Select All</button>
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="clearGroup('priority')">Clear</button>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Assignee Filter -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Assignee</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown">
+                        <span id="assignee-display">All Assignees</span>
+                    </button>
+                    <div class="dropdown-menu w-100 p-2" style="max-height: 250px; overflow-y: auto;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="assignee" value="unassigned" id="assignee-unassigned"
+                                {% if 'unassigned' in request.args.getlist('assignee') %}checked{% endif %}>
+                            <label class="form-check-label text-muted" for="assignee-unassigned">
+                                <i class="bi bi-person-x"></i> Unassigned
+                            </label>
+                        </div>
+                        {% for user in users %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="assignee" value="{{ user.id }}" id="assignee-{{ user.id }}"
+                                {% if user.id|string in request.args.getlist('assignee') %}checked{% endif %}>
+                            <label class="form-check-label" for="assignee-{{ user.id }}">
+                                <i class="bi bi-person-circle"></i> {{ user.name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="selectAllInGroup('assignee')">Select All</button>
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="clearGroup('assignee')">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Project Filter -->
             <div class="col-md-2">
-                <label for="assignee" class="form-label">Assignee</label>
-                <select class="form-select" name="assignee" id="assignee">
-                    <option value="">All Assignees</option>
-                    {% for user in users %}
-                    <option value="{{ user.id }}" {% if request.args.get('assignee') == user.id|string %}selected{% endif %}>{{ user.name }}</option>
-                    {% endfor %}
-                </select>
+                <label class="form-label fw-bold">Project</label>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary dropdown-toggle w-100 d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown">
+                        <span id="project-display">All Projects</span>
+                    </button>
+                    <div class="dropdown-menu w-100 p-2" style="max-height: 250px; overflow-y: auto;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="project" value="independent" id="project-independent"
+                                {% if 'independent' in request.args.getlist('project') %}checked{% endif %}>
+                            <label class="form-check-label text-info" for="project-independent">
+                                <i class="bi bi-asterisk"></i> Independent Tasks
+                            </label>
+                        </div>
+                        {% for project in projects %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="project" value="{{ project.id }}" id="project-{{ project.id }}"
+                                {% if project.id|string in request.args.getlist('project') %}checked{% endif %}>
+                            <label class="form-check-label" for="project-{{ project.id }}">
+                                <strong>{{ project.client_name }}</strong><br>
+                                <small class="text-muted">{{ project.name }}</small>
+                            </label>
+                        </div>
+                        {% endfor %}
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="selectAllInGroup('project')">Select All</button>
+                            <button type="button" class="btn btn-sm btn-link p-0" onclick="clearGroup('project')">Clear</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-2">
-                <label for="project" class="form-label">Project</label>
-                <select class="form-select" name="project" id="project">
-                    <option value="">All Projects</option>
-                    {% for project in projects %}
-                    <option value="{{ project.id }}" {% if request.args.get('project') == project.id|string %}selected{% endif %}>{{ project.client_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="overdue" class="form-label">Due Date</label>
-                <select class="form-select" name="overdue" id="overdue">
-                    <option value="">All Tasks</option>
-                    <option value="true" {% if request.args.get('overdue') == 'true' %}selected{% endif %}>Overdue Only</option>
-                    <option value="false" {% if request.args.get('overdue') == 'false' %}selected{% endif %}>Not Overdue</option>
-                </select>
-            </div>
+
+            <!-- Action Buttons -->
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary me-2">Filter</button>
-                <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary me-2">Clear</a>
+                <div class="d-grid gap-2 w-100">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel-fill"></i> Apply
+                    </button>
+                    <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Reset
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Export Button -->
+            <div class="col-md-12 d-flex justify-content-end">
                 <div class="dropdown">
                     <button class="btn btn-outline-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-download"></i>
+                        <i class="bi bi-download"></i> Export Filtered Results
                     </button>
                     <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('export_tasks', format='csv') }}">
+                        <li><a class="dropdown-item" href="#" onclick="exportFiltered('csv')">
                             <i class="bi bi-filetype-csv"></i> Export CSV
                         </a></li>
                     </ul>
                 </div>
             </div>
         </form>
+        
+        <!-- Active Filters Display -->
+        <div id="active-filters" class="mt-3" style="display: none;">
+            <h6 class="text-muted">Active Filters:</h6>
+            <div id="filter-tags"></div>
+        </div>
     </div>
 </div>
 
@@ -216,40 +350,250 @@
 {% endblock %}
 
 {% block scripts %}
+<style>
+/* Fix z-index issues with dropdowns */
+.dropdown-menu {
+    z-index: 9999 !important;
+    position: absolute !important;
+}
+
+.dropdown {
+    position: relative !important;
+    z-index: 1000;
+}
+
+/* Ensure table elements don't interfere with dropdowns */
+.table-responsive {
+    position: relative;
+    z-index: 1;
+}
+
+.table {
+    position: relative;
+    z-index: 1;
+}
+
+.table td {
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure overdue indicators stay below dropdowns */
+.overdue-indicator,
+.task-overdue .text-danger,
+.badge {
+    position: relative;
+    z-index: 1;
+}
+
+/* Ensure alert banners stay below dropdowns */
+.alert {
+    position: relative;
+    z-index: 1;
+}
+
+/* Force dropdown menus to stay on top */
+.dropdown-menu.show {
+    z-index: 10000 !important;
+}
+
+/* Specific fix for filter dropdowns */
+.card .dropdown-menu {
+    z-index: 10001 !important;
+}
+</style>
+
 <script>
-// Bulk operations functionality
+// Enhanced filtering functionality
 document.addEventListener('DOMContentLoaded', function() {
+    initializeBulkOperations();
+    initializeFilterSystem();
+    updateFilterDisplays();
+    updateActiveFiltersCount();
+});
+
+// Bulk operations functionality
+function initializeBulkOperations() {
     const selectAllCheckbox = document.getElementById('select-all');
     const taskCheckboxes = document.querySelectorAll('.task-select');
     const bulkActionsDiv = document.getElementById('bulk-actions');
     
     // Select all functionality
-    selectAllCheckbox.addEventListener('change', function() {
-        taskCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            taskCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            toggleBulkActions();
         });
-        toggleBulkActions();
-    });
+    }
     
     // Individual checkbox functionality
     taskCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
             // Update select all checkbox state
             const checkedCount = document.querySelectorAll('.task-select:checked').length;
-            selectAllCheckbox.checked = checkedCount === taskCheckboxes.length;
-            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < taskCheckboxes.length;
-            
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = checkedCount === taskCheckboxes.length;
+                selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < taskCheckboxes.length;
+            }
             toggleBulkActions();
         });
     });
     
     function toggleBulkActions() {
         const checkedCount = document.querySelectorAll('.task-select:checked').length;
-        bulkActionsDiv.style.display = checkedCount > 0 ? 'block' : 'none';
+        if (bulkActionsDiv) {
+            bulkActionsDiv.style.display = checkedCount > 0 ? 'block' : 'none';
+        }
     }
-});
+}
 
-// Bulk action functions
+// Enhanced filter system
+function initializeFilterSystem() {
+    // Add change listeners to all filter checkboxes
+    document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateFilterDisplays();
+            updateActiveFiltersCount();
+        });
+    });
+    
+    // Prevent dropdown from closing when clicking inside
+    document.querySelectorAll('.dropdown-menu').forEach(menu => {
+        menu.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+    });
+}
+
+// Update filter dropdown displays
+function updateFilterDisplays() {
+    updateFilterDisplay('status', 'All Statuses');
+    updateFilterDisplay('priority', 'All Priorities');
+    updateFilterDisplay('assignee', 'All Assignees');
+    updateFilterDisplay('project', 'All Projects');
+}
+
+function updateFilterDisplay(filterName, defaultText) {
+    const checkboxes = document.querySelectorAll(`input[name="${filterName}"]:checked`);
+    const display = document.getElementById(`${filterName}-display`);
+    
+    if (checkboxes.length === 0) {
+        display.textContent = defaultText;
+    } else if (checkboxes.length === 1) {
+        const label = checkboxes[0].nextElementSibling.textContent.trim();
+        display.textContent = label;
+    } else {
+        display.textContent = `${checkboxes.length} selected`;
+    }
+}
+
+// Update active filters count and display
+function updateActiveFiltersCount() {
+    const allChecked = document.querySelectorAll('input[type="checkbox"][name]:checked');
+    const count = allChecked.length;
+    const badge = document.getElementById('active-filters-count');
+    const activeFiltersDiv = document.getElementById('active-filters');
+    const filterTags = document.getElementById('filter-tags');
+    
+    if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline';
+        activeFiltersDiv.style.display = 'block';
+        
+        // Create filter tags
+        filterTags.innerHTML = '';
+        allChecked.forEach(checkbox => {
+            const label = checkbox.nextElementSibling.textContent.trim();
+            const tag = document.createElement('span');
+            tag.className = 'badge bg-secondary me-2 mb-1';
+            tag.innerHTML = `${label} <button type="button" class="btn-close btn-close-white ms-1" style="font-size: 0.6em;" onclick="removeFilter('${checkbox.name}', '${checkbox.value}')"></button>`;
+            filterTags.appendChild(tag);
+        });
+    } else {
+        badge.style.display = 'none';
+        activeFiltersDiv.style.display = 'none';
+    }
+}
+
+// Filter management functions
+function selectAllInGroup(groupName) {
+    document.querySelectorAll(`input[name="${groupName}"]`).forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateFilterDisplays();
+    updateActiveFiltersCount();
+}
+
+function clearGroup(groupName) {
+    document.querySelectorAll(`input[name="${groupName}"]`).forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateFilterDisplays();
+    updateActiveFiltersCount();
+}
+
+function removeFilter(filterName, filterValue) {
+    const checkbox = document.querySelector(`input[name="${filterName}"][value="${filterValue}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+        updateFilterDisplays();
+        updateActiveFiltersCount();
+    }
+}
+
+// Quick filter functions
+function quickFilter(type) {
+    // Clear all existing filters first
+    document.querySelectorAll('input[type="checkbox"][name]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    const today = new Date();
+    const threeDaysFromNow = new Date(today.getTime() + (3 * 24 * 60 * 60 * 1000));
+    
+    switch(type) {
+        case 'due_today':
+            // This would need backend support for date-based filtering
+            window.location.href = '/tasks?due_date=today';
+            return;
+            
+        case 'due_soon':
+            window.location.href = '/tasks?due_date=soon';
+            return;
+            
+        case 'overdue':
+            window.location.href = '/tasks?overdue=true';
+            return;
+            
+        case 'exclude_completed':
+            // Check all statuses except completed
+            ['Not Started', 'In Progress', 'Needs Review'].forEach(status => {
+                const checkbox = document.querySelector(`input[name="status"][value="${status}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+            break;
+    }
+    
+    updateFilterDisplays();
+    updateActiveFiltersCount();
+    
+    // If not redirecting, submit the form
+    if (type === 'exclude_completed') {
+        document.getElementById('filterForm').submit();
+    }
+}
+
+// Export filtered results
+function exportFiltered(format) {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    window.location.href = `/export/tasks?format=${format}&${params.toString()}`;
+}
+
+// Bulk action functions (unchanged)
 function getSelectedTaskIds() {
     return Array.from(document.querySelectorAll('.task-select:checked')).map(cb => cb.value);
 }

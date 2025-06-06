@@ -36,7 +36,7 @@
             <i class="bi bi-clock-fill me-2"></i>
             <div>
                 <strong>Today:</strong> {{ today_tasks }} task{{ 's' if today_tasks != 1 else '' }} due today.
-                <a href="{{ url_for('tasks') }}?due_date={{ 'today' }}" class="alert-link">View today's tasks</a>
+                <a href="{{ url_for('tasks', due_date='today') }}" class="alert-link">View today's tasks</a>
             </div>
         </div>
         {% endif %}

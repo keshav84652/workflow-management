@@ -18,6 +18,36 @@ from models import db, Firm, User, Template, TemplateTask, Project, Task, Activi
 db.init_app(app)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
+def check_and_update_project_completion(project_id):
+    """Check if all tasks in a project are completed and update project status accordingly"""
+    if not project_id:
+        return
+    
+    project = Project.query.get(project_id)
+    if not project:
+        return
+    
+    # Count total tasks and completed tasks
+    total_tasks = Task.query.filter_by(project_id=project_id).count()
+    completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
+    
+    # If all tasks are completed, mark project as completed
+    if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
+        project.status = 'Completed'
+        create_activity_log(
+            f'Project "{project.name}" automatically marked as completed (all tasks finished)',
+            session.get('user_id', 1),
+            project_id
+        )
+    # If project was marked completed but has incomplete tasks, reactivate it
+    elif project.status == 'Completed' and completed_tasks < total_tasks:
+        project.status = 'Active'
+        create_activity_log(
+            f'Project "{project.name}" reactivated (incomplete tasks detected)',
+            session.get('user_id', 1),
+            project_id
+        )
+
 # Database initialization handled by init_db.py
 
 @app.before_request
@@ -128,21 +158,28 @@ def dashboard():
     ).count()
     active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
     
-    # Task status distribution
+    # Task status distribution (include both project and independent tasks)
     task_status_data = {}
     for status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
-        count = Task.query.join(Project).filter(
-            Project.firm_id == firm_id,
+        count = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
             Task.status == status
         ).count()
         task_status_data[status] = count
     
-    # Priority distribution
+    # Priority distribution (exclude completed tasks)
     priority_data = {}
     for priority in ['High', 'Medium', 'Low']:
-        count = Task.query.join(Project).filter(
-            Project.firm_id == firm_id,
-            Task.priority == priority
+        count = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
+            Task.priority == priority,
+            Task.status != 'Completed'
         ).count()
         priority_data[priority] = count
     
@@ -436,18 +473,21 @@ def edit_project(id):
         return redirect(url_for('view_project', id=project.id))
     
     # GET request - show form
-    return render_template('edit_project.html', project=project)
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    return render_template('edit_project.html', project=project, users=users)
 
 @app.route('/tasks')
 def tasks():
     firm_id = session['firm_id']
     
-    # Get filter parameters
-    status_filter = request.args.get('status')
-    priority_filter = request.args.get('priority')
-    assignee_filter = request.args.get('assignee')
-    project_filter = request.args.get('project')
+    # Get filter parameters - support multiple values
+    status_filters = request.args.getlist('status')
+    priority_filters = request.args.getlist('priority')
+    assignee_filters = request.args.getlist('assignee')
+    project_filters = request.args.getlist('project')
     overdue_filter = request.args.get('overdue')
+    due_date_filter = request.args.get('due_date')
     
     # Base query - include both project tasks and independent tasks
     query = Task.query.outerjoin(Project).filter(
@@ -457,26 +497,99 @@ def tasks():
         )
     )
     
-    # Apply filters
-    if status_filter:
-        query = query.filter(Task.status == status_filter)
-    if priority_filter:
-        query = query.filter(Task.priority == priority_filter)
-    if assignee_filter:
-        query = query.filter(Task.assignee_id == assignee_filter)
-    if project_filter:
-        query = query.filter(Task.project_id == project_filter)
-    if overdue_filter == 'true':
-        query = query.filter(Task.due_date < date.today(), Task.status != 'Completed')
+    # Apply multi-select filters
+    if status_filters:
+        query = query.filter(Task.status.in_(status_filters))
     
-    # Order by due date
-    tasks = query.order_by(Task.due_date.asc()).all()
+    if priority_filters:
+        query = query.filter(Task.priority.in_(priority_filters))
+    
+    if assignee_filters:
+        # Handle both assigned users and unassigned tasks
+        assignee_conditions = []
+        if 'unassigned' in assignee_filters:
+            assignee_conditions.append(Task.assignee_id.is_(None))
+        
+        user_ids = [f for f in assignee_filters if f != 'unassigned']
+        if user_ids:
+            assignee_conditions.append(Task.assignee_id.in_(user_ids))
+        
+        if assignee_conditions:
+            query = query.filter(db.or_(*assignee_conditions))
+    
+    if project_filters:
+        # Handle both project tasks and independent tasks
+        project_conditions = []
+        if 'independent' in project_filters:
+            project_conditions.append(Task.project_id.is_(None))
+        
+        project_ids = [f for f in project_filters if f != 'independent']
+        if project_ids:
+            project_conditions.append(Task.project_id.in_(project_ids))
+        
+        if project_conditions:
+            query = query.filter(db.or_(*project_conditions))
+    
+    # Date-based filters
+    today = date.today()
+    if overdue_filter == 'true':
+        query = query.filter(Task.due_date < today, Task.status != 'Completed')
+    elif due_date_filter == 'today':
+        query = query.filter(Task.due_date == today)
+    elif due_date_filter == 'soon':
+        # Due within next 3 days
+        soon_date = today + timedelta(days=3)
+        query = query.filter(Task.due_date.between(today, soon_date))
+    
+    # Order by due date (nulls last) and priority
+    tasks = query.order_by(
+        Task.due_date.asc().nullslast(),
+        db.case(
+            (Task.priority == 'High', 1),
+            (Task.priority == 'Medium', 2),
+            (Task.priority == 'Low', 3),
+            else_=4
+        )
+    ).all()
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
     projects = Project.query.filter_by(firm_id=firm_id).all()
     
     return render_template('tasks.html', tasks=tasks, users=users, projects=projects)
+
+@app.route('/tasks/<int:id>/delete', methods=['POST'])
+def delete_task(id):
+    task = Task.query.get_or_404(id)
+    
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        task_title = task.title
+        project_id = task.project_id
+        
+        # Create activity log before deletion
+        if project_id:
+            create_activity_log(f'Task "{task_title}" deleted', session['user_id'], project_id)
+        else:
+            create_activity_log(f'Independent task "{task_title}" deleted', session['user_id'])
+        
+        # Delete associated comments first
+        TaskComment.query.filter_by(task_id=id).delete()
+        
+        # Delete the task
+        db.session.delete(task)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Task deleted successfully'})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/tasks/create', methods=['GET', 'POST'])
 def create_task():
@@ -543,7 +656,10 @@ def create_task():
     # Pre-select project if provided
     selected_project = request.args.get('project_id')
     
-    return render_template('create_task.html', projects=projects, users=users, selected_project=selected_project)
+    # Pre-fill due date if provided (from calendar click)
+    prefill_due_date = request.args.get('due_date')
+    
+    return render_template('create_task.html', projects=projects, users=users, selected_project=selected_project, prefill_due_date=prefill_due_date)
 
 @app.route('/tasks/<int:id>/edit', methods=['GET', 'POST'])
 def edit_task(id):
@@ -776,6 +892,17 @@ def bulk_update_tasks():
         
         db.session.commit()
         
+        # Check for project auto-completion for all affected projects
+        affected_projects = set()
+        for task in tasks:
+            if task.project_id and 'status' in data:
+                affected_projects.add(task.project_id)
+        
+        for project_id in affected_projects:
+            check_and_update_project_completion(project_id)
+        
+        db.session.commit()  # Commit any project status changes
+        
         return jsonify({
             'success': True, 
             'message': f'Successfully updated {updated_count} tasks'
@@ -853,6 +980,10 @@ def update_task(id):
                 task.project_id if task.project_id else None,
                 task.id
             )
+            
+            # Check if project should be auto-completed
+            if task.project_id:
+                check_and_update_project_completion(task.project_id)
         
         return jsonify({'success': True})
     
