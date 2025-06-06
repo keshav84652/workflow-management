@@ -181,6 +181,199 @@
                     </div>
                 </div>
                 
+                <!-- File Attachments Section -->
+                <div class="mb-4">
+                    <h5>File Attachments</h5>
+                    
+                    <!-- Upload Form -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <form id="upload-form" enctype="multipart/form-data">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <input type="file" class="form-control" name="file" id="file-input" 
+                                               accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.zip,.rar,.7z,.mp4,.avi,.mov,.mp3,.wav" required>
+                                        <input type="hidden" name="entity_type" value="task">
+                                        <input type="hidden" name="entity_id" value="{{ task.id }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-upload"></i> Upload File
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="form-text">
+                                    Max file size: 16MB. Supported types: Documents (PDF, Word, Excel, PowerPoint), Images (PNG, JPG, GIF), Archives (ZIP, RAR), Media files
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <!-- Attachments List -->
+                    <div id="attachments-list">
+                        {% if task.attachments %}
+                            {% for attachment in task.attachments %}
+                            <div class="card mb-2" data-attachment-id="{{ attachment.id }}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div class="d-flex align-items-center">
+                                            {% if attachment.is_image %}
+                                                <i class="bi bi-image text-success me-2" style="font-size: 1.5rem;"></i>
+                                            {% elif attachment.is_document %}
+                                                <i class="bi bi-file-earmark-text text-primary me-2" style="font-size: 1.5rem;"></i>
+                                            {% else %}
+                                                <i class="bi bi-file-earmark text-secondary me-2" style="font-size: 1.5rem;"></i>
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold">{{ attachment.original_filename }}</div>
+                                                <small class="text-muted">
+                                                    {{ attachment.file_size_formatted }} • 
+                                                    Uploaded by {{ attachment.uploader.name }} • 
+                                                    {{ attachment.uploaded_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('download_attachment', attachment_id=attachment.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-download"></i> Download
+                                            </a>
+                                            <button class="btn btn-outline-danger btn-sm" 
+                                                    onclick="deleteAttachment({{ attachment.id }})">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center text-muted py-4" id="no-attachments">
+                                <i class="bi bi-paperclip" style="font-size: 3rem; opacity: 0.5;"></i>
+                                <p class="mt-2">No files attached yet. Upload files to share with your team!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Subtasks Section -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Subtasks</h5>
+                        <button class="btn btn-outline-primary btn-sm" onclick="showCreateSubtaskModal()">
+                            <i class="bi bi-plus-circle"></i> Add Subtask
+                        </button>
+                    </div>
+                    
+                    {% if task.subtasks %}
+                        <!-- Progress bar for subtasks -->
+                        <div class="card mb-3">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="fw-bold">Subtask Progress</small>
+                                    <small class="text-muted">{{ task.subtask_progress }}% complete</small>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ task.subtask_progress }}%">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Subtasks List -->
+                        <div id="subtasks-list" class="sortable-subtasks">
+                            {% for subtask in task.subtasks %}
+                            <div class="card mb-2 subtask-item" data-subtask-id="{{ subtask.id }}">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="d-flex align-items-start flex-grow-1">
+                                            <div class="drag-handle me-2 text-muted" style="cursor: move;">
+                                                <i class="bi bi-grip-vertical"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <h6 class="mb-0 me-2">{{ subtask.title }}</h6>
+                                                    <span class="badge" style="background-color: {{ subtask.status_color }}; color: white;">
+                                                        {{ subtask.current_status }}
+                                                    </span>
+                                                    {% if subtask.is_overdue %}
+                                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                                    {% elif subtask.is_due_soon %}
+                                                        <span class="badge bg-warning ms-1">Due Soon</span>
+                                                    {% endif %}
+                                                </div>
+                                                {% if subtask.description %}
+                                                    <p class="text-muted small mb-1">{{ subtask.description }}</p>
+                                                {% endif %}
+                                                <div class="d-flex align-items-center text-muted small">
+                                                    {% if subtask.assignee %}
+                                                        <i class="bi bi-person me-1"></i>
+                                                        <span class="me-3">{{ subtask.assignee.name }}</span>
+                                                    {% endif %}
+                                                    {% if subtask.due_date %}
+                                                        <i class="bi bi-calendar me-1"></i>
+                                                        <span class="me-3">{{ subtask.due_date.strftime('%m/%d/%Y') }}</span>
+                                                    {% endif %}
+                                                    {% if subtask.priority != 'Medium' %}
+                                                        <span class="badge bg-{{ subtask.priority_color }} me-2">{{ subtask.priority }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="btn-group">
+                                            <a href="{{ url_for('view_task', id=subtask.id) }}" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <button class="btn btn-outline-secondary btn-sm" 
+                                                    onclick="updateSubtaskStatus({{ subtask.id }})">
+                                                <i class="bi bi-check-circle"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4" id="no-subtasks">
+                            <i class="bi bi-list-task" style="font-size: 3rem; opacity: 0.5;"></i>
+                            <p class="mt-2">No subtasks yet. Break down this task into smaller, manageable pieces!</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Create Subtask Modal -->
+                <div class="modal fade" id="createSubtaskModal" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Add Subtask</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="create-subtask-form">
+                                    <div class="mb-3">
+                                        <label for="subtask-title" class="form-label">Title *</label>
+                                        <input type="text" class="form-control" id="subtask-title" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="subtask-description" class="form-label">Description</label>
+                                        <textarea class="form-control" id="subtask-description" rows="3"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" onclick="createSubtask()">
+                                    <i class="bi bi-plus-circle"></i> Create Subtask
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Comments Section -->
                 <div class="mb-4">
                     <h5>Comments</h5>
@@ -537,6 +730,235 @@ document.addEventListener('DOMContentLoaded', function() {
             submitButton.disabled = false;
         });
     });
+    
+    // File upload functionality
+    $('#upload-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        
+        // Disable button and show uploading state
+        submitBtn.prop('disabled', true).html('<i class="spinner-border spinner-border-sm me-1"></i> Uploading...');
+        
+        $.ajax({
+            url: '/upload',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Hide "no attachments" message
+                    $('#no-attachments').hide();
+                    
+                    // Add new attachment to the list
+                    const attachment = response.attachment;
+                    const attachmentHtml = `
+                        <div class="card mb-2" data-attachment-id="${attachment.id}">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-file-earmark text-secondary me-2" style="font-size: 1.5rem;"></i>
+                                        <div>
+                                            <div class="fw-bold">${attachment.original_filename}</div>
+                                            <small class="text-muted">
+                                                ${attachment.file_size_formatted} • 
+                                                Uploaded by ${attachment.uploader_name} • 
+                                                ${attachment.uploaded_at}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group">
+                                        <a href="/attachments/${attachment.id}/download" 
+                                           class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                        <button class="btn btn-outline-danger btn-sm" 
+                                                onclick="deleteAttachment(${attachment.id})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add to attachments list
+                    $('#attachments-list').append(attachmentHtml);
+                    
+                    // Reset form
+                    $('#file-input').val('');
+                    
+                    // Show success message
+                    showToast('File uploaded successfully!', 'success');
+                } else {
+                    showToast('Upload failed: ' + response.message, 'error');
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                const message = response ? response.message : 'Upload failed';
+                showToast('Upload failed: ' + message, 'error');
+            },
+            complete: function() {
+                // Re-enable button
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+});
+
+function deleteAttachment(attachmentId) {
+    if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+        return;
+    }
+    
+    $.ajax({
+        url: `/attachments/${attachmentId}/delete`,
+        type: 'POST',
+        success: function(response) {
+            if (response.success) {
+                // Remove attachment from UI
+                $(`[data-attachment-id="${attachmentId}"]`).remove();
+                
+                // Check if no attachments left
+                if ($('#attachments-list .card').length === 0) {
+                    $('#attachments-list').html(`
+                        <div class="text-center text-muted py-4" id="no-attachments">
+                            <i class="bi bi-paperclip" style="font-size: 3rem; opacity: 0.5;"></i>
+                            <p class="mt-2">No files attached yet. Upload files to share with your team!</p>
+                        </div>
+                    `);
+                }
+                
+                showToast('File deleted successfully!', 'success');
+            } else {
+                showToast('Delete failed: ' + response.message, 'error');
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON;
+            const message = response ? response.message : 'Delete failed';
+            showToast('Delete failed: ' + message, 'error');
+        }
+    });
+}
+
+// Subtask management functions
+function showCreateSubtaskModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createSubtaskModal'));
+    modal.show();
+}
+
+function createSubtask() {
+    const title = document.getElementById('subtask-title').value.trim();
+    const description = document.getElementById('subtask-description').value.trim();
+    
+    if (!title) {
+        showToast('Please enter a subtask title', 'error');
+        return;
+    }
+    
+    fetch(`/tasks/{{ task.id }}/subtasks/create`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: title,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Hide modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createSubtaskModal'));
+            modal.hide();
+            
+            // Clear form
+            document.getElementById('subtask-title').value = '';
+            document.getElementById('subtask-description').value = '';
+            
+            // Hide "no subtasks" message
+            const noSubtasks = document.getElementById('no-subtasks');
+            if (noSubtasks) {
+                noSubtasks.style.display = 'none';
+            }
+            
+            // Reload page to show new subtask (simpler than updating UI)
+            showToast('Subtask created successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Failed to create subtask: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Network error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+
+function updateSubtaskStatus(subtaskId) {
+    // Simple status toggle for demo - in real implementation, this could be a dropdown
+    fetch(`/tasks/${subtaskId}/update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({status: 'Completed'})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Subtask status updated!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Failed to update subtask status', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Network error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Initialize sortable subtasks (if jQuery UI is available)
+$(document).ready(function() {
+    if (typeof $.ui !== 'undefined') {
+        $('.sortable-subtasks').sortable({
+            handle: '.drag-handle',
+            items: '.subtask-item',
+            placeholder: 'subtask-placeholder',
+            update: function(event, ui) {
+                const subtaskIds = $(this).find('.subtask-item').map(function() {
+                    return $(this).data('subtask-id');
+                }).get();
+                
+                // Update subtask order
+                fetch(`/tasks/{{ task.id }}/subtasks/reorder`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        subtask_ids: subtaskIds
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        showToast('Failed to reorder subtasks', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error reordering subtasks:', error);
+                });
+            }
+        });
+    }
 });
 
 // Toast notification function

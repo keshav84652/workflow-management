@@ -7,14 +7,14 @@
     <h1 class="h2">Kanban Board</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <a href="{{ url_for('create_task') }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Task
+            <a href="{{ url_for('create_project') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> New Project
+            </a>
+            <a href="{{ url_for('projects') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-folder"></i> Projects List
             </a>
             <a href="{{ url_for('tasks') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-list-task"></i> List View
-            </a>
-            <a href="{{ url_for('calendar_view') }}" class="btn btn-outline-secondary">
-                <i class="bi bi-calendar3"></i> Calendar
+                <i class="bi bi-list-task"></i> Tasks View
             </a>
         </div>
     </div>
@@ -26,9 +26,9 @@
         <div class="card">
             <div class="card-body">
                 <h6 class="card-title">
-                    <i class="bi bi-funnel"></i> Kanban Filters
+                    <i class="bi bi-funnel"></i> Project Workflow Filters
                     {% if work_types|length > 1 %}
-                        <small class="text-muted">- Choose work type for custom status columns</small>
+                        <small class="text-muted">- Choose work type to see template-driven workflow</small>
                     {% endif %}
                 </h6>
                 
@@ -132,12 +132,69 @@
                             <i class="bi bi-arrow-right-circle"></i>
                         {% endif %}
                         {{ status.name }}
-                        <span class="badge bg-white text-dark ms-2">{{ task_counts[status.id] or 0 }}</span>
+                        <span class="badge bg-white text-dark ms-2">{{ project_counts[status.id] or 0 }}</span>
                     </h6>
                 </div>
                 <div class="kanban-body" data-status-id="{{ status.id }}" data-status-name="{{ status.name }}">
-                    {% for task in tasks_by_status[status.id] %}
-                    {% include 'kanban_card.html' %}
+                    {% for project in projects_by_status[status.id] %}
+                    <div class="kanban-card priority-{{ project.priority.lower() }}{% if project.is_overdue %} overdue{% elif project.due_date and (project.due_date - date.today()).days <= 3 %} due-soon{% endif %}" 
+                         data-project-id="{{ project.id }}">
+                        <div class="project-title">
+                            <strong>{{ project.client_name }}</strong>
+                        </div>
+                        <div class="project-name text-muted small mb-2">{{ project.name }}</div>
+                        
+                        <div class="project-meta">
+                            {% if project.due_date %}
+                                <div class="mb-1">
+                                    <i class="bi bi-calendar3"></i>
+                                    <small>Due: {{ project.due_date.strftime('%m/%d/%Y') }}</small>
+                                    {% if project.is_overdue %}
+                                        <span class="badge bg-danger ms-1">Overdue</span>
+                                    {% elif (project.due_date - date.today()).days <= 3 %}
+                                        <span class="badge bg-warning ms-1">Due Soon</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                            
+                            <div class="mb-1">
+                                <i class="bi bi-list-task"></i>
+                                <small>{{ project.tasks|length }} tasks</small>
+                                {% if project.progress_percentage > 0 %}
+                                    <span class="ms-1">• {{ project.progress_percentage }}% complete</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if project.template_origin %}
+                                <div class="mb-1">
+                                    <i class="bi bi-diagram-3"></i>
+                                    <small>{{ project.template_origin.name }}</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="project-badges mt-2">
+                            <span class="badge bg-{{ project.priority_color }}">{{ project.priority }}</span>
+                            {% if project.work_type %}
+                                <span class="badge" style="background-color: {{ project.work_type.color }}; color: white;">
+                                    {{ project.work_type.name }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="project-actions mt-2">
+                            <div class="btn-group w-100">
+                                <a href="{{ url_for('view_project', id=project.id) }}" 
+                                   class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <button class="btn btn-outline-secondary btn-sm" 
+                                        onclick="advanceProject({{ project.id }})">
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
@@ -145,69 +202,33 @@
         </div>
     </div>
 {% else %}
-    <!-- Legacy Status Columns (All Work Types) -->
-    <div class="row">
-        <div class="col-md-3">
-            <div class="kanban-column">
-                <div class="kanban-header bg-secondary">
-                    <h5 class="mb-0 text-white">
-                        <i class="bi bi-clock"></i> Not Started
-                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Not Started'] or 0 }}</span>
-                    </h5>
-                </div>
-                <div class="kanban-body" data-status="Not Started">
-                    {% for task in tasks_by_status['Not Started'] %}
-                    {% include 'kanban_card.html' %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="kanban-column">
-                <div class="kanban-header bg-primary">
-                    <h5 class="mb-0 text-white">
-                        <i class="bi bi-play"></i> In Progress
-                        <span class="badge bg-white text-dark ms-2">{{ task_counts['In Progress'] or 0 }}</span>
-                    </h5>
-                </div>
-                <div class="kanban-body" data-status="In Progress">
-                    {% for task in tasks_by_status['In Progress'] %}
-                    {% include 'kanban_card.html' %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="kanban-column">
-                <div class="kanban-header bg-warning">
-                    <h5 class="mb-0 text-white">
-                        <i class="bi bi-eye"></i> Needs Review
-                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Needs Review'] or 0 }}</span>
-                    </h5>
-                </div>
-                <div class="kanban-body" data-status="Needs Review">
-                    {% for task in tasks_by_status['Needs Review'] %}
-                    {% include 'kanban_card.html' %}
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="kanban-column">
-                <div class="kanban-header bg-success">
-                    <h5 class="mb-0 text-white">
-                        <i class="bi bi-check-circle"></i> Completed
-                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Completed'] or 0 }}</span>
-                    </h5>
-                </div>
-                <div class="kanban-body" data-status="Completed">
-                    {% for task in tasks_by_status['Completed'] %}
-                    {% include 'kanban_card.html' %}
-                    {% endfor %}
-                </div>
+    <!-- No Work Type Selected -->
+    <div class="text-center py-5">
+        <div class="card">
+            <div class="card-body">
+                <i class="bi bi-diagram-3" style="font-size: 4rem; color: #6c757d;"></i>
+                <h4 class="mt-3">Select a Work Type to View Workflow</h4>
+                <p class="text-muted mb-4">
+                    Choose a work type above to see projects organized by their template-driven workflow stages.
+                    <br>Each work type has custom workflow steps based on your templates.
+                </p>
+                {% if work_types %}
+                    <div class="d-flex justify-content-center gap-2 flex-wrap">
+                        {% for work_type in work_types %}
+                            <a href="{{ url_for('kanban_view', work_type=work_type.id) }}" 
+                               class="btn btn-outline-primary">
+                                <span class="badge me-2" style="background-color: {{ work_type.color }};">&nbsp;</span>
+                                {{ work_type.name }}
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted mt-3">
+                        <a href="{{ url_for('create_template') }}" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Create Your First Template
+                        </a>
+                    </p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -327,45 +348,45 @@ document.addEventListener('DOMContentLoaded', function() {
     
     columns.forEach(column => {
         new Sortable(column, {
-            group: 'tasks',
+            group: 'projects',
             animation: 150,
             ghostClass: 'drag-over',
             chosenClass: 'dragging',
             onEnd: function(evt) {
-                const taskId = evt.item.dataset.taskId;
-                const newStatus = evt.to.dataset.status;
-                const oldStatus = evt.from.dataset.status;
+                const projectId = evt.item.dataset.projectId;
+                const newStatusId = evt.to.dataset.statusId;
+                const oldStatusId = evt.from.dataset.statusId;
                 
-                if (newStatus !== oldStatus) {
-                    updateTaskStatus(taskId, newStatus);
+                if (newStatusId !== oldStatusId) {
+                    updateProjectStatus(projectId, newStatusId);
                 }
             }
         });
     });
 });
 
-// Update task status via AJAX
-function updateTaskStatus(taskId, newStatus) {
-    fetch(`/tasks/${taskId}/update`, {
+// Update project status via AJAX
+function updateProjectStatus(projectId, newStatusId) {
+    fetch(`/projects/${projectId}/move-status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            status: newStatus
+            status_id: newStatusId
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Update the task counts
-            updateTaskCounts();
+            // Update the project counts
+            updateProjectCounts();
             // Show success message
-            showToast('Task status updated successfully', 'success');
+            showToast(`Project moved to ${data.new_status}`, 'success');
         } else {
             // Revert the move
             location.reload();
-            showToast('Failed to update task status', 'error');
+            showToast('Failed to update project status', 'error');
         }
     })
     .catch(error => {
@@ -375,14 +396,35 @@ function updateTaskStatus(taskId, newStatus) {
     });
 }
 
-// Update task counts in column headers
-function updateTaskCounts() {
-    // Count tasks in each column
+// Advance project to next workflow stage
+function advanceProject(projectId) {
+    // Find current column and move to next one
+    const projectCard = document.querySelector(`[data-project-id="${projectId}"]`);
+    const currentColumn = projectCard.closest('.kanban-body');
+    const allColumns = Array.from(document.querySelectorAll('.kanban-body'));
+    const currentIndex = allColumns.indexOf(currentColumn);
+    
+    if (currentIndex < allColumns.length - 1) {
+        const nextColumn = allColumns[currentIndex + 1];
+        const nextStatusId = nextColumn.dataset.statusId;
+        
+        updateProjectStatus(projectId, nextStatusId);
+        
+        // Visually move the card
+        nextColumn.appendChild(projectCard);
+    } else {
+        showToast('Project is already at the final stage', 'info');
+    }
+}
+
+// Update project counts in column headers
+function updateProjectCounts() {
+    // Count projects in each column
     const columns = document.querySelectorAll('.kanban-body');
     columns.forEach(column => {
-        const status = column.dataset.status;
+        const statusId = column.dataset.statusId;
         const count = column.children.length;
-        const badge = document.querySelector(`.kanban-header:has(+ [data-status="${status}"]) .badge`);
+        const badge = column.parentElement.querySelector('.kanban-header .badge');
         if (badge) {
             badge.textContent = count;
         }

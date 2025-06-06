@@ -31,10 +31,48 @@ class Template(db.Model):
     description = db.Column(db.Text)
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Link to work type
+    auto_create_work_type = db.Column(db.Boolean, default=True)  # Whether to auto-create work type from template
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     template_tasks = db.relationship('TemplateTask', backref='template', lazy=True, cascade="all, delete-orphan")
     projects = db.relationship('Project', backref='template_origin', lazy=True)
+    
+    def create_work_type_from_template(self):
+        """Create a work type and statuses from template tasks"""
+        if not self.auto_create_work_type or self.work_type_id:
+            return self.work_type_id
+        
+        # Create work type based on template name
+        work_type = WorkType(
+            firm_id=self.firm_id,
+            name=self.name,
+            description=f"Workflow for {self.name}",
+            color='#3b82f6'  # Default blue
+        )
+        db.session.add(work_type)
+        db.session.flush()  # Get the ID
+        
+        # Create statuses from template tasks
+        for i, template_task in enumerate(sorted(self.template_tasks, key=lambda t: t.workflow_order or t.order)):
+            status = TaskStatus(
+                firm_id=self.firm_id,
+                work_type_id=work_type.id,
+                name=template_task.title,
+                color='#6b7280' if i == 0 else '#3b82f6' if i < len(self.template_tasks) - 1 else '#10b981',
+                position=i + 1,
+                is_default=(i == 0),  # First task is default
+                is_terminal=(i == len(self.template_tasks) - 1)  # Last task is terminal
+            )
+            db.session.add(status)
+            
+            # Link template task to its corresponding status
+            template_task.default_status_id = status.id
+        
+        # Link template to work type
+        self.work_type_id = work_type.id
+        db.session.commit()
+        
+        return work_type.id
 
 class TemplateTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,6 +86,7 @@ class TemplateTask(db.Model):
     recurrence_rule = db.Column(db.String(100))
     template_id = db.Column(db.Integer, db.ForeignKey('template.id'), nullable=False)
     default_status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Maps to specific workflow status
+    workflow_order = db.Column(db.Integer, default=0)  # Order in the kanban workflow (overrides 'order' for workflow)
     dependencies = db.Column(db.String(500))  # Comma-separated list of template task IDs this depends on
     
     default_assignee = db.relationship('User', backref='default_template_tasks')
@@ -81,11 +120,13 @@ class Project(db.Model):
     completion_date = db.Column(db.Date)
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     template_origin_id = db.Column(db.Integer, db.ForeignKey('template.id'))
+    current_status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Current workflow status
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     tasks = db.relationship('Task', backref='project', lazy=True, cascade="all, delete-orphan")
     activity_logs = db.relationship('ActivityLog', backref='project', lazy=True)
+    current_status = db.relationship('TaskStatus', backref='projects_in_status')
     
     @property
     def progress_percentage(self):
@@ -101,6 +142,67 @@ class Project(db.Model):
     @property
     def is_overdue(self):
         return self.due_date and self.due_date < date.today() and self.status != 'Completed'
+    
+    @property
+    def current_workflow_status_name(self):
+        """Get the current workflow status name"""
+        if self.current_status:
+            return self.current_status.name
+        elif self.work_type_id:
+            # Get default status for work type
+            default_status = TaskStatus.query.filter_by(
+                work_type_id=self.work_type_id,
+                is_default=True
+            ).first()
+            return default_status.name if default_status else 'Not Started'
+        return 'Not Started'
+    
+    @property
+    def workflow_statuses(self):
+        """Get all available workflow statuses for this project"""
+        if self.work_type_id:
+            return TaskStatus.query.filter_by(
+                work_type_id=self.work_type_id
+            ).order_by(TaskStatus.position.asc()).all()
+        return []
+    
+    def advance_workflow(self):
+        """Advance project to the next workflow status"""
+        if not self.work_type_id:
+            return False
+        
+        current_position = 0
+        if self.current_status:
+            current_position = self.current_status.position
+        
+        # Find next status
+        next_status = TaskStatus.query.filter_by(
+            work_type_id=self.work_type_id
+        ).filter(TaskStatus.position > current_position).order_by(TaskStatus.position.asc()).first()
+        
+        if next_status:
+            self.current_status_id = next_status.id
+            return True
+        
+        return False
+    
+    def move_to_status(self, status_id):
+        """Move project to a specific workflow status"""
+        status = TaskStatus.query.filter_by(
+            id=status_id,
+            work_type_id=self.work_type_id
+        ).first()
+        
+        if status:
+            self.current_status_id = status_id
+            return True
+        
+        return False
+    
+    @property
+    def priority_color(self):
+        """Get Bootstrap color class for priority"""
+        return {'High': 'danger', 'Medium': 'warning', 'Low': 'success'}.get(self.priority, 'secondary')
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -116,14 +218,30 @@ class Task(db.Model):
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     template_task_origin_id = db.Column(db.Integer, db.ForeignKey('template_task.id'))
-    recurring_task_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_task.id'))  # For standalone recurring tasks
     dependencies = db.Column(db.String(500))  # Comma-separated list of task IDs this depends on
     completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    parent_task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'), nullable=True)  # Parent task for subtasks
+    subtask_order = db.Column(db.Integer, default=0)  # Order of subtasks within parent
+    
+    # Recurring task fields - integrated directly into Task model
+    is_recurring = db.Column(db.Boolean, default=False, nullable=False)  # Whether this task repeats
+    recurrence_rule = db.Column(db.String(100))  # e.g., "daily", "weekly", "monthly", "yearly"
+    recurrence_interval = db.Column(db.Integer, default=1)  # Every X days/weeks/months/years
+    next_due_date = db.Column(db.Date)  # When next instance should be created
+    last_completed = db.Column(db.Date)  # Last time this recurring task was completed
+    master_task_id = db.Column(db.Integer, db.ForeignKey('task.id'), nullable=True)  # Reference to master recurring task
     
     activity_logs = db.relationship('ActivityLog', backref='task', lazy=True)
     comments = db.relationship('TaskComment', backref='task', lazy=True, cascade="all, delete-orphan")
+    
+    # Subtask relationships
+    subtasks = db.relationship('Task', 
+                              foreign_keys=[parent_task_id],
+                              backref=db.backref('parent_task', remote_side='Task.id'), 
+                              lazy=True, cascade="all, delete-orphan", 
+                              order_by='Task.subtask_order, Task.created_at')
     
     @property
     def current_status(self):
@@ -198,6 +316,129 @@ class Task(db.Model):
             Task.dependencies.like(f'%{self.id}%'),
             Task.firm_id == self.firm_id
         ).all()
+    
+    @property
+    def is_parent_task(self):
+        """Check if this task has subtasks"""
+        return len(self.subtasks) > 0
+    
+    @property
+    def is_subtask(self):
+        """Check if this task is a subtask"""
+        return self.parent_task_id is not None
+    
+    @property
+    def subtask_progress(self):
+        """Calculate completion percentage of subtasks"""
+        if not self.subtasks:
+            return 0
+        completed_subtasks = len([st for st in self.subtasks if st.is_completed])
+        return round((completed_subtasks / len(self.subtasks)) * 100)
+    
+    @property
+    def root_task(self):
+        """Get the root parent task (for nested subtasks)"""
+        current = self
+        while current.parent_task:
+            current = current.parent_task
+        return current
+    
+    @property
+    def task_hierarchy_level(self):
+        """Get the nesting level of this task (0 = root, 1 = subtask, 2 = sub-subtask, etc.)"""
+        level = 0
+        current = self
+        while current.parent_task:
+            level += 1
+            current = current.parent_task
+        return level
+    
+    def get_all_subtasks_recursive(self):
+        """Get all subtasks recursively (including sub-subtasks)"""
+        all_subtasks = []
+        for subtask in self.subtasks:
+            all_subtasks.append(subtask)
+            all_subtasks.extend(subtask.get_all_subtasks_recursive())
+        return all_subtasks
+    
+    def update_parent_progress(self):
+        """Update parent task progress when subtask status changes"""
+        if self.parent_task:
+            # Check if all subtasks are completed
+            all_completed = all(st.is_completed for st in self.parent_task.subtasks)
+            if all_completed and not self.parent_task.is_completed:
+                # Auto-complete parent task if all subtasks are done
+                if self.parent_task.status_id and self.parent_task.task_status_ref:
+                    # Find a terminal status for the parent's work type
+                    terminal_status = TaskStatus.query.filter_by(
+                        work_type_id=self.parent_task.task_status_ref.work_type_id,
+                        is_terminal=True
+                    ).first()
+                    if terminal_status:
+                        self.parent_task.status_id = terminal_status.id
+                else:
+                    self.parent_task.status = 'Completed'
+                self.parent_task.completed_at = datetime.utcnow()
+    
+    def calculate_next_due_date(self, from_date=None):
+        """Calculate next due date based on recurrence rule - fixed intervals from original due date"""
+        if not self.is_recurring or not self.recurrence_rule:
+            return None
+        
+        if from_date is None:
+            # Always use the original due date as the base, not completion date
+            from_date = self.due_date or date.today()
+        
+        from datetime import timedelta
+        
+        if self.recurrence_rule == 'daily':
+            return from_date + timedelta(days=self.recurrence_interval or 1)
+        elif self.recurrence_rule == 'weekly':
+            return from_date + timedelta(weeks=self.recurrence_interval or 1)
+        elif self.recurrence_rule == 'monthly':
+            # Add months (approximate with 30 days)
+            return from_date + timedelta(days=30 * (self.recurrence_interval or 1))
+        elif self.recurrence_rule == 'yearly':
+            # Add years (approximate with 365 days)
+            return from_date + timedelta(days=365 * (self.recurrence_interval or 1))
+        
+        return None
+    
+    def create_next_instance(self):
+        """Create the next instance of this recurring task"""
+        if not self.is_recurring:
+            return None
+        
+        next_due = self.calculate_next_due_date()
+        if not next_due:
+            return None
+        
+        # Create new task instance
+        new_task = Task(
+            title=self.title,
+            description=self.description,
+            due_date=next_due,
+            estimated_hours=self.estimated_hours,
+            priority=self.priority,
+            project_id=self.project_id,
+            firm_id=self.firm_id,
+            assignee_id=self.assignee_id,
+            master_task_id=self.master_task_id or self.id,  # Reference to master
+            is_recurring=False,  # Instances are not recurring themselves
+            status_id=self.status_id
+        )
+        
+        return new_task
+    
+    @property
+    def is_recurring_master(self):
+        """Check if this is a master recurring task"""
+        return self.is_recurring and self.master_task_id is None
+    
+    @property
+    def is_recurring_instance(self):
+        """Check if this is an instance of a recurring task"""
+        return self.master_task_id is not None
 
 class TaskComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -254,33 +495,6 @@ class TaskStatus(db.Model):
     firm = db.relationship('Firm', backref='task_statuses')
     tasks = db.relationship('Task', backref='task_status_ref', lazy=True)
 
-class RecurringTask(db.Model):
-    """Standalone recurring tasks for regular CPA workflows"""
-    __tablename__ = 'recurring_task'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    description = db.Column(db.Text)
-    recurrence_rule = db.Column(db.String(100), nullable=False)  # e.g., "monthly:15", "quarterly:last_biz_day"
-    priority = db.Column(db.String(10), default='Medium', nullable=False)
-    estimated_hours = db.Column(db.Float)
-    default_assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)  # Optional client association
-    status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Default status for generated tasks
-    work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Associated work type
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
-    next_due_date = db.Column(db.Date, nullable=False)  # When next task should be created
-    last_generated = db.Column(db.Date)  # Last time a task was generated
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # Relationships
-    firm = db.relationship('Firm', backref='recurring_tasks')
-    default_assignee = db.relationship('User', backref='assigned_recurring_tasks')
-    client = db.relationship('Client', backref='recurring_tasks')
-    default_status = db.relationship('TaskStatus', backref='recurring_tasks')
-    work_type = db.relationship('WorkType', backref='recurring_tasks')
-    generated_tasks = db.relationship('Task', backref='recurring_task_origin', lazy=True)
 
 class Contact(db.Model):
     """Individual contacts that can be associated with multiple clients"""
@@ -320,3 +534,54 @@ class ClientContact(db.Model):
     
     # Ensure unique client-contact pairs
     __table_args__ = (db.UniqueConstraint('client_id', 'contact_id', name='unique_client_contact'),)
+
+class Attachment(db.Model):
+    """File attachments for tasks and projects"""
+    __tablename__ = 'attachment'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    filename = db.Column(db.String(255), nullable=False)  # Unique filename on disk
+    original_filename = db.Column(db.String(255), nullable=False)  # Original user filename
+    file_path = db.Column(db.String(500), nullable=False)  # Full path to file
+    file_size = db.Column(db.Integer, nullable=False)  # File size in bytes
+    mime_type = db.Column(db.String(100))  # MIME type
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='CASCADE'))
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id', ondelete='CASCADE'))
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
+    
+    # Relationships
+    task = db.relationship('Task', backref='attachments')
+    project = db.relationship('Project', backref='attachments')
+    uploader = db.relationship('User', backref='uploaded_attachments')
+    firm = db.relationship('Firm', backref='attachments')
+    
+    @property
+    def file_size_formatted(self):
+        """Return human-readable file size"""
+        if self.file_size < 1024:
+            return f"{self.file_size} B"
+        elif self.file_size < 1024 * 1024:
+            return f"{self.file_size / 1024:.1f} KB"
+        elif self.file_size < 1024 * 1024 * 1024:
+            return f"{self.file_size / (1024 * 1024):.1f} MB"
+        else:
+            return f"{self.file_size / (1024 * 1024 * 1024):.1f} GB"
+    
+    @property
+    def is_image(self):
+        """Check if attachment is an image"""
+        if not self.mime_type:
+            return False
+        return self.mime_type.startswith('image/')
+    
+    @property
+    def is_document(self):
+        """Check if attachment is a document"""
+        if not self.mime_type:
+            return False
+        document_types = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                         'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                         'text/plain', 'text/csv']
+        return self.mime_type in document_types

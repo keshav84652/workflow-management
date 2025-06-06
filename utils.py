@@ -3,7 +3,7 @@ import string
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
-from models import db, ActivityLog, TemplateTask, Task, Project, Client, RecurringTask
+from models import db, ActivityLog, TemplateTask, Task, Project, Client
 
 def generate_access_code(length=12):
     characters = string.ascii_uppercase + string.digits

@@ -18,65 +18,76 @@ db = SQLAlchemy()
 db.init_app(app)
 
 def migrate_database():
-    """Add recurring task tables to the database"""
+    """Add recurring task fields to Task table"""
     with app.app_context():
         try:
-            print("Starting database migration for recurring tasks...")
+            print("Starting database migration for integrated recurring tasks...")
             
-            # Create recurring_task table
-            print("Creating recurring_task table...")
+            # Add recurring task fields to Task table
+            print("Adding recurring task fields to task table...")
             with db.engine.connect() as conn:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS recurring_task (
-                        id INTEGER PRIMARY KEY,
-                        firm_id INTEGER NOT NULL,
-                        title VARCHAR(200) NOT NULL,
-                        description TEXT,
-                        recurrence_rule VARCHAR(100) NOT NULL,
-                        priority VARCHAR(10) NOT NULL DEFAULT 'Medium',
-                        estimated_hours FLOAT,
-                        default_assignee_id INTEGER,
-                        client_id INTEGER,
-                        status_id INTEGER,
-                        work_type_id INTEGER,
-                        is_active BOOLEAN NOT NULL DEFAULT 1,
-                        next_due_date DATE NOT NULL,
-                        last_generated DATE,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        FOREIGN KEY (firm_id) REFERENCES firm (id),
-                        FOREIGN KEY (default_assignee_id) REFERENCES user (id),
-                        FOREIGN KEY (client_id) REFERENCES client (id),
-                        FOREIGN KEY (status_id) REFERENCES task_status (id),
-                        FOREIGN KEY (work_type_id) REFERENCES work_type (id)
-                    );
-                """))
-                conn.commit()
-                print("✓ recurring_task table created successfully")
-            
-            # Add recurring_task_origin_id to task table
-            print("Adding recurring_task_origin_id to task table...")
-            with db.engine.connect() as conn:
-                # Check if column already exists
-                result = conn.execute(text("PRAGMA table_info(task)"))
-                columns = [row[1] for row in result.fetchall()]
+                # Add is_recurring field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN is_recurring BOOLEAN DEFAULT FALSE NOT NULL;"))
+                    print("✓ Added is_recurring column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ is_recurring column already exists")
                 
-                if 'recurring_task_origin_id' not in columns:
-                    conn.execute(text("""
-                        ALTER TABLE task 
-                        ADD COLUMN recurring_task_origin_id INTEGER 
-                        REFERENCES recurring_task(id);
-                    """))
-                    conn.commit()
-                    print("✓ recurring_task_origin_id column added to task table")
-                else:
-                    print("✓ recurring_task_origin_id column already exists")
+                # Add recurrence_rule field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN recurrence_rule TEXT;"))
+                    print("✓ Added recurrence_rule column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ recurrence_rule column already exists")
+                
+                # Add recurrence_interval field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN recurrence_interval INTEGER DEFAULT 1;"))
+                    print("✓ Added recurrence_interval column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ recurrence_interval column already exists")
+                
+                # Add next_due_date field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN next_due_date DATE;"))
+                    print("✓ Added next_due_date column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ next_due_date column already exists")
+                
+                # Add last_completed field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN last_completed DATE;"))
+                    print("✓ Added last_completed column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ last_completed column already exists")
+                
+                # Add master_task_id field
+                try:
+                    conn.execute(text("ALTER TABLE task ADD COLUMN master_task_id INTEGER REFERENCES task(id);"))
+                    print("✓ Added master_task_id column")
+                except Exception as e:
+                    if "duplicate column name" not in str(e):
+                        raise e
+                    print("✓ master_task_id column already exists")
+                
+                conn.commit()
             
             print("\n🎉 Database migration completed successfully!")
             print("\nNew features available:")
-            print("• Standalone recurring tasks")
-            print("• Automatic task generation based on schedules")
-            print("• Client and work type association for recurring tasks")
-            print("• Recurring task management interface")
+            print("• Recurring tasks integrated into regular task creation")
+            print("• Tasks can automatically create new instances on completion")
+            print("• Support for daily, weekly, monthly, and yearly recurrence")
+            print("• Master task tracking for recurring task instances")
             
         except Exception as e:
             print(f"❌ Migration failed: {str(e)}")
@@ -87,7 +98,7 @@ def migrate_database():
 if __name__ == '__main__':
     if migrate_database():
         print("\n✅ Migration completed successfully!")
-        print("You can now use recurring tasks in the application.")
+        print("Recurring tasks are now integrated with regular task creation.")
     else:
         print("\n❌ Migration failed!")
         sys.exit(1)

@@ -1,30 +1,92 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, timedelta
 import os
 import secrets
 import calendar
 from dateutil.relativedelta import relativedelta
+from werkzeug.utils import secure_filename
+import mimetypes
+import uuid
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.abspath("instance/workflow.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-os.makedirs('instance', exist_ok=True)
+# File upload configuration
+app.config['UPLOAD_FOLDER'] = os.path.abspath('uploads')
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+ALLOWED_EXTENSIONS = {
+    'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 
+    'ppt', 'pptx', 'csv', 'zip', 'rar', '7z', 'mp4', 'avi', 'mov', 'mp3', 'wav'
+}
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, RecurringTask
+os.makedirs('instance', exist_ok=True)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment
 
 db.init_app(app)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
-# Process recurring tasks on startup (in a real deployment, this would be handled by a cron job)
-@app.before_first_request
-def startup_tasks():
+# Recurring tasks are now integrated into the Task model
+
+def allowed_file(filename):
+    """Check if file extension is allowed"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_file(file, firm_id, entity_type, entity_id):
+    """Save uploaded file and create attachment record"""
+    if not file or not allowed_file(file.filename):
+        return None, "Invalid file type"
+    
+    # Generate unique filename
+    original_filename = secure_filename(file.filename)
+    file_extension = original_filename.rsplit('.', 1)[1].lower()
+    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+    
+    # Create firm-specific subdirectory
+    firm_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(firm_id))
+    os.makedirs(firm_upload_dir, exist_ok=True)
+    
+    file_path = os.path.join(firm_upload_dir, unique_filename)
+    
     try:
-        process_recurring_tasks()
+        # Save file
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        
+        # Detect MIME type
+        mime_type, _ = mimetypes.guess_type(original_filename)
+        
+        # Create attachment record
+        attachment = Attachment(
+            filename=unique_filename,
+            original_filename=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=mime_type,
+            uploaded_by=session['user_id'],
+            firm_id=firm_id
+        )
+        
+        if entity_type == 'task':
+            attachment.task_id = entity_id
+        elif entity_type == 'project':
+            attachment.project_id = entity_id
+        
+        db.session.add(attachment)
+        db.session.commit()
+        
+        return attachment, None
+        
     except Exception as e:
-        print(f"Failed to process recurring tasks on startup: {e}")
+        # Clean up file if database operation fails
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        return None, str(e)
 
 def would_create_circular_dependency(task_id, dependency_id):
     """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
@@ -412,7 +474,14 @@ def create_template():
                 db.session.add(template_task)
         
         db.session.commit()
-        flash('Template created successfully!', 'success')
+        
+        # Auto-create work type from template
+        try:
+            template.create_work_type_from_template()
+            flash('Template and workflow created successfully!', 'success')
+        except Exception as e:
+            flash(f'Template created, but workflow creation failed: {str(e)}', 'warning')
+        
         return redirect(url_for('templates'))
     
     return render_template('create_template.html')
@@ -443,7 +512,46 @@ def edit_template(id):
                 db.session.add(template_task)
         
         db.session.commit()
-        flash('Template updated successfully!', 'success')
+        
+        # Update work type from template if auto-creation is enabled
+        try:
+            if template.auto_create_work_type:
+                # If work type already exists, we need to update the statuses
+                if template.work_type_id:
+                    # Delete existing statuses for this work type
+                    TaskStatus.query.filter_by(work_type_id=template.work_type_id).delete()
+                    
+                    # Recreate statuses from updated template tasks
+                    for i, template_task in enumerate(sorted(template.template_tasks, key=lambda t: t.workflow_order or t.order)):
+                        status = TaskStatus(
+                            firm_id=template.firm_id,
+                            work_type_id=template.work_type_id,
+                            name=template_task.title,
+                            color='#6b7280' if i == 0 else '#3b82f6' if i < len(template.template_tasks) - 1 else '#10b981',
+                            position=i + 1,
+                            is_default=(i == 0),
+                            is_terminal=(i == len(template.template_tasks) - 1)
+                        )
+                        db.session.add(status)
+                        
+                        # Link template task to its corresponding status
+                        template_task.default_status_id = status.id
+                    
+                    # Update work type name to match template
+                    work_type = WorkType.query.get(template.work_type_id)
+                    if work_type:
+                        work_type.name = template.name
+                        work_type.description = f"Workflow for {template.name}"
+                else:
+                    # Create new work type if none exists
+                    template.create_work_type_from_template()
+                
+                db.session.commit()
+            
+            flash('Template and workflow updated successfully!', 'success')
+        except Exception as e:
+            flash(f'Template updated, but workflow sync failed: {str(e)}', 'warning')
+        
         return redirect(url_for('templates'))
     
     return render_template('edit_template.html', template=template)
@@ -476,10 +584,20 @@ def create_project():
         # Get template to access work type
         template = Template.query.get(template_id)
         
+        # Auto-create work type from template if needed
+        work_type_id = template.create_work_type_from_template()
+        
+        # Get the default (first) status for the work type
+        default_status = TaskStatus.query.filter_by(
+            work_type_id=work_type_id,
+            is_default=True
+        ).first()
+        
         project = Project(
             name=project_name or f"{client.name} - {template.name}",
             client_id=client.id,
-            work_type_id=template.work_type_id,  # Inherit work type from template
+            work_type_id=work_type_id,  # Use the work type from template
+            current_status_id=default_status.id if default_status else None,  # Set initial workflow status
             start_date=start_date,
             due_date=due_date,
             priority=priority,
@@ -718,6 +836,11 @@ def create_task():
         due_date = request.form.get('due_date')
         estimated_hours = request.form.get('estimated_hours')
         
+        # Recurring task options
+        is_recurring = request.form.get('is_recurring') == 'on'
+        recurrence_rule = request.form.get('recurrence_rule')
+        recurrence_interval = request.form.get('recurrence_interval')
+        
         # Convert due_date
         due_date_obj = None
         if due_date:
@@ -738,6 +861,14 @@ def create_task():
                 flash('Invalid project selected', 'error')
                 return redirect(url_for('create_task'))
         
+        # Convert recurrence interval
+        recurrence_interval_int = None
+        if is_recurring and recurrence_interval:
+            try:
+                recurrence_interval_int = int(recurrence_interval)
+            except ValueError:
+                recurrence_interval_int = 1
+        
         # Create task
         task = Task(
             title=title,
@@ -747,8 +878,21 @@ def create_task():
             estimated_hours=estimated_hours_float,
             project_id=project_id if project_id else None,
             firm_id=firm_id,
-            assignee_id=assignee_id if assignee_id else None
+            assignee_id=assignee_id if assignee_id else None,
+            is_recurring=is_recurring,
+            recurrence_rule=recurrence_rule if is_recurring else None,
+            recurrence_interval=recurrence_interval_int if is_recurring else None
         )
+        
+        # Calculate next due date for recurring tasks after object creation
+        if is_recurring:
+            task.next_due_date = task.calculate_next_due_date()
+            
+            # Create the first upcoming instance immediately
+            next_instance = task.create_next_instance()
+            if next_instance:
+                db.session.add(next_instance)
+        
         db.session.add(task)
         db.session.commit()
         
@@ -835,6 +979,9 @@ def edit_task(id):
                             # Check for circular dependency
                             if not would_create_circular_dependency(task.id, dep_id):
                                 valid_dependencies.append(str(dep_id))
+                    except ValueError:
+                        # If dep_id is not an integer, skip it.
+                        pass
                 task.dependencies = ','.join(valid_dependencies) if valid_dependencies else None
             else:
                 task.dependencies = None
@@ -1107,6 +1254,24 @@ def update_task(id):
     
     if new_status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
         task.status = new_status
+        
+        # Handle recurring task completion
+        if new_status == 'Completed' and old_status != 'Completed':
+            task.completed_at = datetime.utcnow()
+            
+            # If this is a recurring task, create next instance
+            if task.is_recurring and task.is_recurring_master:
+                task.last_completed = date.today()
+                next_instance = task.create_next_instance()
+                if next_instance:
+                    db.session.add(next_instance)
+                    create_activity_log(
+                        f'Next instance of recurring task "{task.title}" created for {next_instance.due_date}',
+                        session.get('user_id', 1),
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+        
         db.session.commit()
         
         if old_status != new_status:
@@ -1266,8 +1431,6 @@ def kanban_view():
     
     # Get filter parameters
     work_type_filter = request.args.get('work_type')
-    project_filter = request.args.get('project')
-    assignee_filter = request.args.get('assignee')
     priority_filter = request.args.get('priority')
     due_filter = request.args.get('due_filter')
     
@@ -1284,95 +1447,121 @@ def kanban_view():
                 firm_id=firm_id
             ).order_by(TaskStatus.position.asc()).all()
     
-    # Base query - include both project and independent tasks
-    query = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        )
-    )
+    # Base query for projects (not individual tasks)
+    query = Project.query.filter_by(firm_id=firm_id, status='Active')
     
     # Apply work type filter
     if work_type_filter and current_work_type:
         query = query.filter(Project.work_type_id == current_work_type.id)
     
-    # Apply other filters
-    if project_filter:
-        query = query.filter(Task.project_id == project_filter)
-    if assignee_filter:
-        query = query.filter(Task.assignee_id == assignee_filter)
+    # Apply priority filter
     if priority_filter:
-        query = query.filter(Task.priority == priority_filter)
+        query = query.filter(Project.priority == priority_filter)
     
     # Apply due date filters
     today = date.today()
     if due_filter == 'overdue':
-        query = query.filter(Task.due_date < today)
+        query = query.filter(Project.due_date < today)
     elif due_filter == 'today':
-        query = query.filter(Task.due_date == today)
+        query = query.filter(Project.due_date == today)
     elif due_filter == 'this_week':
         week_end = today + timedelta(days=7)
-        query = query.filter(Task.due_date.between(today, week_end))
+        query = query.filter(Project.due_date.between(today, week_end))
     
-    # Get all tasks
-    tasks = query.order_by(Task.created_at.desc()).all()
+    # Get all projects
+    projects = query.order_by(Project.created_at.desc()).all()
     
-    # Organize tasks by status
+    # Organize projects by workflow status
     if current_work_type and kanban_statuses:
-        # Use custom statuses for work type
-        tasks_by_status = {}
-        task_counts = {}
+        # Use template-driven workflow statuses
+        projects_by_status = {}
+        project_counts = {}
         
         for status in kanban_statuses:
-            tasks_by_status[status.id] = []
-            task_counts[status.id] = 0
+            projects_by_status[status.id] = []
+            project_counts[status.id] = 0
         
-        for task in tasks:
-            # Use new status system if available, fallback to legacy
-            if task.status_id and task.status_id in task_counts:
-                tasks_by_status[task.status_id].append(task)
-                task_counts[task.status_id] += 1
-            elif not task.status_id:
-                # Legacy fallback - try to match legacy status to new status by name
-                for status in kanban_statuses:
-                    if status.name == task.status:
-                        tasks_by_status[status.id].append(task)
-                        task_counts[status.id] += 1
-                        break
+        for project in projects:
+            # Get project's current workflow status
+            if project.current_status_id and project.current_status_id in [s.id for s in kanban_statuses]:
+                projects_by_status[project.current_status_id].append(project)
+                project_counts[project.current_status_id] += 1
+            elif not project.current_status_id:
+                # If no current status, put in first (default) status
+                if kanban_statuses:
+                    default_status = kanban_statuses[0]
+                    projects_by_status[default_status.id].append(project)
+                    project_counts[default_status.id] += 1
+                    # Update project to have the default status
+                    project.current_status_id = default_status.id
+        
+        # Commit any status updates
+        db.session.commit()
     else:
-        # Use legacy status columns
-        tasks_by_status = {
-            'Not Started': [],
-            'In Progress': [],
-            'Needs Review': [],
-            'Completed': []
-        }
-        
-        task_counts = {
-            'Not Started': 0,
-            'In Progress': 0,
-            'Needs Review': 0,
-            'Completed': 0
-        }
-        
-        for task in tasks:
-            current_status = task.current_status  # Use the property that handles both systems
-            if current_status in tasks_by_status:
-                tasks_by_status[current_status].append(task)
-                task_counts[current_status] += 1
+        # If no work type selected, show message to select work type
+        projects_by_status = {}
+        project_counts = {}
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
-    projects = Project.query.filter_by(firm_id=firm_id).all()
     
     return render_template('kanban.html', 
-                         tasks_by_status=tasks_by_status,
-                         task_counts=task_counts,
+                         projects_by_status=projects_by_status,
+                         project_counts=project_counts,
                          kanban_statuses=kanban_statuses,
                          current_work_type=current_work_type,
                          work_types=work_types,
-                         users=users, 
-                         projects=projects)
+                         users=users,
+                         date=date)
+
+@app.route('/projects/<int:project_id>/move-status', methods=['POST'])
+def move_project_status(project_id):
+    """Move a project to a different workflow status"""
+    project = Project.query.get_or_404(project_id)
+    
+    # Check access
+    if project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        new_status_id = request.json.get('status_id')
+        
+        if not new_status_id:
+            return jsonify({'success': False, 'message': 'Status ID is required'}), 400
+        
+        # Verify the status belongs to the project's work type
+        status = TaskStatus.query.filter_by(
+            id=new_status_id,
+            work_type_id=project.work_type_id
+        ).first()
+        
+        if not status:
+            return jsonify({'success': False, 'message': 'Invalid status for this project type'}), 400
+        
+        old_status_name = project.current_workflow_status_name
+        
+        # Move project to new status
+        if project.move_to_status(new_status_id):
+            db.session.commit()
+            
+            # Activity log
+            create_activity_log(
+                f'Project "{project.name}" moved from "{old_status_name}" to "{status.name}"',
+                session['user_id'],
+                project.id
+            )
+            
+            return jsonify({
+                'success': True,
+                'message': f'Project moved to {status.name}',
+                'new_status': status.name
+            })
+        else:
+            return jsonify({'success': False, 'message': 'Failed to move project'}), 400
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/search')
 def search():
@@ -1870,19 +2059,10 @@ def admin_reorder_statuses(work_type_id):
 def contacts():
     firm_id = session['firm_id']
     
-    # Get all contacts with client count
-    contacts = db.session.query(Contact).join(ClientContact).join(Client).filter(
-        Client.firm_id == firm_id
-    ).distinct().all()
+    # Get all contacts - simplified query
+    all_contacts = Contact.query.all()
     
-    # Get contacts not associated with any clients in this firm
-    orphaned_contacts = db.session.query(Contact).outerjoin(ClientContact).outerjoin(Client).filter(
-        (Client.firm_id != firm_id) | (Client.id == None)
-    ).distinct().all()
-    
-    all_contacts = list(set(contacts + orphaned_contacts))
-    
-    # Add client count to each contact
+    # Add client count for each contact (only count clients from this firm)
     for contact in all_contacts:
         contact.client_count = db.session.query(ClientContact).join(Client).filter(
             ClientContact.contact_id == contact.id,
@@ -2021,183 +2201,280 @@ def api_clients():
         'entity_type': client.entity_type
     } for client in clients])
 
-@app.route('/recurring-tasks')
-def recurring_tasks():
-    firm_id = session['firm_id']
-    recurring_tasks = RecurringTask.query.filter_by(firm_id=firm_id).order_by(RecurringTask.next_due_date.asc()).all()
-    return render_template('recurring_tasks.html', recurring_tasks=recurring_tasks)
 
-@app.route('/recurring-tasks/create', methods=['GET', 'POST'])
-def create_recurring_task():
-    if request.method == 'POST':
-        firm_id = session['firm_id']
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    """Handle file uploads for tasks and projects"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No file selected'}), 400
+    
+    entity_type = request.form.get('entity_type')  # 'task' or 'project'
+    entity_id = request.form.get('entity_id')
+    
+    if not entity_type or not entity_id:
+        return jsonify({'success': False, 'message': 'Missing entity information'}), 400
+    
+    firm_id = session['firm_id']
+    
+    # Verify entity belongs to firm
+    if entity_type == 'task':
+        task = Task.query.get_or_404(entity_id)
+        if task.project and task.project.firm_id != firm_id:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        elif not task.project and task.firm_id != firm_id:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif entity_type == 'project':
+        project = Project.query.get_or_404(entity_id)
+        if project.firm_id != firm_id:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+    else:
+        return jsonify({'success': False, 'message': 'Invalid entity type'}), 400
+    
+    # Save file
+    attachment, error = save_uploaded_file(file, firm_id, entity_type, entity_id)
+    
+    if error:
+        return jsonify({'success': False, 'message': error}), 400
+    
+    # Activity log
+    entity_name = task.title if entity_type == 'task' else project.name
+    create_activity_log(
+        f'File "{attachment.original_filename}" uploaded to {entity_type} "{entity_name}"',
+        session['user_id'],
+        project.id if entity_type == 'project' else (task.project_id if task.project else None),
+        task.id if entity_type == 'task' else None
+    )
+    
+    return jsonify({
+        'success': True,
+        'attachment': {
+            'id': attachment.id,
+            'original_filename': attachment.original_filename,
+            'file_size_formatted': attachment.file_size_formatted,
+            'uploaded_at': attachment.uploaded_at.strftime('%m/%d/%Y %I:%M %p'),
+            'uploader_name': attachment.uploader.name
+        }
+    })
+
+@app.route('/attachments/<int:attachment_id>/download')
+def download_attachment(attachment_id):
+    """Download an attachment"""
+    attachment = Attachment.query.get_or_404(attachment_id)
+    
+    # Check access
+    if attachment.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if not os.path.exists(attachment.file_path):
+        flash('File not found', 'error')
+        return redirect(request.referrer or url_for('dashboard'))
+    
+    # Activity log
+    entity_type = 'task' if attachment.task_id else 'project'
+    entity_name = attachment.task.title if attachment.task_id else attachment.project.name
+    create_activity_log(
+        f'File "{attachment.original_filename}" downloaded from {entity_type} "{entity_name}"',
+        session['user_id'],
+        attachment.project_id if attachment.project_id else (attachment.task.project_id if attachment.task and attachment.task.project else None),
+        attachment.task_id
+    )
+    
+    return send_file(
+        attachment.file_path,
+        as_attachment=True,
+        download_name=attachment.original_filename,
+        mimetype=attachment.mime_type
+    )
+
+@app.route('/attachments/<int:attachment_id>/delete', methods=['POST'])
+def delete_attachment(attachment_id):
+    """Delete an attachment"""
+    attachment = Attachment.query.get_or_404(attachment_id)
+    
+    # Check access
+    if attachment.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        # Delete physical file
+        if os.path.exists(attachment.file_path):
+            os.remove(attachment.file_path)
         
-        # Get form data
-        title = request.form.get('title')
-        description = request.form.get('description')
-        recurrence_rule = request.form.get('recurrence_rule')
-        priority = request.form.get('priority', 'Medium')
-        estimated_hours = request.form.get('estimated_hours')
-        assignee_id = request.form.get('assignee_id')
-        client_id = request.form.get('client_id')
-        work_type_id = request.form.get('work_type_id')
-        next_due_date = request.form.get('next_due_date')
-        
-        # Convert estimated_hours
-        estimated_hours_float = None
-        if estimated_hours:
-            try:
-                estimated_hours_float = float(estimated_hours)
-            except ValueError:
-                pass
-        
-        # Convert next_due_date
-        next_due_date_obj = datetime.strptime(next_due_date, '%Y-%m-%d').date()
-        
-        # Get default status for work type if specified
-        status_id = None
-        if work_type_id:
-            default_status = TaskStatus.query.filter_by(
-                work_type_id=work_type_id,
-                is_default=True
-            ).first()
-            if default_status:
-                status_id = default_status.id
-        
-        # Create recurring task
-        recurring_task = RecurringTask(
-            firm_id=firm_id,
-            title=title,
-            description=description,
-            recurrence_rule=recurrence_rule,
-            priority=priority,
-            estimated_hours=estimated_hours_float,
-            default_assignee_id=assignee_id if assignee_id else None,
-            client_id=client_id if client_id else None,
-            work_type_id=work_type_id if work_type_id else None,
-            status_id=status_id,
-            next_due_date=next_due_date_obj
+        # Activity log
+        entity_type = 'task' if attachment.task_id else 'project'
+        entity_name = attachment.task.title if attachment.task_id else attachment.project.name
+        create_activity_log(
+            f'File "{attachment.original_filename}" deleted from {entity_type} "{entity_name}"',
+            session['user_id'],
+            attachment.project_id if attachment.project_id else (attachment.task.project_id if attachment.task and attachment.task.project else None),
+            attachment.task_id
         )
         
-        db.session.add(recurring_task)
+        # Delete database record
+        db.session.delete(attachment)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'File deleted successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/tasks/<int:task_id>/subtasks/create', methods=['POST'])
+def create_subtask(task_id):
+    """Create a new subtask for a parent task"""
+    parent_task = Task.query.get_or_404(task_id)
+    
+    # Check access
+    if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        title = request.json.get('title', '').strip()
+        description = request.json.get('description', '').strip()
+        
+        if not title:
+            return jsonify({'success': False, 'message': 'Title is required'}), 400
+        
+        # Get next subtask order
+        max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=task_id).scalar() or 0
+        
+        # Create subtask
+        subtask = Task(
+            title=title,
+            description=description,
+            parent_task_id=task_id,
+            subtask_order=max_order + 1,
+            project_id=parent_task.project_id,
+            firm_id=parent_task.firm_id or session['firm_id'],
+            assignee_id=parent_task.assignee_id,  # Default to parent's assignee
+            priority=parent_task.priority,  # Inherit priority
+            status_id=parent_task.status_id,  # Inherit status system
+            status=parent_task.status if not parent_task.status_id else 'Not Started'
+        )
+        
+        db.session.add(subtask)
         db.session.commit()
         
         # Activity log
-        create_activity_log(f'Recurring task "{recurring_task.title}" created', session['user_id'])
+        create_activity_log(
+            f'Subtask "{title}" created for task "{parent_task.title}"',
+            session['user_id'],
+            parent_task.project_id,
+            parent_task.id
+        )
         
-        flash('Recurring task created successfully!', 'success')
-        return redirect(url_for('recurring_tasks'))
-    
-    # GET request - show form
-    firm_id = session['firm_id']
-    users = User.query.filter_by(firm_id=firm_id).all()
-    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
-    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
-    
-    return render_template('create_recurring_task.html', users=users, clients=clients, work_types=work_types)
+        return jsonify({
+            'success': True,
+            'subtask': {
+                'id': subtask.id,
+                'title': subtask.title,
+                'description': subtask.description,
+                'status': subtask.current_status,
+                'assignee_name': subtask.assignee.name if subtask.assignee else 'Unassigned',
+                'created_at': subtask.created_at.strftime('%m/%d/%Y %I:%M %p')
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/recurring-tasks/<int:id>/edit', methods=['GET', 'POST'])
-def edit_recurring_task(id):
-    recurring_task = RecurringTask.query.get_or_404(id)
-    if recurring_task.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
-        return redirect(url_for('recurring_tasks'))
+@app.route('/tasks/<int:task_id>/subtasks/reorder', methods=['POST'])
+def reorder_subtasks(task_id):
+    """Reorder subtasks within a parent task"""
+    parent_task = Task.query.get_or_404(task_id)
     
-    if request.method == 'POST':
-        # Update task details
-        recurring_task.title = request.form.get('title')
-        recurring_task.description = request.form.get('description')
-        recurring_task.recurrence_rule = request.form.get('recurrence_rule')
-        recurring_task.priority = request.form.get('priority', 'Medium')
-        recurring_task.is_active = 'is_active' in request.form
+    # Check access
+    if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        subtask_ids = request.json.get('subtask_ids', [])
         
-        # Handle estimated hours
-        estimated_hours = request.form.get('estimated_hours')
-        if estimated_hours:
-            try:
-                recurring_task.estimated_hours = float(estimated_hours)
-            except ValueError:
-                recurring_task.estimated_hours = None
-        else:
-            recurring_task.estimated_hours = None
+        # Update order for each subtask
+        for index, subtask_id in enumerate(subtask_ids):
+            subtask = Task.query.get(subtask_id)
+            if subtask and subtask.parent_task_id == task_id:
+                subtask.subtask_order = index + 1
         
-        # Handle assignee
-        assignee_id = request.form.get('assignee_id')
-        recurring_task.default_assignee_id = assignee_id if assignee_id else None
+        db.session.commit()
         
-        # Handle client
-        client_id = request.form.get('client_id')
-        recurring_task.client_id = client_id if client_id else None
+        return jsonify({'success': True, 'message': 'Subtasks reordered successfully'})
         
-        # Handle work type and default status
-        work_type_id = request.form.get('work_type_id')
-        recurring_task.work_type_id = work_type_id if work_type_id else None
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/tasks/<int:task_id>/convert-to-subtask', methods=['POST'])
+def convert_to_subtask(task_id):
+    """Convert an existing task to a subtask of another task"""
+    task = Task.query.get_or_404(task_id)
+    
+    # Check access
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        parent_task_id = request.json.get('parent_task_id')
         
-        if work_type_id:
-            default_status = TaskStatus.query.filter_by(
-                work_type_id=work_type_id,
-                is_default=True
-            ).first()
-            if default_status:
-                recurring_task.status_id = default_status.id
-        else:
-            recurring_task.status_id = None
+        if not parent_task_id:
+            return jsonify({'success': False, 'message': 'Parent task ID is required'}), 400
         
-        # Handle next due date
-        next_due_date = request.form.get('next_due_date')
-        if next_due_date:
-            recurring_task.next_due_date = datetime.strptime(next_due_date, '%Y-%m-%d').date()
+        parent_task = Task.query.get(parent_task_id)
+        if not parent_task:
+            return jsonify({'success': False, 'message': 'Parent task not found'}), 404
+        
+        # Check that parent task belongs to same firm
+        if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        
+        # Prevent circular relationships
+        if parent_task_id == task_id:
+            return jsonify({'success': False, 'message': 'Cannot make task a subtask of itself'}), 400
+        
+        # Check if parent task is already a subtask of this task (prevent circular)
+        current = parent_task
+        while current.parent_task:
+            if current.parent_task.id == task_id:
+                return jsonify({'success': False, 'message': 'Cannot create circular subtask relationship'}), 400
+            current = current.parent_task
+        
+        # Get next subtask order
+        max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
+        
+        # Convert to subtask
+        task.parent_task_id = parent_task_id
+        task.subtask_order = max_order + 1
         
         db.session.commit()
         
         # Activity log
-        create_activity_log(f'Recurring task "{recurring_task.title}" updated', session['user_id'])
+        create_activity_log(
+            f'Task "{task.title}" converted to subtask of "{parent_task.title}"',
+            session['user_id'],
+            parent_task.project_id,
+            parent_task.id
+        )
         
-        flash('Recurring task updated successfully!', 'success')
-        return redirect(url_for('recurring_tasks'))
-    
-    # GET request - show form
-    firm_id = session['firm_id']
-    users = User.query.filter_by(firm_id=firm_id).all()
-    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
-    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
-    
-    return render_template('edit_recurring_task.html', recurring_task=recurring_task, users=users, clients=clients, work_types=work_types)
-
-@app.route('/recurring-tasks/<int:id>/toggle', methods=['POST'])
-def toggle_recurring_task(id):
-    recurring_task = RecurringTask.query.get_or_404(id)
-    if recurring_task.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    
-    recurring_task.is_active = not recurring_task.is_active
-    db.session.commit()
-    
-    status = 'activated' if recurring_task.is_active else 'deactivated'
-    create_activity_log(f'Recurring task "{recurring_task.title}" {status}', session['user_id'])
-    
-    return jsonify({'success': True, 'is_active': recurring_task.is_active})
-
-@app.route('/recurring-tasks/<int:id>/delete', methods=['POST'])
-def delete_recurring_task(id):
-    recurring_task = RecurringTask.query.get_or_404(id)
-    if recurring_task.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    
-    task_title = recurring_task.title
-    
-    # Delete all generated tasks that haven't been started yet
-    Task.query.filter_by(
-        recurring_task_origin_id=recurring_task.id,
-        status='Not Started'
-    ).delete()
-    
-    db.session.delete(recurring_task)
-    db.session.commit()
-    
-    create_activity_log(f'Recurring task "{task_title}" deleted', session['user_id'])
-    
-    return jsonify({'success': True, 'message': 'Recurring task deleted successfully'})
+        return jsonify({'success': True, 'message': 'Task converted to subtask successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/admin/process-recurring', methods=['POST'])
 def admin_process_recurring():
