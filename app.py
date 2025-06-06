@@ -1290,6 +1290,113 @@ def update_task(id):
     
     return jsonify({'error': 'Invalid status'}), 400
 
+@app.route('/tasks/<int:id>/timer/start', methods=['POST'])
+def start_timer(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    if task.start_timer():
+        db.session.commit()
+        create_activity_log(f'Timer started for task "{task.title}"', session['user_id'], task.project_id, task.id)
+        return jsonify({'success': True, 'message': 'Timer started'})
+    else:
+        return jsonify({'success': False, 'message': 'Timer already running'})
+
+@app.route('/tasks/<int:id>/timer/stop', methods=['POST'])
+def stop_timer(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    elapsed_hours = task.stop_timer()
+    if elapsed_hours > 0:
+        db.session.commit()
+        create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', session['user_id'], task.project_id, task.id)
+        return jsonify({
+            'success': True, 
+            'message': f'Timer stopped - {elapsed_hours:.2f}h logged',
+            'elapsed_hours': elapsed_hours,
+            'total_hours': task.actual_hours
+        })
+    else:
+        return jsonify({'success': False, 'message': 'No timer running'})
+
+@app.route('/tasks/<int:id>/timer/status', methods=['GET'])
+def timer_status(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    return jsonify({
+        'timer_running': task.timer_running,
+        'current_duration': task.current_timer_duration,
+        'total_hours': task.actual_hours or 0,
+        'billable_amount': task.billable_amount
+    })
+
+@app.route('/reports/time-tracking')
+def time_tracking_report():
+    firm_id = session['firm_id']
+    
+    # Get filter parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    user_id = request.args.get('user_id')
+    project_id = request.args.get('project_id')
+    
+    # Base query for tasks with time logged
+    query = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.actual_hours > 0
+    )
+    
+    # Apply filters
+    if start_date:
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        query = query.filter(Task.updated_at >= start_date_obj)
+    
+    if end_date:
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        query = query.filter(Task.updated_at <= end_date_obj)
+    
+    if user_id:
+        query = query.filter(Task.assignee_id == user_id)
+    
+    if project_id:
+        query = query.filter(Task.project_id == project_id)
+    
+    tasks = query.order_by(Task.updated_at.desc()).all()
+    
+    # Calculate summary statistics
+    total_hours = sum(task.actual_hours or 0 for task in tasks)
+    billable_hours = sum(task.actual_hours or 0 for task in tasks if task.is_billable)
+    total_billable_amount = sum(task.billable_amount for task in tasks)
+    
+    # Get filter options
+    users = User.query.filter_by(firm_id=firm_id).all()
+    projects = Project.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('time_tracking_report.html', 
+                         tasks=tasks,
+                         users=users,
+                         projects=projects,
+                         total_hours=total_hours,
+                         billable_hours=billable_hours,
+                         total_billable_amount=total_billable_amount)
+
 @app.route('/users')
 def users():
     firm_id = session['firm_id']

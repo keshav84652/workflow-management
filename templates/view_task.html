@@ -540,16 +540,46 @@
                         <i class="bi bi-play-circle"></i> Mark In Progress
                     </button>
                     
-                    <!-- Quick Time Log -->
-                    <div class="border rounded p-2 mt-2">
-                        <label class="form-label small fw-bold">Log Time</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" class="form-control" id="time-input" placeholder="Hours" step="0.25" min="0">
-                            <button class="btn btn-outline-secondary" onclick="logTime()" type="button">
-                                <i class="bi bi-plus"></i>
-                            </button>
+                    <!-- Timer Controls -->
+                    <div class="card border-primary mt-2">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">
+                                <i class="bi bi-stopwatch"></i> Time Tracking
+                            </h6>
                         </div>
-                        <small class="text-muted">Current: {{ task.actual_hours or 0 }}h</small>
+                        <div class="card-body p-3">
+                            <!-- Timer Display -->
+                            <div class="text-center mb-3">
+                                <div class="h4 mb-1" id="timer-display">00:00:00</div>
+                                <small class="text-muted">Current Session</small>
+                            </div>
+                            
+                            <!-- Timer Controls -->
+                            <div class="d-grid gap-2 mb-3">
+                                <button id="start-timer-btn" class="btn btn-success" onclick="startTimer()">
+                                    <i class="bi bi-play-fill"></i> Start Timer
+                                </button>
+                                <button id="stop-timer-btn" class="btn btn-danger" onclick="stopTimer()" style="display: none;">
+                                    <i class="bi bi-stop-fill"></i> Stop Timer
+                                </button>
+                            </div>
+                            
+                            <!-- Quick Time Log -->
+                            <div class="border-top pt-3">
+                                <label class="form-label small fw-bold">Manual Time Entry</label>
+                                <div class="input-group input-group-sm">
+                                    <input type="number" class="form-control" id="time-input" placeholder="Hours" step="0.25" min="0">
+                                    <button class="btn btn-outline-secondary" onclick="logTime()" type="button">
+                                        <i class="bi bi-plus"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Total: <span id="total-hours">{{ task.actual_hours or 0 }}</span>h
+                                {% if task.billable_amount > 0 %}
+                                    • Billable: $<span id="billable-amount">{{ "%.2f"|format(task.billable_amount) }}</span>
+                                {% endif %}
+                                </small>
+                            </div>
+                        </div>
                     </div>
                     {% if task.project %}
                         <a href="{{ url_for('view_project', id=task.project.id) }}" class="btn btn-outline-info">
@@ -959,6 +989,95 @@ $(document).ready(function() {
             }
         });
     }
+});
+
+// Timer functionality
+let timerInterval = null;
+let timerStartTime = null;
+
+function updateTimerDisplay(currentDuration = 0) {
+    const hours = Math.floor(currentDuration);
+    const minutes = Math.floor((currentDuration - hours) * 60);
+    const seconds = Math.floor(((currentDuration - hours) * 60 - minutes) * 60);
+    
+    const display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('timer-display').textContent = display;
+}
+
+function startTimer() {
+    fetch(`/tasks/{{ task.id }}/timer/start`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('start-timer-btn').style.display = 'none';
+            document.getElementById('stop-timer-btn').style.display = 'block';
+            
+            timerStartTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - timerStartTime) / 1000 / 3600; // hours
+                updateTimerDisplay(elapsed);
+            }, 1000);
+            
+            showToast('Timer started', 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error starting timer', 'error');
+    });
+}
+
+function stopTimer() {
+    fetch(`/tasks/{{ task.id }}/timer/stop`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('start-timer-btn').style.display = 'block';
+            document.getElementById('stop-timer-btn').style.display = 'none';
+            
+            clearInterval(timerInterval);
+            updateTimerDisplay(0);
+            
+            // Update total hours display
+            document.getElementById('total-hours').textContent = data.total_hours.toFixed(2);
+            
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error stopping timer', 'error');
+    });
+}
+
+// Check timer status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch(`/tasks/{{ task.id }}/timer/status`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.timer_running) {
+            document.getElementById('start-timer-btn').style.display = 'none';
+            document.getElementById('stop-timer-btn').style.display = 'block';
+            
+            timerStartTime = Date.now() - (data.current_duration * 3600 * 1000);
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - timerStartTime) / 1000 / 3600;
+                updateTimerDisplay(elapsed);
+            }, 1000);
+        }
+    });
 });
 
 // Toast notification function

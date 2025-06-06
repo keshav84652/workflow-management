@@ -140,6 +140,19 @@
             border-left: 4px solid var(--warning-amber);
         }
 
+        /* Fix dropdown z-index issues */
+        .dropdown-menu {
+            z-index: 9999 !important;
+        }
+        
+        .modal {
+            z-index: 10000 !important;
+        }
+        
+        .modal-backdrop {
+            z-index: 9999 !important;
+        }
+
         .task-completed {
             background-color: #f0fdf4;
             border-left: 4px solid var(--success-green);
@@ -451,6 +464,16 @@
                             <a class="nav-link" href="{{ url_for('contacts') }}">
                                 <i class="bi bi-person-lines-fill"></i> Contacts
                             </a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-graph-up"></i> Reports
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('time_tracking_report') }}">
+                                    <i class="bi bi-stopwatch"></i> Time Tracking
+                                </a></li>
+                            </ul>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('users') }}">

@@ -211,6 +211,10 @@ class Task(db.Model):
     due_date = db.Column(db.Date)
     estimated_hours = db.Column(db.Float)
     actual_hours = db.Column(db.Float, default=0)
+    hourly_rate = db.Column(db.Float)  # Billing rate for this task
+    is_billable = db.Column(db.Boolean, default=True)  # Whether this task is billable
+    timer_start = db.Column(db.DateTime)  # When timer was started
+    timer_running = db.Column(db.Boolean, default=False)  # Whether timer is currently running
     status = db.Column(db.String(20), default='Not Started', nullable=False)  # Legacy field for migration
     status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # New status system
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
@@ -439,6 +443,54 @@ class Task(db.Model):
     def is_recurring_instance(self):
         """Check if this is an instance of a recurring task"""
         return self.master_task_id is not None
+    
+    def start_timer(self):
+        """Start the timer for this task"""
+        if not self.timer_running:
+            self.timer_start = datetime.utcnow()
+            self.timer_running = True
+            return True
+        return False
+    
+    def stop_timer(self):
+        """Stop the timer and add elapsed time to actual_hours"""
+        if self.timer_running and self.timer_start:
+            elapsed = datetime.utcnow() - self.timer_start
+            elapsed_hours = elapsed.total_seconds() / 3600
+            self.actual_hours = (self.actual_hours or 0) + elapsed_hours
+            self.timer_running = False
+            self.timer_start = None
+            return elapsed_hours
+        return 0
+    
+    @property
+    def current_timer_duration(self):
+        """Get current timer duration in hours"""
+        if self.timer_running and self.timer_start:
+            elapsed = datetime.utcnow() - self.timer_start
+            return elapsed.total_seconds() / 3600
+        return 0
+    
+    @property
+    def billable_amount(self):
+        """Calculate billable amount for this task"""
+        if not self.is_billable or not self.hourly_rate:
+            return 0
+        return (self.actual_hours or 0) * self.hourly_rate
+    
+    @property
+    def time_variance(self):
+        """Calculate variance between estimated and actual hours"""
+        if not self.estimated_hours or not self.actual_hours:
+            return None
+        return self.actual_hours - self.estimated_hours
+    
+    @property
+    def time_variance_percentage(self):
+        """Calculate variance percentage"""
+        if not self.estimated_hours or not self.actual_hours:
+            return None
+        return ((self.actual_hours - self.estimated_hours) / self.estimated_hours) * 100
 
 class TaskComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
