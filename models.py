@@ -30,6 +30,7 @@ class Template(db.Model):
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.Text)
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
+    work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Link to work type
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     template_tasks = db.relationship('TemplateTask', backref='template', lazy=True, cascade="all, delete-orphan")
@@ -70,6 +71,7 @@ class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)  # Project name (e.g., "2024 Tax Return", "Q1 Bookkeeping")
     client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Link to work type
     status = db.Column(db.String(20), default='Active', nullable=False)
     start_date = db.Column(db.Date, nullable=False, default=date.today)
     due_date = db.Column(db.Date)
@@ -104,7 +106,8 @@ class Task(db.Model):
     due_date = db.Column(db.Date)
     estimated_hours = db.Column(db.Float)
     actual_hours = db.Column(db.Float, default=0)
-    status = db.Column(db.String(20), default='Not Started', nullable=False)
+    status = db.Column(db.String(20), default='Not Started', nullable=False)  # Legacy field for migration
+    status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # New status system
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True)
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
@@ -118,12 +121,26 @@ class Task(db.Model):
     comments = db.relationship('TaskComment', backref='task', lazy=True, cascade="all, delete-orphan")
     
     @property
+    def current_status(self):
+        """Get current status name, preferring new status system over legacy"""
+        if self.status_id and self.task_status_ref:
+            return self.task_status_ref.name
+        return self.status
+    
+    @property
+    def is_completed(self):
+        """Check if task is completed using new or legacy status"""
+        if self.status_id and self.task_status_ref:
+            return self.task_status_ref.is_terminal
+        return self.status == 'Completed'
+    
+    @property
     def is_overdue(self):
-        return self.due_date and self.due_date < date.today() and self.status != 'Completed'
+        return self.due_date and self.due_date < date.today() and not self.is_completed
     
     @property
     def is_due_soon(self):
-        if not self.due_date or self.status == 'Completed':
+        if not self.due_date or self.is_completed:
             return False
         days_until_due = (self.due_date - date.today()).days
         return 0 <= days_until_due <= 3
@@ -131,6 +148,20 @@ class Task(db.Model):
     @property
     def priority_color(self):
         return {'High': 'danger', 'Medium': 'warning', 'Low': 'success'}.get(self.priority, 'secondary')
+    
+    @property
+    def status_color(self):
+        """Get status color from new system or default colors"""
+        if self.status_id and self.task_status_ref:
+            return self.task_status_ref.color
+        # Default colors for legacy statuses
+        colors = {
+            'Not Started': '#6b7280',
+            'In Progress': '#3b82f6', 
+            'Needs Review': '#f59e0b',
+            'Completed': '#10b981'
+        }
+        return colors.get(self.status, '#6b7280')
 
 class TaskComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -149,3 +180,77 @@ class ActivityLog(db.Model):
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'))
     task_id = db.Column(db.Integer, db.ForeignKey('task.id'))
     details = db.Column(db.Text)
+
+class WorkType(db.Model):
+    """Work types for CPA services (Tax, Bookkeeping, Payroll, Advisory)"""
+    __tablename__ = 'work_type'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    color = db.Column(db.String(7), nullable=False, default='#3b82f6')  # Default blue
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    position = db.Column(db.Integer, default=0)  # Order for display
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    firm = db.relationship('Firm', backref='work_types')
+    task_statuses = db.relationship('TaskStatus', backref='work_type', lazy=True, cascade="all, delete-orphan")
+    templates = db.relationship('Template', backref='work_type', lazy=True)
+    projects = db.relationship('Project', backref='work_type', lazy=True)
+
+class TaskStatus(db.Model):
+    """Custom task statuses per work type"""
+    __tablename__ = 'task_status'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
+    work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(7), nullable=False, default='#6b7280')  # Default gray
+    position = db.Column(db.Integer, default=0, nullable=False)
+    is_terminal = db.Column(db.Boolean, default=False, nullable=False)  # Marks completion
+    is_default = db.Column(db.Boolean, default=False, nullable=False)   # Default for new tasks
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    firm = db.relationship('Firm', backref='task_statuses')
+    tasks = db.relationship('Task', backref='task_status_ref', lazy=True)
+
+class Contact(db.Model):
+    """Individual contacts that can be associated with multiple clients"""
+    __tablename__ = 'contact'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    first_name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    phone = db.Column(db.String(20))
+    title = db.Column(db.String(100))  # Job title/role
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships (many-to-many with clients)
+    client_contacts = db.relationship('ClientContact', backref='contact', lazy=True)
+    
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
+
+class ClientContact(db.Model):
+    """Many-to-many relationship between clients and contacts"""
+    __tablename__ = 'client_contact'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
+    is_primary = db.Column(db.Boolean, default=False, nullable=False)
+    relationship_type = db.Column(db.String(50))  # 'Owner', 'Accountant', 'Bookkeeper', etc.
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    client = db.relationship('Client', backref='client_contacts')
+    
+    # Ensure unique client-contact pairs
+    __table_args__ = (db.UniqueConstraint('client_id', 'contact_id', name='unique_client_contact'),)

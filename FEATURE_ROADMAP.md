@@ -5,45 +5,87 @@ This document outlines the technical approach and implementation strategy for th
 
 ---
 
-## 1. Custom Task Status System 🎯
+## 1. Work Type-Based Status System 🎯 **[IN PROGRESS]**
 
 ### **Current State**
 - Fixed statuses: "Not Started", "In Progress", "Needs Review", "Completed"
-- Hardcoded in templates and database logic
+- Single workflow for all project types
 
-### **Proposed Approach**
-**Global Status Management**: Firm-level customization with Kanban board considerations
+### **Implemented Approach**
+**Work Type-Specific Status Management**: CPA service line customization following KarbonHQ pattern
 
 **Technical Implementation:**
 ```sql
--- New table for custom statuses
-CREATE TABLE task_status (
+-- Work Types (Tax, Bookkeeping, Payroll, Advisory)
+CREATE TABLE work_type (
     id INTEGER PRIMARY KEY,
     firm_id INTEGER NOT NULL,
-    name VARCHAR(50) NOT NULL,
-    color VARCHAR(7) NOT NULL,  -- Hex color code
-    position INTEGER NOT NULL,  -- Order for display
-    is_terminal BOOLEAN DEFAULT FALSE,  -- Marks completion
-    is_default BOOLEAN DEFAULT FALSE,   -- Default for new tasks
+    name VARCHAR(100) NOT NULL,        -- "Tax Preparation", "Monthly Bookkeeping"
+    description TEXT,
+    color VARCHAR(7) NOT NULL,         -- Visual distinction
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (firm_id) REFERENCES firm (id)
 );
+
+-- Custom statuses per work type
+CREATE TABLE task_status (
+    id INTEGER PRIMARY KEY,
+    firm_id INTEGER NOT NULL,
+    work_type_id INTEGER NOT NULL,     -- Links to specific work type
+    name VARCHAR(50) NOT NULL,         -- "Awaiting Info", "In Review", "Filed"
+    color VARCHAR(7) NOT NULL,         -- Hex color
+    position INTEGER NOT NULL,         -- Order in workflow
+    is_terminal BOOLEAN DEFAULT FALSE, -- Marks completion
+    is_default BOOLEAN DEFAULT FALSE,  -- Default for new tasks
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (firm_id) REFERENCES firm (id),
+    FOREIGN KEY (work_type_id) REFERENCES work_type (id)
+);
+
+-- Client Contact Management (Many-to-Many)
+CREATE TABLE contact (
+    id INTEGER PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    phone VARCHAR(20),
+    title VARCHAR(100),
+    is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE client_contact (
+    id INTEGER PRIMARY KEY,
+    client_id INTEGER NOT NULL,
+    contact_id INTEGER NOT NULL,
+    is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (client_id) REFERENCES client (id),
+    FOREIGN KEY (contact_id) REFERENCES contact (id)
+);
 ```
 
+**Default Work Types & Workflows:**
+- **Tax Preparation**: Awaiting Documents → In Preparation → In Review → Ready for Filing → Filed → Completed
+- **Monthly Bookkeeping**: Awaiting Bank Info → Data Entry → Reconciliation → Manager Review → Completed  
+- **Payroll Processing**: Data Collection → Processing → Review & Approval → Submitted → Completed
+- **Advisory Services**: Planning → Research → Client Meeting → Report Preparation → Delivered
+
 **Features:**
-- **Maximum 8 statuses** per firm (Kanban board constraint)
-- **Drag-and-drop reordering** for workflow customization
-- **Color coding** for visual distinction
-- **Terminal status** marking (replaces "Completed")
-- **Default status** for new task creation
-- **Migration system** for existing tasks
+- **Service line segregation** - Different workflows for different CPA services
+- **Team efficiency** - Relevant statuses only for specific work types
+- **Scalable growth** - Easy addition of new service lines
+- **Smart Kanban filtering** - Work type-specific column sets
+- **AI integration ready** - Structured for future email automation
 
-**Kanban Board Adaptation:**
-- **Horizontal scrolling** for 6+ columns
-- **Collapsible columns** for rarely used statuses
-- **Status grouping** (Active vs Terminal)
+**Kanban Board Enhancements:**
+- **Work type filtering** - Show only relevant status columns
+- **Horizontal scrolling** - Handle 6+ status workflows
+- **Unified dashboard** - Cross-work-type overview option
+- **Color coding** - Visual distinction by work type and status
 
-**Implementation Priority**: Medium - requires database migration and UI overhaul
+**Implementation Status**: ✅ **ACTIVE DEVELOPMENT**
 
 ---
 
@@ -250,17 +292,24 @@ CREATE TABLE task_dependencies (
 
 ## Implementation Recommendations
 
-### **Phase 1 (Immediate - 2-3 weeks)**
-1. **Enhanced Quick Filters** - Low complexity, high impact
-2. **Recurring Tasks System** - Critical for CPA automation
+### **Phase 1 (Current - 2-3 weeks)** ✅ **IN PROGRESS**
+1. **Work Type-Based Status System** - Database restructure and custom workflow management
+2. **Client Contact Management** - Many-to-many relationship system
+3. **Enhanced Kanban Board** - Work type filtering and custom status support
 
 ### **Phase 2 (Short-term - 4-6 weeks)**
-1. **Custom Status System** - Requires database migration planning
-2. **Task Dependencies** - Complex but valuable for workflow management
+1. **Enhanced Quick Filters** - CPA-specific time-based filtering
+2. **Recurring Tasks System** - Critical for CPA automation
+3. **Admin Interface** - Work type and status management UI
 
-### **Phase 3 (Long-term - 2-3 months)**
-1. **File Attachments** - Infrastructure and security considerations
-2. **Enhanced Time Tracking** - Billing system integration
+### **Phase 3 (Medium-term - 2-3 months)**
+1. **Task Dependencies** - Complex workflow orchestration
+2. **File Attachments** - Infrastructure and security considerations
+3. **Enhanced Time Tracking** - Billing system integration
+
+### **Phase 4 (Long-term - 3-6 months)** 🔮 **FUTURE**
+1. **AI-Assisted Email Integration** - Smart email processing and automation
+2. **External Integrations** - QuickBooks, Xero, banking connections
 3. **Mobile Optimization** - Comprehensive responsive design overhaul
 
 ---

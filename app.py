@@ -13,7 +13,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 os.makedirs('instance', exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact
 
 db.init_app(app)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
@@ -141,24 +141,62 @@ def dashboard():
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         )
     ).count()
-    completed_tasks = Task.query.outerjoin(Project).filter(
+    
+    # Count completed tasks using new status system
+    completed_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
         db.or_(
             Project.firm_id == firm_id,
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         ),
-        Task.status == 'Completed'
+        db.or_(
+            TaskStatus.is_terminal == True,  # New status system
+            db.and_(Task.status_id.is_(None), Task.status == 'Completed')  # Legacy fallback
+        )
     ).count()
-    overdue_tasks = Task.query.outerjoin(Project).filter(
+    
+    # Count overdue tasks (exclude completed)
+    overdue_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
         db.or_(
             Project.firm_id == firm_id,
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         ),
         Task.due_date < date.today(),
-        Task.status != 'Completed'
+        db.or_(
+            TaskStatus.is_terminal == False,  # New status system
+            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
+        )
     ).count()
+    
     active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
     
-    # Task status distribution (include both project and independent tasks)
+    # Get work types for enhanced dashboard
+    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    # Task status distribution by work type
+    work_type_status_data = {}
+    for work_type in work_types:
+        work_type_data = {
+            'name': work_type.name,
+            'color': work_type.color,
+            'statuses': {}
+        }
+        
+        for status in work_type.task_statuses:
+            # Count tasks with this specific status
+            count = Task.query.join(Project).filter(
+                Project.firm_id == firm_id,
+                Project.work_type_id == work_type.id,
+                Task.status_id == status.id
+            ).count()
+            work_type_data['statuses'][status.name] = {
+                'count': count,
+                'color': status.color,
+                'is_terminal': status.is_terminal
+            }
+        
+        work_type_status_data[work_type.name] = work_type_data
+    
+    # Legacy status distribution for backward compatibility
     task_status_data = {}
     for status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
         count = Task.query.outerjoin(Project).filter(
@@ -173,20 +211,26 @@ def dashboard():
     # Priority distribution (exclude completed tasks)
     priority_data = {}
     for priority in ['High', 'Medium', 'Low']:
-        count = Task.query.outerjoin(Project).filter(
+        count = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
             db.or_(
                 Project.firm_id == firm_id,
                 db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
             ),
             Task.priority == priority,
-            Task.status != 'Completed'
+            db.or_(
+                TaskStatus.is_terminal == False,  # New status system
+                db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
+            )
         ).count()
         priority_data[priority] = count
     
     # Recent activity (last 7 days)
     week_ago = datetime.now() - timedelta(days=7)
-    recent_tasks = Task.query.join(Project).filter(
-        Project.firm_id == firm_id,
+    recent_tasks = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
         Task.created_at >= week_ago
     ).count()
     
@@ -194,45 +238,57 @@ def dashboard():
     user_workload = {}
     users = User.query.filter_by(firm_id=firm_id).all()
     for user in users:
-        active_tasks = Task.query.outerjoin(Project).filter(
+        active_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
             db.or_(
                 Project.firm_id == firm_id,
                 db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
             ),
             Task.assignee_id == user.id,
-            Task.status.in_(['Not Started', 'In Progress', 'Needs Review'])
+            db.or_(
+                TaskStatus.is_terminal == False,  # New status system
+                db.and_(Task.status_id.is_(None), Task.status.in_(['Not Started', 'In Progress', 'Needs Review']))  # Legacy fallback
+            )
         ).count()
         user_workload[user.name] = active_tasks
     
     # Upcoming deadlines (next 7 days) - include both project tasks and independent tasks
     next_week = date.today() + timedelta(days=7)
-    upcoming_tasks = Task.query.outerjoin(Project).filter(
+    upcoming_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
         db.or_(
             Project.firm_id == firm_id,
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         ),
         Task.due_date.between(date.today(), next_week),
-        Task.status != 'Completed'
+        db.or_(
+            TaskStatus.is_terminal == False,  # New status system
+            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
+        )
     ).order_by(Task.due_date.asc()).limit(5).all()
     
     # Critical notifications - overdue and due today
-    today_tasks = Task.query.outerjoin(Project).filter(
+    today_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
         db.or_(
             Project.firm_id == firm_id,
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         ),
         Task.due_date == date.today(),
-        Task.status != 'Completed'
+        db.or_(
+            TaskStatus.is_terminal == False,  # New status system
+            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
+        )
     ).count()
     
     # Due this week count
-    due_this_week = Task.query.outerjoin(Project).filter(
+    due_this_week = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
         db.or_(
             Project.firm_id == firm_id,
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         ),
         Task.due_date.between(date.today(), next_week),
-        Task.status != 'Completed'
+        db.or_(
+            TaskStatus.is_terminal == False,  # New status system
+            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
+        )
     ).count()
     
     return render_template('dashboard.html', 
@@ -242,6 +298,8 @@ def dashboard():
                          overdue_tasks=overdue_tasks,
                          active_clients=active_clients,
                          task_status_data=task_status_data,
+                         work_type_status_data=work_type_status_data,
+                         work_types=work_types,
                          priority_data=priority_data,
                          recent_tasks=recent_tasks,
                          user_workload=user_workload,
