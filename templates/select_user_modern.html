@@ -1,8 +1,32 @@
-{% extends "base_modern.html" %}
-
-{% block title %}Select User - CPA WorkflowPilot{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-50">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Select User - CPA WorkflowPilot</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cpa-navy': '#1e3a8a',
+                        'cpa-blue': '#3b82f6',
+                        'cpa-green': '#10b981',
+                        'cpa-amber': '#f59e0b',
+                        'cpa-red': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body class="h-full bg-gray-50">
 <div class="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
     <div class="sm:mx-auto sm:w-full sm:max-w-md">
         <div class="flex justify-center">
@@ -77,4 +101,5 @@
         </div>
     </div>
 </div>
-{% endblock %}
+</body>
+</html>
