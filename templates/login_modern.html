@@ -1,0 +1,96 @@
+{% extends "base_modern.html" %}
+
+{% block title %}Login - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="flex min-h-full flex-1 flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-md">
+        <div class="flex justify-center">
+            <div class="flex h-16 w-16 items-center justify-center rounded-full bg-cpa-navy">
+                <i class="bi bi-briefcase-fill h-8 w-8 text-white"></i>
+            </div>
+        </div>
+        <h2 class="mt-6 text-center text-3xl font-bold leading-9 tracking-tight text-gray-900">
+            CPA WorkflowPilot
+        </h2>
+        <p class="mt-2 text-center text-sm leading-6 text-gray-500">
+            Professional workflow management for CPA firms
+        </p>
+    </div>
+
+    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
+        <div class="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
+            <form class="space-y-6" method="POST">
+                <div>
+                    <label for="access_code" class="block text-sm font-medium leading-6 text-gray-900">
+                        Firm Access Code
+                    </label>
+                    <div class="mt-2">
+                        <input id="access_code" name="access_code" type="text" required 
+                               class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-cpa-blue sm:text-sm sm:leading-6"
+                               placeholder="Enter your firm's access code">
+                    </div>
+                </div>
+
+                <div>
+                    <button type="submit" 
+                            class="flex w-full justify-center rounded-md bg-cpa-blue px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
+                        Access Firm Portal
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-10">
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm font-medium leading-6">
+                        <span class="bg-white px-6 text-gray-900">Demo Access</span>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <button type="button" onclick="document.getElementById('access_code').value='DEMO2024'; this.closest('form').submit();"
+                            class="flex w-full items-center justify-center gap-3 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-semibold leading-6 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-200 focus-visible:ring-transparent">
+                        <i class="bi bi-play-circle h-5 w-5"></i>
+                        <span class="text-sm font-semibold leading-6">Try Demo (DEMO2024)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-10">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <h3 class="text-lg font-semibold text-blue-900 mb-4">Features Overview</h3>
+                <ul class="space-y-3 text-sm text-blue-800">
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Template-driven project workflows
+                    </li>
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Advanced time tracking with billing
+                    </li>
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Kanban boards and calendar views
+                    </li>
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Client and contact management
+                    </li>
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Recurring task automation
+                    </li>
+                    <li class="flex items-center">
+                        <i class="bi bi-check-circle-fill h-5 w-5 text-blue-600 mr-3"></i>
+                        Comprehensive reporting suite
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

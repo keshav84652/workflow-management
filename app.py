@@ -173,7 +173,7 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             return redirect(url_for('select_user'))
-    return render_template('login.html')
+    return render_template('login_modern.html')
 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
@@ -195,7 +195,7 @@ def select_user():
     
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('select_user.html', users=users)
+    return render_template('select_user_modern.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 @app.route('/set-user', methods=['POST'])
 def set_user():
@@ -389,17 +389,32 @@ def dashboard():
         )
     ).count()
     
-    return render_template('dashboard.html', 
+    # Get recent tasks and projects for the modern dashboard
+    recent_tasks_list = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        )
+    ).order_by(Task.created_at.desc()).limit(10).all()
+    
+    recent_projects_list = Project.query.filter_by(firm_id=firm_id).order_by(Project.created_at.desc()).limit(10).all()
+    
+    return render_template('dashboard_modern.html', 
                          projects=projects, 
+                         active_tasks_count=total_tasks - completed_tasks,
+                         active_projects_count=len(projects),
+                         overdue_tasks_count=overdue_tasks,
+                         users_count=len(users),
+                         recent_tasks=recent_tasks_list,
+                         recent_projects=recent_projects_list,
+                         # Legacy data for fallback
                          total_tasks=total_tasks,
                          completed_tasks=completed_tasks,
-                         overdue_tasks=overdue_tasks,
                          active_clients=active_clients,
                          task_status_data=task_status_data,
                          work_type_status_data=work_type_status_data,
                          work_types=work_types,
                          priority_data=priority_data,
-                         recent_tasks=recent_tasks,
                          user_workload=user_workload,
                          upcoming_tasks=upcoming_tasks,
                          today_tasks=today_tasks,
