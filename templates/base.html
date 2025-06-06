@@ -153,6 +153,73 @@
             z-index: 9999 !important;
         }
 
+        /* Mobile Responsive Improvements */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                transition: left 0.3s ease;
+                z-index: 1000;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+                padding: 1rem;
+            }
+            
+            .mobile-header {
+                display: block;
+                background: var(--primary-navy);
+                color: white;
+                padding: 1rem;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                z-index: 999;
+                height: 60px;
+            }
+            
+            .main-content {
+                padding-top: 80px;
+            }
+            
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+            
+            .btn-group .btn {
+                padding: 0.25rem 0.5rem;
+                font-size: 0.75rem;
+            }
+            
+            .card {
+                margin-bottom: 1rem;
+            }
+            
+            .kanban-column {
+                min-width: 250px;
+                margin-bottom: 1rem;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+        }
+        
+        @media (min-width: 769px) {
+            .mobile-header {
+                display: none;
+            }
+        }
+
         .task-completed {
             background-color: #f0fdf4;
             border-left: 4px solid var(--success-green);
@@ -493,7 +560,22 @@
             </nav>
             {% endif %}
 
-            <main class="{% if session.firm_id %}col-md-9 ms-sm-auto col-lg-10{% else %}col-12{% endif %} px-md-4">
+            <!-- Mobile Header -->
+            {% if session.firm_id %}
+            <div class="mobile-header d-md-none">
+                <div class="d-flex justify-content-between align-items-center">
+                    <button class="btn btn-link text-white p-0" onclick="toggleSidebar()">
+                        <i class="bi bi-list" style="font-size: 1.5rem;"></i>
+                    </button>
+                    <span class="fw-bold">CPA WorkflowPilot</span>
+                    <button class="btn btn-link text-white p-0" onclick="showQuickActions()">
+                        <i class="bi bi-plus-circle" style="font-size: 1.5rem;"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            
+            <main class="{% if session.firm_id %}col-md-9 ms-sm-auto col-lg-10 main-content{% else %}col-12{% endif %} px-md-4">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -665,6 +747,67 @@
     });
     </script>
     
+    <!-- Mobile JavaScript -->
+    <script>
+    // Mobile Functions
+    window.toggleSidebar = function() {
+        const sidebar = document.querySelector('.sidebar');
+        sidebar.classList.toggle('show');
+    };
+    
+    window.showQuickActions = function() {
+        // Simple quick actions menu for mobile
+        const actions = [
+            { text: 'New Task', url: '/tasks/create' },
+            { text: 'New Project', url: '/projects/create' },
+            { text: 'New Client', url: '/clients/create' }
+        ];
+        
+        let actionMenu = document.getElementById('quick-actions-menu');
+        if (actionMenu) {
+            actionMenu.remove();
+            return;
+        }
+        
+        actionMenu = document.createElement('div');
+        actionMenu.id = 'quick-actions-menu';
+        actionMenu.className = 'position-fixed bg-white shadow rounded p-2';
+        actionMenu.style.cssText = 'top: 70px; right: 10px; z-index: 1001; min-width: 150px;';
+        
+        actions.forEach(action => {
+            const link = document.createElement('a');
+            link.href = action.url;
+            link.className = 'btn btn-outline-primary btn-sm d-block mb-1';
+            link.textContent = action.text;
+            actionMenu.appendChild(link);
+        });
+        
+        document.body.appendChild(actionMenu);
+        
+        // Remove menu when clicking outside
+        setTimeout(() => {
+            document.addEventListener('click', function(e) {
+                if (!actionMenu.contains(e.target)) {
+                    actionMenu.remove();
+                }
+            }, { once: true });
+        }, 100);
+    };
+    
+    // Close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e) {
+        const sidebar = document.querySelector('.sidebar');
+        const mobileHeader = document.querySelector('.mobile-header');
+        
+        if (window.innerWidth <= 768 && 
+            sidebar && sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && 
+            mobileHeader && !mobileHeader.contains(e.target)) {
+            sidebar.classList.remove('show');
+        }
+    });
+    </script>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>
