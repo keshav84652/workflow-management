@@ -13,10 +13,46 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 os.makedirs('instance', exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, RecurringTask
 
 db.init_app(app)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
+
+# Process recurring tasks on startup (in a real deployment, this would be handled by a cron job)
+@app.before_first_request
+def startup_tasks():
+    try:
+        process_recurring_tasks()
+    except Exception as e:
+        print(f"Failed to process recurring tasks on startup: {e}")
+
+def would_create_circular_dependency(task_id, dependency_id):
+    """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
+    def has_path(from_id, to_id, visited=None):
+        if visited is None:
+            visited = set()
+        
+        if from_id == to_id:
+            return True
+        
+        if from_id in visited:
+            return False
+        
+        visited.add(from_id)
+        
+        # Get all tasks that depend on from_id
+        dependent_tasks = Task.query.filter(Task.dependencies.like(f'%{from_id}%')).all()
+        
+        for dependent_task in dependent_tasks:
+            if dependent_task.id in dependent_task.dependency_list:  # Safety check
+                continue
+            if has_path(dependent_task.id, to_id, visited.copy()):
+                return True
+        
+        return False
+    
+    # Check if dependency_id already depends on task_id (would create cycle)
+    return has_path(dependency_id, task_id)
 
 def check_and_update_project_completion(project_id):
     """Check if all tasks in a project are completed and update project status accordingly"""
@@ -437,9 +473,13 @@ def create_project():
         # Check if this was a new client
         was_new_client = client.email is None
         
+        # Get template to access work type
+        template = Template.query.get(template_id)
+        
         project = Project(
-            name=project_name or f"{client.name} - {Template.query.get(template_id).name}",
+            name=project_name or f"{client.name} - {template.name}",
             client_id=client.id,
+            work_type_id=template.work_type_id,  # Inherit work type from template
             start_date=start_date,
             due_date=due_date,
             priority=priority,
@@ -450,10 +490,22 @@ def create_project():
         db.session.flush()
         
         # Create tasks from template
-        template = Template.query.get(template_id)
         for template_task in template.template_tasks:
             # Calculate due date
             task_due_date = calculate_task_due_date(start_date, template_task)
+            
+            # Determine status: use template status if available, otherwise work type default
+            status_id = None
+            if template_task.default_status_id:
+                status_id = template_task.default_status_id
+            elif template.work_type_id:
+                # Get default status for this work type
+                default_status = TaskStatus.query.filter_by(
+                    work_type_id=template.work_type_id,
+                    is_default=True
+                ).first()
+                if default_status:
+                    status_id = default_status.id
             
             task = Task(
                 title=template_task.title,
@@ -463,7 +515,10 @@ def create_project():
                 estimated_hours=template_task.estimated_hours,
                 project_id=project.id,
                 assignee_id=template_task.default_assignee_id,
-                template_task_origin_id=template_task.id
+                template_task_origin_id=template_task.id,
+                status_id=status_id,  # Use new status system
+                dependencies=template_task.dependencies,  # Copy dependencies
+                firm_id=firm_id
             )
             db.session.add(task)
         
@@ -766,6 +821,24 @@ def edit_task(id):
         if comments:
             task.comments = comments
         
+        # Handle dependencies (only for project tasks)
+        if task.project_id:
+            dependencies = request.form.getlist('dependencies')
+            if dependencies:
+                # Validate dependencies - ensure no circular dependencies
+                valid_dependencies = []
+                for dep_id in dependencies:
+                    try:
+                        dep_id = int(dep_id)
+                        dep_task = Task.query.filter_by(id=dep_id, project_id=task.project_id).first()
+                        if dep_task and dep_id != task.id:
+                            # Check for circular dependency
+                            if not would_create_circular_dependency(task.id, dep_id):
+                                valid_dependencies.append(str(dep_id))
+                task.dependencies = ','.join(valid_dependencies) if valid_dependencies else None
+            else:
+                task.dependencies = None
+        
         db.session.commit()
         
         # Log assignee change if it occurred
@@ -790,7 +863,12 @@ def edit_task(id):
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('edit_task.html', task=task, users=users)
+    # Get other tasks in the same project for dependency selection
+    project_tasks = []
+    if task.project_id:
+        project_tasks = Task.query.filter_by(project_id=task.project_id).order_by(Task.title).all()
+    
+    return render_template('edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
 @app.route('/tasks/<int:id>')
 def view_task(id):
@@ -1187,9 +1265,24 @@ def kanban_view():
     firm_id = session['firm_id']
     
     # Get filter parameters
+    work_type_filter = request.args.get('work_type')
     project_filter = request.args.get('project')
     assignee_filter = request.args.get('assignee')
     priority_filter = request.args.get('priority')
+    due_filter = request.args.get('due_filter')
+    
+    # Get work types for filtering
+    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    current_work_type = None
+    kanban_statuses = []
+    
+    if work_type_filter:
+        current_work_type = WorkType.query.filter_by(id=work_type_filter, firm_id=firm_id).first()
+        if current_work_type:
+            kanban_statuses = TaskStatus.query.filter_by(
+                work_type_id=current_work_type.id,
+                firm_id=firm_id
+            ).order_by(TaskStatus.position.asc()).all()
     
     # Base query - include both project and independent tasks
     query = Task.query.outerjoin(Project).filter(
@@ -1199,7 +1292,11 @@ def kanban_view():
         )
     )
     
-    # Apply filters
+    # Apply work type filter
+    if work_type_filter and current_work_type:
+        query = query.filter(Project.work_type_id == current_work_type.id)
+    
+    # Apply other filters
     if project_filter:
         query = query.filter(Task.project_id == project_filter)
     if assignee_filter:
@@ -1207,28 +1304,62 @@ def kanban_view():
     if priority_filter:
         query = query.filter(Task.priority == priority_filter)
     
+    # Apply due date filters
+    today = date.today()
+    if due_filter == 'overdue':
+        query = query.filter(Task.due_date < today)
+    elif due_filter == 'today':
+        query = query.filter(Task.due_date == today)
+    elif due_filter == 'this_week':
+        week_end = today + timedelta(days=7)
+        query = query.filter(Task.due_date.between(today, week_end))
+    
     # Get all tasks
     tasks = query.order_by(Task.created_at.desc()).all()
     
     # Organize tasks by status
-    tasks_by_status = {
-        'Not Started': [],
-        'In Progress': [],
-        'Needs Review': [],
-        'Completed': []
-    }
-    
-    task_counts = {
-        'Not Started': 0,
-        'In Progress': 0,
-        'Needs Review': 0,
-        'Completed': 0
-    }
-    
-    for task in tasks:
-        if task.status in tasks_by_status:
-            tasks_by_status[task.status].append(task)
-            task_counts[task.status] += 1
+    if current_work_type and kanban_statuses:
+        # Use custom statuses for work type
+        tasks_by_status = {}
+        task_counts = {}
+        
+        for status in kanban_statuses:
+            tasks_by_status[status.id] = []
+            task_counts[status.id] = 0
+        
+        for task in tasks:
+            # Use new status system if available, fallback to legacy
+            if task.status_id and task.status_id in task_counts:
+                tasks_by_status[task.status_id].append(task)
+                task_counts[task.status_id] += 1
+            elif not task.status_id:
+                # Legacy fallback - try to match legacy status to new status by name
+                for status in kanban_statuses:
+                    if status.name == task.status:
+                        tasks_by_status[status.id].append(task)
+                        task_counts[status.id] += 1
+                        break
+    else:
+        # Use legacy status columns
+        tasks_by_status = {
+            'Not Started': [],
+            'In Progress': [],
+            'Needs Review': [],
+            'Completed': []
+        }
+        
+        task_counts = {
+            'Not Started': 0,
+            'In Progress': 0,
+            'Needs Review': 0,
+            'Completed': 0
+        }
+        
+        for task in tasks:
+            current_status = task.current_status  # Use the property that handles both systems
+            if current_status in tasks_by_status:
+                tasks_by_status[current_status].append(task)
+                task_counts[current_status] += 1
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
@@ -1237,6 +1368,9 @@ def kanban_view():
     return render_template('kanban.html', 
                          tasks_by_status=tasks_by_status,
                          task_counts=task_counts,
+                         kanban_statuses=kanban_statuses,
+                         current_work_type=current_work_type,
+                         work_types=work_types,
                          users=users, 
                          projects=projects)
 
@@ -1491,6 +1625,591 @@ def edit_client(id):
         return redirect(url_for('view_client', id=client.id))
     
     return render_template('edit_client.html', client=client)
+
+@app.route('/admin/work_types', methods=['GET'])
+def admin_work_types():
+    if session.get('user_role') != 'Admin':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    work_types = WorkType.query.filter_by(firm_id=session['firm_id']).all()
+    
+    # Get task count by work type
+    work_type_usage = {}
+    for wt in work_types:
+        task_count = Task.query.filter_by(firm_id=session['firm_id'], work_type_id=wt.id).count()
+        work_type_usage[wt.id] = task_count
+    
+    return render_template('admin_work_types.html', 
+                         work_types=work_types, 
+                         work_type_usage=work_type_usage)
+
+@app.route('/admin/work_types/create', methods=['POST'])
+def admin_create_work_type():
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    name = request.form.get('name')
+    color = request.form.get('color', '#3b82f6')
+    
+    if not name:
+        return jsonify({'error': 'Work type name is required'}), 400
+    
+    # Check if work type already exists
+    existing = WorkType.query.filter_by(firm_id=session['firm_id'], name=name).first()
+    if existing:
+        return jsonify({'error': 'Work type with this name already exists'}), 400
+    
+    work_type = WorkType(
+        firm_id=session['firm_id'],
+        name=name,
+        color=color
+    )
+    
+    db.session.add(work_type)
+    db.session.flush()  # Get the ID
+    
+    # Create default status
+    default_status = TaskStatus(
+        work_type_id=work_type.id,
+        name='Not Started',
+        color='#6b7280',
+        position=1,
+        is_default=True,
+        is_terminal=False
+    )
+    
+    db.session.add(default_status)
+    db.session.commit()
+    
+    create_activity_log(f'Work type "{name}" created', session['user_id'])
+    
+    return jsonify({'success': True, 'work_type_id': work_type.id})
+
+@app.route('/admin/work_types/<int:work_type_id>/edit', methods=['POST'])
+def admin_edit_work_type(work_type_id):
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first()
+    if not work_type:
+        return jsonify({'error': 'Work type not found'}), 404
+    
+    name = request.form.get('name')
+    color = request.form.get('color')
+    
+    if not name:
+        return jsonify({'error': 'Work type name is required'}), 400
+    
+    # Check if name conflicts with another work type
+    existing = WorkType.query.filter_by(firm_id=session['firm_id'], name=name).filter(WorkType.id != work_type_id).first()
+    if existing:
+        return jsonify({'error': 'Work type with this name already exists'}), 400
+    
+    old_name = work_type.name
+    work_type.name = name
+    if color:
+        work_type.color = color
+    
+    db.session.commit()
+    
+    create_activity_log(f'Work type "{old_name}" updated to "{name}"', session['user_id'])
+    
+    return jsonify({'success': True})
+
+@app.route('/admin/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
+def admin_create_status(work_type_id):
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first()
+    if not work_type:
+        return jsonify({'error': 'Work type not found'}), 404
+    
+    name = request.form.get('name')
+    color = request.form.get('color', '#6b7280')
+    is_terminal = request.form.get('is_terminal') == 'true'
+    is_default = request.form.get('is_default') == 'true'
+    
+    if not name:
+        return jsonify({'error': 'Status name is required'}), 400
+    
+    # Check if status already exists for this work type
+    existing = TaskStatus.query.filter_by(work_type_id=work_type_id, name=name).first()
+    if existing:
+        return jsonify({'error': 'Status with this name already exists for this work type'}), 400
+    
+    # Get next position
+    max_position = db.session.query(db.func.max(TaskStatus.position)).filter_by(work_type_id=work_type_id).scalar() or 0
+    
+    # If setting as default, remove default from others
+    if is_default:
+        TaskStatus.query.filter_by(work_type_id=work_type_id, is_default=True).update({'is_default': False})
+    
+    status = TaskStatus(
+        work_type_id=work_type_id,
+        name=name,
+        color=color,
+        position=max_position + 1,
+        is_default=is_default,
+        is_terminal=is_terminal
+    )
+    
+    db.session.add(status)
+    db.session.commit()
+    
+    create_activity_log(f'Status "{name}" created for work type "{work_type.name}"', session['user_id'])
+    
+    return jsonify({'success': True, 'status_id': status.id})
+
+@app.route('/admin/statuses/<int:status_id>/edit', methods=['POST'])
+def admin_edit_status(status_id):
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    status = TaskStatus.query.join(WorkType).filter(
+        TaskStatus.id == status_id,
+        WorkType.firm_id == session['firm_id']
+    ).first()
+    
+    if not status:
+        return jsonify({'error': 'Status not found'}), 404
+    
+    name = request.form.get('name')
+    color = request.form.get('color')
+    is_terminal = request.form.get('is_terminal') == 'true'
+    is_default = request.form.get('is_default') == 'true'
+    
+    if not name:
+        return jsonify({'error': 'Status name is required'}), 400
+    
+    # Check if name conflicts with another status in same work type
+    existing = TaskStatus.query.filter_by(work_type_id=status.work_type_id, name=name).filter(TaskStatus.id != status_id).first()
+    if existing:
+        return jsonify({'error': 'Status with this name already exists for this work type'}), 400
+    
+    # If setting as default, remove default from others
+    if is_default and not status.is_default:
+        TaskStatus.query.filter_by(work_type_id=status.work_type_id, is_default=True).update({'is_default': False})
+    
+    old_name = status.name
+    status.name = name
+    if color:
+        status.color = color
+    status.is_terminal = is_terminal
+    status.is_default = is_default
+    
+    db.session.commit()
+    
+    create_activity_log(f'Status "{old_name}" updated to "{name}" for work type "{status.work_type.name}"', session['user_id'])
+    
+    return jsonify({'success': True})
+
+@app.route('/admin/statuses/<int:status_id>/delete', methods=['POST'])
+def admin_delete_status(status_id):
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    status = TaskStatus.query.join(WorkType).filter(
+        TaskStatus.id == status_id,
+        WorkType.firm_id == session['firm_id']
+    ).first()
+    
+    if not status:
+        return jsonify({'error': 'Status not found'}), 404
+    
+    # Check if status is in use
+    task_count = Task.query.filter_by(work_type_status_id=status_id).count()
+    if task_count > 0:
+        return jsonify({'error': f'Cannot delete status. It is currently used by {task_count} task(s).'}), 400
+    
+    # Check if it's the only status for the work type
+    status_count = TaskStatus.query.filter_by(work_type_id=status.work_type_id).count()
+    if status_count <= 1:
+        return jsonify({'error': 'Cannot delete the only status for a work type'}), 400
+    
+    # If deleting default status, make another one default
+    if status.is_default:
+        next_default = TaskStatus.query.filter_by(work_type_id=status.work_type_id).filter(TaskStatus.id != status_id).first()
+        if next_default:
+            next_default.is_default = True
+    
+    status_name = status.name
+    work_type_name = status.work_type.name
+    
+    db.session.delete(status)
+    db.session.commit()
+    
+    create_activity_log(f'Status "{status_name}" deleted from work type "{work_type_name}"', session['user_id'])
+    
+    return jsonify({'success': True})
+
+@app.route('/admin/work_types/<int:work_type_id>/statuses/reorder', methods=['POST'])
+def admin_reorder_statuses(work_type_id):
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first()
+    if not work_type:
+        return jsonify({'error': 'Work type not found'}), 404
+    
+    status_ids = request.json.get('status_ids', [])
+    
+    for i, status_id in enumerate(status_ids):
+        status = TaskStatus.query.filter_by(id=status_id, work_type_id=work_type_id).first()
+        if status:
+            status.position = i + 1
+    
+    db.session.commit()
+    
+    create_activity_log(f'Status order updated for work type "{work_type.name}"', session['user_id'])
+    
+    return jsonify({'success': True})
+
+@app.route('/contacts')
+def contacts():
+    firm_id = session['firm_id']
+    
+    # Get all contacts with client count
+    contacts = db.session.query(Contact).join(ClientContact).join(Client).filter(
+        Client.firm_id == firm_id
+    ).distinct().all()
+    
+    # Get contacts not associated with any clients in this firm
+    orphaned_contacts = db.session.query(Contact).outerjoin(ClientContact).outerjoin(Client).filter(
+        (Client.firm_id != firm_id) | (Client.id == None)
+    ).distinct().all()
+    
+    all_contacts = list(set(contacts + orphaned_contacts))
+    
+    # Add client count to each contact
+    for contact in all_contacts:
+        contact.client_count = db.session.query(ClientContact).join(Client).filter(
+            ClientContact.contact_id == contact.id,
+            Client.firm_id == firm_id
+        ).count()
+    
+    return render_template('contacts.html', contacts=all_contacts)
+
+@app.route('/contacts/create', methods=['GET', 'POST'])
+def create_contact():
+    if request.method == 'POST':
+        contact = Contact(
+            first_name=request.form.get('first_name'),
+            last_name=request.form.get('last_name'),
+            email=request.form.get('email'),
+            phone=request.form.get('phone'),
+            title=request.form.get('title'),
+            company=request.form.get('company'),
+            address=request.form.get('address'),
+            notes=request.form.get('notes')
+        )
+        
+        try:
+            db.session.add(contact)
+            db.session.commit()
+            
+            create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" created', session['user_id'])
+            flash('Contact created successfully!', 'success')
+            return redirect(url_for('contacts'))
+            
+        except Exception as e:
+            db.session.rollback()
+            if 'UNIQUE constraint failed' in str(e):
+                flash('A contact with this email already exists.', 'error')
+            else:
+                flash('Error creating contact.', 'error')
+            return redirect(url_for('create_contact'))
+    
+    return render_template('create_contact.html')
+
+@app.route('/contacts/<int:id>')
+def view_contact(id):
+    contact = Contact.query.get_or_404(id)
+    
+    # Get clients associated with this contact in current firm
+    client_contacts = db.session.query(ClientContact, Client).join(Client).filter(
+        ClientContact.contact_id == id,
+        Client.firm_id == session['firm_id']
+    ).all()
+    
+    clients = [cc[1] for cc in client_contacts]
+    
+    return render_template('view_contact.html', contact=contact, clients=clients)
+
+@app.route('/contacts/<int:id>/edit', methods=['GET', 'POST'])
+def edit_contact(id):
+    contact = Contact.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        contact.first_name = request.form.get('first_name')
+        contact.last_name = request.form.get('last_name')
+        contact.email = request.form.get('email')
+        contact.phone = request.form.get('phone')
+        contact.title = request.form.get('title')
+        contact.company = request.form.get('company')
+        contact.address = request.form.get('address')
+        contact.notes = request.form.get('notes')
+        
+        try:
+            db.session.commit()
+            create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" updated', session['user_id'])
+            flash('Contact updated successfully!', 'success')
+            return redirect(url_for('view_contact', id=contact.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            if 'UNIQUE constraint failed' in str(e):
+                flash('A contact with this email already exists.', 'error')
+            else:
+                flash('Error updating contact.', 'error')
+    
+    return render_template('edit_contact.html', contact=contact)
+
+@app.route('/contacts/<int:contact_id>/clients/<int:client_id>/associate', methods=['POST'])
+def associate_contact_client(contact_id, client_id):
+    contact = Contact.query.get_or_404(contact_id)
+    client = Client.query.get_or_404(client_id)
+    
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('contacts'))
+    
+    # Check if association already exists
+    existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+    if existing:
+        flash('Contact is already associated with this client.', 'error')
+        return redirect(url_for('view_contact', id=contact_id))
+    
+    client_contact = ClientContact(client_id=client_id, contact_id=contact_id)
+    db.session.add(client_contact)
+    db.session.commit()
+    
+    create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" associated with client "{client.name}"', session['user_id'])
+    flash('Contact associated with client successfully!', 'success')
+    
+    return redirect(url_for('view_contact', id=contact_id))
+
+@app.route('/contacts/<int:contact_id>/clients/<int:client_id>/disassociate', methods=['POST'])
+def disassociate_contact_client(contact_id, client_id):
+    client = Client.query.get_or_404(client_id)
+    
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('contacts'))
+    
+    client_contact = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+    if client_contact:
+        db.session.delete(client_contact)
+        db.session.commit()
+        
+        contact = Contact.query.get(contact_id)
+        create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" disassociated from client "{client.name}"', session['user_id'])
+        flash('Contact disassociated from client successfully!', 'success')
+    
+    return redirect(url_for('view_contact', id=contact_id))
+
+@app.route('/api/clients')
+def api_clients():
+    """API endpoint to get clients for the current firm"""
+    firm_id = session['firm_id']
+    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    return jsonify([{
+        'id': client.id,
+        'name': client.name,
+        'entity_type': client.entity_type
+    } for client in clients])
+
+@app.route('/recurring-tasks')
+def recurring_tasks():
+    firm_id = session['firm_id']
+    recurring_tasks = RecurringTask.query.filter_by(firm_id=firm_id).order_by(RecurringTask.next_due_date.asc()).all()
+    return render_template('recurring_tasks.html', recurring_tasks=recurring_tasks)
+
+@app.route('/recurring-tasks/create', methods=['GET', 'POST'])
+def create_recurring_task():
+    if request.method == 'POST':
+        firm_id = session['firm_id']
+        
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        recurrence_rule = request.form.get('recurrence_rule')
+        priority = request.form.get('priority', 'Medium')
+        estimated_hours = request.form.get('estimated_hours')
+        assignee_id = request.form.get('assignee_id')
+        client_id = request.form.get('client_id')
+        work_type_id = request.form.get('work_type_id')
+        next_due_date = request.form.get('next_due_date')
+        
+        # Convert estimated_hours
+        estimated_hours_float = None
+        if estimated_hours:
+            try:
+                estimated_hours_float = float(estimated_hours)
+            except ValueError:
+                pass
+        
+        # Convert next_due_date
+        next_due_date_obj = datetime.strptime(next_due_date, '%Y-%m-%d').date()
+        
+        # Get default status for work type if specified
+        status_id = None
+        if work_type_id:
+            default_status = TaskStatus.query.filter_by(
+                work_type_id=work_type_id,
+                is_default=True
+            ).first()
+            if default_status:
+                status_id = default_status.id
+        
+        # Create recurring task
+        recurring_task = RecurringTask(
+            firm_id=firm_id,
+            title=title,
+            description=description,
+            recurrence_rule=recurrence_rule,
+            priority=priority,
+            estimated_hours=estimated_hours_float,
+            default_assignee_id=assignee_id if assignee_id else None,
+            client_id=client_id if client_id else None,
+            work_type_id=work_type_id if work_type_id else None,
+            status_id=status_id,
+            next_due_date=next_due_date_obj
+        )
+        
+        db.session.add(recurring_task)
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Recurring task "{recurring_task.title}" created', session['user_id'])
+        
+        flash('Recurring task created successfully!', 'success')
+        return redirect(url_for('recurring_tasks'))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    return render_template('create_recurring_task.html', users=users, clients=clients, work_types=work_types)
+
+@app.route('/recurring-tasks/<int:id>/edit', methods=['GET', 'POST'])
+def edit_recurring_task(id):
+    recurring_task = RecurringTask.query.get_or_404(id)
+    if recurring_task.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('recurring_tasks'))
+    
+    if request.method == 'POST':
+        # Update task details
+        recurring_task.title = request.form.get('title')
+        recurring_task.description = request.form.get('description')
+        recurring_task.recurrence_rule = request.form.get('recurrence_rule')
+        recurring_task.priority = request.form.get('priority', 'Medium')
+        recurring_task.is_active = 'is_active' in request.form
+        
+        # Handle estimated hours
+        estimated_hours = request.form.get('estimated_hours')
+        if estimated_hours:
+            try:
+                recurring_task.estimated_hours = float(estimated_hours)
+            except ValueError:
+                recurring_task.estimated_hours = None
+        else:
+            recurring_task.estimated_hours = None
+        
+        # Handle assignee
+        assignee_id = request.form.get('assignee_id')
+        recurring_task.default_assignee_id = assignee_id if assignee_id else None
+        
+        # Handle client
+        client_id = request.form.get('client_id')
+        recurring_task.client_id = client_id if client_id else None
+        
+        # Handle work type and default status
+        work_type_id = request.form.get('work_type_id')
+        recurring_task.work_type_id = work_type_id if work_type_id else None
+        
+        if work_type_id:
+            default_status = TaskStatus.query.filter_by(
+                work_type_id=work_type_id,
+                is_default=True
+            ).first()
+            if default_status:
+                recurring_task.status_id = default_status.id
+        else:
+            recurring_task.status_id = None
+        
+        # Handle next due date
+        next_due_date = request.form.get('next_due_date')
+        if next_due_date:
+            recurring_task.next_due_date = datetime.strptime(next_due_date, '%Y-%m-%d').date()
+        
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Recurring task "{recurring_task.title}" updated', session['user_id'])
+        
+        flash('Recurring task updated successfully!', 'success')
+        return redirect(url_for('recurring_tasks'))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    return render_template('edit_recurring_task.html', recurring_task=recurring_task, users=users, clients=clients, work_types=work_types)
+
+@app.route('/recurring-tasks/<int:id>/toggle', methods=['POST'])
+def toggle_recurring_task(id):
+    recurring_task = RecurringTask.query.get_or_404(id)
+    if recurring_task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    recurring_task.is_active = not recurring_task.is_active
+    db.session.commit()
+    
+    status = 'activated' if recurring_task.is_active else 'deactivated'
+    create_activity_log(f'Recurring task "{recurring_task.title}" {status}', session['user_id'])
+    
+    return jsonify({'success': True, 'is_active': recurring_task.is_active})
+
+@app.route('/recurring-tasks/<int:id>/delete', methods=['POST'])
+def delete_recurring_task(id):
+    recurring_task = RecurringTask.query.get_or_404(id)
+    if recurring_task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    task_title = recurring_task.title
+    
+    # Delete all generated tasks that haven't been started yet
+    Task.query.filter_by(
+        recurring_task_origin_id=recurring_task.id,
+        status='Not Started'
+    ).delete()
+    
+    db.session.delete(recurring_task)
+    db.session.commit()
+    
+    create_activity_log(f'Recurring task "{task_title}" deleted', session['user_id'])
+    
+    return jsonify({'success': True, 'message': 'Recurring task deleted successfully'})
+
+@app.route('/admin/process-recurring', methods=['POST'])
+def admin_process_recurring():
+    """Manual trigger for processing recurring tasks"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        process_recurring_tasks()
+        return jsonify({'success': True, 'message': 'Recurring tasks processed successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)

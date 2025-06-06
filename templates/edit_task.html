@@ -81,6 +81,55 @@
                         </div>
                     </div>
                     
+                    <!-- Task Dependencies -->
+                    {% if task.project %}
+                    <div class="mb-3">
+                        <label for="dependencies" class="form-label">
+                            Task Dependencies 
+                            <i class="bi bi-info-circle" title="Select tasks that must be completed before this task can start"></i>
+                        </label>
+                        <select class="form-select" id="dependencies" name="dependencies" multiple>
+                            {% for dep_task in project_tasks %}
+                                {% if dep_task.id != task.id %}
+                                <option value="{{ dep_task.id }}" 
+                                        {% if dep_task.id in task.dependency_list %}selected{% endif %}
+                                        {% if dep_task.is_completed %}class="text-success"{% endif %}>
+                                    {{ dep_task.title }} 
+                                    {% if dep_task.is_completed %}✓{% endif %}
+                                    {% if dep_task.is_overdue %}⚠️{% endif %}
+                                </option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            Hold Ctrl/Cmd to select multiple tasks. This task will be blocked until all selected dependencies are completed.
+                        </div>
+                        {% if task.dependency_list %}
+                        <div class="mt-2">
+                            <strong>Current Dependencies:</strong>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                {% for dep_id in task.dependency_list %}
+                                    {% for dep_task in project_tasks %}
+                                        {% if dep_task.id == dep_id %}
+                                        <span class="badge bg-{{ 'success' if dep_task.is_completed else 'warning' }}">
+                                            {{ dep_task.title }}
+                                            {% if dep_task.is_completed %}✓{% else %}⏳{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if task.is_blocked %}
+                        <div class="alert alert-warning mt-2">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Blocked:</strong> This task is currently blocked by incomplete dependencies.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
                     <div class="mb-3">
                         <label for="comments" class="form-label">Comments</label>
                         <textarea class="form-control" id="comments" name="comments" rows="3">{{ task.comments or '' }}</textarea>
@@ -124,7 +173,12 @@
                 {% if task.template_task_origin_id %}
                 <div class="mb-3">
                     <label class="form-label fw-bold text-muted small">TEMPLATE ORIGIN</label>
-                    <div><span class="badge bg-light text-dark">From Template</span></div>
+                    <div><span class="badge bg-info">From Template</span></div>
+                </div>
+                {% elif task.recurring_task_origin_id %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">RECURRING ORIGIN</label>
+                    <div><span class="badge bg-warning">From Recurring Task</span></div>
                 </div>
                 {% endif %}
                 

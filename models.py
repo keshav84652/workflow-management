@@ -47,8 +47,11 @@ class TemplateTask(db.Model):
     default_assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     recurrence_rule = db.Column(db.String(100))
     template_id = db.Column(db.Integer, db.ForeignKey('template.id'), nullable=False)
+    default_status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Maps to specific workflow status
+    dependencies = db.Column(db.String(500))  # Comma-separated list of template task IDs this depends on
     
     default_assignee = db.relationship('User', backref='default_template_tasks')
+    default_status = db.relationship('TaskStatus', backref='template_tasks')
     spawned_tasks = db.relationship('Task', backref='template_task_origin', lazy=True)
 
 class Client(db.Model):
@@ -113,6 +116,8 @@ class Task(db.Model):
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     template_task_origin_id = db.Column(db.Integer, db.ForeignKey('template_task.id'))
+    recurring_task_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_task.id'))  # For standalone recurring tasks
+    dependencies = db.Column(db.String(500))  # Comma-separated list of task IDs this depends on
     completed_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -162,6 +167,37 @@ class Task(db.Model):
             'Completed': '#10b981'
         }
         return colors.get(self.status, '#6b7280')
+    
+    @property
+    def dependency_list(self):
+        """Get list of task IDs this task depends on"""
+        if not self.dependencies:
+            return []
+        return [int(id.strip()) for id in self.dependencies.split(',') if id.strip()]
+    
+    @property
+    def is_blocked(self):
+        """Check if task is blocked by incomplete dependencies"""
+        if not self.dependency_list:
+            return False
+        from sqlalchemy import and_
+        blocked_dependencies = Task.query.filter(
+            and_(
+                Task.id.in_(self.dependency_list),
+                Task.firm_id == self.firm_id
+            )
+        ).all()
+        return any(not dep.is_completed for dep in blocked_dependencies)
+    
+    @property
+    def blocking_tasks(self):
+        """Get tasks that are blocked by this task"""
+        if self.is_completed:
+            return []
+        return Task.query.filter(
+            Task.dependencies.like(f'%{self.id}%'),
+            Task.firm_id == self.firm_id
+        ).all()
 
 class TaskComment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -218,6 +254,34 @@ class TaskStatus(db.Model):
     firm = db.relationship('Firm', backref='task_statuses')
     tasks = db.relationship('Task', backref='task_status_ref', lazy=True)
 
+class RecurringTask(db.Model):
+    """Standalone recurring tasks for regular CPA workflows"""
+    __tablename__ = 'recurring_task'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    recurrence_rule = db.Column(db.String(100), nullable=False)  # e.g., "monthly:15", "quarterly:last_biz_day"
+    priority = db.Column(db.String(10), default='Medium', nullable=False)
+    estimated_hours = db.Column(db.Float)
+    default_assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=True)  # Optional client association
+    status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Default status for generated tasks
+    work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Associated work type
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    next_due_date = db.Column(db.Date, nullable=False)  # When next task should be created
+    last_generated = db.Column(db.Date)  # Last time a task was generated
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    firm = db.relationship('Firm', backref='recurring_tasks')
+    default_assignee = db.relationship('User', backref='assigned_recurring_tasks')
+    client = db.relationship('Client', backref='recurring_tasks')
+    default_status = db.relationship('TaskStatus', backref='recurring_tasks')
+    work_type = db.relationship('WorkType', backref='recurring_tasks')
+    generated_tasks = db.relationship('Task', backref='recurring_task_origin', lazy=True)
+
 class Contact(db.Model):
     """Individual contacts that can be associated with multiple clients"""
     __tablename__ = 'contact'
@@ -228,6 +292,8 @@ class Contact(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     phone = db.Column(db.String(20))
     title = db.Column(db.String(100))  # Job title/role
+    company = db.Column(db.String(200))  # Company name
+    address = db.Column(db.Text)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     

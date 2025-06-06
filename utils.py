@@ -3,7 +3,7 @@ import string
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
-from models import db, ActivityLog, TemplateTask, Task, Project, Client
+from models import db, ActivityLog, TemplateTask, Task, Project, Client, RecurringTask
 
 def generate_access_code(length=12):
     characters = string.ascii_uppercase + string.digits
@@ -101,6 +101,9 @@ def calculate_next_due_date(recurrence_rule, base_date=None):
     return None
 
 def process_recurring_tasks():
+    """Process both template-based and standalone recurring tasks"""
+    
+    # Process template-based recurring tasks
     template_tasks = TemplateTask.query.filter(TemplateTask.recurrence_rule.isnot(None)).all()
     
     for template_task in template_tasks:
@@ -133,8 +136,64 @@ def process_recurring_tasks():
                         due_date=next_due,
                         project_id=project.id,
                         assignee_id=template_task.default_assignee_id,
-                        template_task_origin_id=template_task.id
+                        template_task_origin_id=template_task.id,
+                        firm_id=project.firm_id
                     )
                     db.session.add(task)
+    
+    # Process standalone recurring tasks
+    recurring_tasks = RecurringTask.query.filter_by(is_active=True).all()
+    
+    for recurring_task in recurring_tasks:
+        # Check if it's time to generate the next task
+        if recurring_task.next_due_date <= date.today():
+            # Check if task already exists for this due date
+            existing_task = Task.query.filter_by(
+                recurring_task_origin_id=recurring_task.id,
+                due_date=recurring_task.next_due_date
+            ).first()
+            
+            if not existing_task:
+                # Create new task from recurring template
+                task = Task(
+                    title=recurring_task.title,
+                    description=recurring_task.description,
+                    due_date=recurring_task.next_due_date,
+                    priority=recurring_task.priority,
+                    estimated_hours=recurring_task.estimated_hours,
+                    assignee_id=recurring_task.default_assignee_id,
+                    status_id=recurring_task.status_id,
+                    recurring_task_origin_id=recurring_task.id,
+                    firm_id=recurring_task.firm_id
+                )
+                
+                # If associated with a client, try to find an active project or make it independent
+                if recurring_task.client_id:
+                    # Find the most recent active project for this client and work type
+                    project = Project.query.filter_by(
+                        client_id=recurring_task.client_id,
+                        work_type_id=recurring_task.work_type_id,
+                        status='Active'
+                    ).order_by(Project.created_at.desc()).first()
+                    
+                    if project:
+                        task.project_id = project.id
+                
+                db.session.add(task)
+                
+                # Update recurring task's next due date and last generated
+                recurring_task.last_generated = recurring_task.next_due_date
+                recurring_task.next_due_date = calculate_next_due_date(
+                    recurring_task.recurrence_rule, 
+                    recurring_task.next_due_date
+                )
+                
+                # Log the activity
+                create_activity_log(
+                    f'Recurring task "{recurring_task.title}" generated for {recurring_task.last_generated}',
+                    recurring_task.default_assignee_id or 1,  # Fallback to admin user
+                    task.project_id if hasattr(task, 'project_id') else None,
+                    None  # Will be set after commit
+                )
     
     db.session.commit()

@@ -47,6 +47,79 @@
                 </div>
                 {% endif %}
                 
+                <!-- Task Dependencies -->
+                {% if task.project and (task.dependency_list or task.blocking_tasks) %}
+                <div class="mb-4">
+                    <h5>Dependencies</h5>
+                    
+                    {% if task.dependency_list %}
+                    <div class="mb-3">
+                        <h6 class="text-muted small">DEPENDS ON</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for dep_id in task.dependency_list %}
+                                {% for project_task in task.project.tasks %}
+                                    {% if project_task.id == dep_id %}
+                                    <div class="card border-{{ 'success' if project_task.is_completed else 'warning' }}" style="max-width: 300px;">
+                                        <div class="card-body p-2">
+                                            <div class="d-flex align-items-center">
+                                                <span class="badge bg-{{ 'success' if project_task.is_completed else 'warning' }} me-2">
+                                                    {% if project_task.is_completed %}✓{% else %}⏳{% endif %}
+                                                </span>
+                                                <div class="flex-grow-1">
+                                                    <a href="{{ url_for('view_task', id=project_task.id) }}" class="text-decoration-none">
+                                                        <small><strong>{{ project_task.title }}</strong></small>
+                                                    </a>
+                                                    {% if project_task.assignee %}
+                                                    <br><small class="text-muted">{{ project_task.assignee.name }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endfor %}
+                        </div>
+                        {% if task.is_blocked %}
+                        <div class="alert alert-warning mt-2">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Blocked:</strong> This task cannot start until all dependencies above are completed.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if task.blocking_tasks %}
+                    <div class="mb-3">
+                        <h6 class="text-muted small">BLOCKING</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for blocked_task in task.blocking_tasks %}
+                            <div class="card border-info" style="max-width: 300px;">
+                                <div class="card-body p-2">
+                                    <div class="d-flex align-items-center">
+                                        <span class="badge bg-info me-2">🔒</span>
+                                        <div class="flex-grow-1">
+                                            <a href="{{ url_for('view_task', id=blocked_task.id) }}" class="text-decoration-none">
+                                                <small><strong>{{ blocked_task.title }}</strong></small>
+                                            </a>
+                                            {% if blocked_task.assignee %}
+                                            <br><small class="text-muted">{{ blocked_task.assignee.name }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="alert alert-info mt-2">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Note:</strong> These tasks are waiting for this task to be completed.
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+                
                 <div class="row mb-4">
                     <div class="col-md-3">
                         <label class="form-label fw-bold text-muted small">STATUS</label>
@@ -315,17 +388,18 @@
                     <div>{{ task.created_at.strftime('%m/%d/%Y %I:%M %p') if task.created_at else 'N/A' }}</div>
                 </div>
                 
-                {% if task.template_task_origin_id %}
                 <div class="mb-2">
                     <label class="form-label fw-bold text-muted small">ORIGIN</label>
-                    <div><span class="badge bg-info">Template Task</span></div>
+                    <div>
+                        {% if task.template_task_origin_id %}
+                            <span class="badge bg-info">Template Task</span>
+                        {% elif task.recurring_task_origin_id %}
+                            <span class="badge bg-warning">Recurring Task</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Manual Entry</span>
+                        {% endif %}
+                    </div>
                 </div>
-                {% else %}
-                <div class="mb-2">
-                    <label class="form-label fw-bold text-muted small">ORIGIN</label>
-                    <div><span class="badge bg-secondary">Manual Entry</span></div>
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>

@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+
+{% block title %}Work Types Management - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-gear"></i> Work Types & Status Management
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createWorkTypeModal">
+            <i class="bi bi-plus-circle"></i> Add Work Type
+        </button>
+    </div>
+</div>
+
+<!-- Overview Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-start border-4 border-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Work Types</h6>
+                        <h3 class="text-primary">{{ work_types|length }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-diagram-3 text-primary" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-4 border-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Custom Statuses</h6>
+                        <h3 class="text-success">{{ total_statuses }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-tags text-success" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-4 border-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Active Projects</h6>
+                        <h3 class="text-warning">{{ active_projects }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-folder text-warning" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-start border-4 border-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Tasks</h6>
+                        <h3 class="text-info">{{ total_tasks }}</h3>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="bi bi-list-task text-info" style="font-size: 2rem;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Work Types List -->
+{% for work_type in work_types %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center" style="background-color: {{ work_type.color }}20;">
+        <div class="d-flex align-items-center">
+            <span class="badge me-3" style="background-color: {{ work_type.color }}; font-size: 1em;">
+                {{ work_type.name }}
+            </span>
+            <span class="text-muted">{{ work_type.description }}</span>
+        </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-sm btn-outline-primary" 
+                    onclick="editWorkType({{ work_type.id }}, '{{ work_type.name }}', '{{ work_type.description }}', '{{ work_type.color }}')">
+                <i class="bi bi-pencil"></i> Edit
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success" 
+                    onclick="addStatus({{ work_type.id }}, '{{ work_type.name }}')">
+                <i class="bi bi-plus"></i> Add Status
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <h6>Status Workflow ({{ work_type.task_statuses|length }} statuses)</h6>
+        
+        {% if work_type.task_statuses %}
+        <div class="status-workflow mb-3">
+            {% for status in work_type.task_statuses|sort(attribute='position') %}
+            <div class="status-item d-inline-block me-2 mb-2">
+                <div class="card" style="min-width: 180px;">
+                    <div class="card-header py-2" style="background-color: {{ status.color }};">
+                        <div class="d-flex justify-content-between align-items-center text-white">
+                            <small class="fw-bold">
+                                {% if status.is_default %}
+                                    <i class="bi bi-star-fill"></i>
+                                {% elif status.is_terminal %}
+                                    <i class="bi bi-check-circle"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-right"></i>
+                                {% endif %}
+                                {{ status.name }}
+                            </small>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-link text-white p-0" data-bs-toggle="dropdown">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <button class="dropdown-item" 
+                                                onclick="editStatus({{ status.id }}, '{{ status.name }}', '{{ status.color }}', {{ status.position }}, {{ status.is_default|lower }}, {{ status.is_terminal|lower }})">
+                                            <i class="bi bi-pencil"></i> Edit
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button class="dropdown-item text-danger" 
+                                                onclick="deleteStatus({{ status.id }}, '{{ status.name }}')">
+                                            <i class="bi bi-trash"></i> Delete
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body py-2">
+                        <small class="text-muted">
+                            Position: {{ status.position }}
+                            {% if status.is_default %} • Default{% endif %}
+                            {% if status.is_terminal %} • Terminal{% endif %}
+                        </small>
+                        <br>
+                        <small class="text-muted">
+                            Tasks: {{ status.tasks|length }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% if not loop.last %}
+                <i class="bi bi-arrow-right text-muted align-middle me-2"></i>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            No custom statuses defined for this work type. 
+            <button type="button" class="btn btn-sm btn-outline-primary ms-2" 
+                    onclick="addStatus({{ work_type.id }}, '{{ work_type.name }}')">
+                Add First Status
+            </button>
+        </div>
+        {% endif %}
+        
+        <!-- Usage Statistics -->
+        <div class="mt-3">
+            <h6>Usage Statistics</h6>
+            <div class="row">
+                <div class="col-md-4">
+                    <small class="text-muted">Templates:</small>
+                    <span class="fw-bold">{{ work_type.templates|length }}</span>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Active Projects:</small>
+                    <span class="fw-bold">{{ work_type.projects|selectattr('status', 'equalto', 'Active')|list|length }}</span>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted">Total Projects:</small>
+                    <span class="fw-bold">{{ work_type.projects|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Create Work Type Modal -->
+<div class="modal fade" id="createWorkTypeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Work Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_create_work_type') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Work Type Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="e.g., Business Consulting">
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="2"
+                                  placeholder="Brief description of this service line"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" id="color" name="color" 
+                               value="#3b82f6" title="Choose color">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Work Type</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Work Type Modal -->
+<div class="modal fade" id="editWorkTypeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Work Type</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_edit_work_type') }}">
+                <input type="hidden" id="edit_work_type_id" name="work_type_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Work Type Name *</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" id="edit_color" name="color">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Work Type</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Status Modal -->
+<div class="modal fade" id="addStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Status to <span id="add_status_work_type"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_create_status') }}">
+                <input type="hidden" id="add_status_work_type_id" name="work_type_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="status_name" class="form-label">Status Name *</label>
+                        <input type="text" class="form-control" id="status_name" name="name" required
+                               placeholder="e.g., Awaiting Documents">
+                    </div>
+                    <div class="mb-3">
+                        <label for="status_color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" id="status_color" name="color" 
+                               value="#6b7280">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="status_position" class="form-label">Position</label>
+                                <input type="number" class="form-control" id="status_position" name="position" 
+                                       min="1" value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_default" name="is_default">
+                                    <label class="form-check-label" for="is_default">
+                                        Default for new tasks
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_terminal" name="is_terminal">
+                                    <label class="form-check-label" for="is_terminal">
+                                        Terminal (completion) status
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Status Modal -->
+<div class="modal fade" id="editStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin_edit_status') }}">
+                <input type="hidden" id="edit_status_id" name="status_id">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="edit_status_name" class="form-label">Status Name *</label>
+                        <input type="text" class="form-control" id="edit_status_name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit_status_color" class="form-label">Color</label>
+                        <input type="color" class="form-control form-control-color" id="edit_status_color" name="color">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_status_position" class="form-label">Position</label>
+                                <input type="number" class="form-control" id="edit_status_position" name="position" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Status Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="edit_is_default" name="is_default">
+                                    <label class="form-check-label" for="edit_is_default">
+                                        Default for new tasks
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="edit_is_terminal" name="is_terminal">
+                                    <label class="form-check-label" for="edit_is_terminal">
+                                        Terminal (completion) status
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.status-workflow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.status-item {
+    flex-shrink: 0;
+}
+
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+</style>
+
+<script>
+function editWorkType(id, name, description, color) {
+    document.getElementById('edit_work_type_id').value = id;
+    document.getElementById('edit_name').value = name;
+    document.getElementById('edit_description').value = description;
+    document.getElementById('edit_color').value = color;
+    new bootstrap.Modal(document.getElementById('editWorkTypeModal')).show();
+}
+
+function addStatus(workTypeId, workTypeName) {
+    document.getElementById('add_status_work_type_id').value = workTypeId;
+    document.getElementById('add_status_work_type').textContent = workTypeName;
+    new bootstrap.Modal(document.getElementById('addStatusModal')).show();
+}
+
+function editStatus(id, name, color, position, isDefault, isTerminal) {
+    document.getElementById('edit_status_id').value = id;
+    document.getElementById('edit_status_name').value = name;
+    document.getElementById('edit_status_color').value = color;
+    document.getElementById('edit_status_position').value = position;
+    document.getElementById('edit_is_default').checked = isDefault;
+    document.getElementById('edit_is_terminal').checked = isTerminal;
+    new bootstrap.Modal(document.getElementById('editStatusModal')).show();
+}
+
+function deleteStatus(id, name) {
+    if (confirm(`Are you sure you want to delete the status "${name}"? This action cannot be undone and may affect existing tasks.`)) {
+        // Create a form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{{ url_for("admin_delete_status") }}';
+        
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'status_id';
+        input.value = id;
+        
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

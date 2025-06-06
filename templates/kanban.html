@@ -20,13 +20,33 @@
     </div>
 </div>
 
-<!-- Filters -->
+<!-- Enhanced Filters with Work Types -->
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card">
             <div class="card-body">
+                <h6 class="card-title">
+                    <i class="bi bi-funnel"></i> Kanban Filters
+                    {% if work_types|length > 1 %}
+                        <small class="text-muted">- Choose work type for custom status columns</small>
+                    {% endif %}
+                </h6>
+                
                 <form method="GET" class="row g-3">
-                    <div class="col-md-3">
+                    <!-- Work Type Filter -->
+                    <div class="col-md-2">
+                        <label class="form-label fw-bold">Work Type</label>
+                        <select name="work_type" class="form-select" onchange="this.form.submit()">
+                            <option value="">All Work Types</option>
+                            {% for work_type in work_types %}
+                            <option value="{{ work_type.id }}" {% if request.args.get('work_type') == work_type.id|string %}selected{% endif %}>
+                                {{ work_type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
                         <label class="form-label">Project</label>
                         <select name="project" class="form-select">
                             <option value="">All Projects</option>
@@ -37,7 +57,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Assignee</label>
                         <select name="assignee" class="form-select">
                             <option value="">All Users</option>
@@ -48,7 +68,7 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <label class="form-label">Priority</label>
                         <select name="priority" class="form-select">
                             <option value="">All Priorities</option>
@@ -57,89 +77,141 @@
                             <option value="Low" {% if request.args.get('priority') == 'Low' %}selected{% endif %}>Low</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Due Date</label>
+                        <select name="due_filter" class="form-select">
+                            <option value="">All Tasks</option>
+                            <option value="overdue" {% if request.args.get('due_filter') == 'overdue' %}selected{% endif %}>Overdue</option>
+                            <option value="today" {% if request.args.get('due_filter') == 'today' %}selected{% endif %}>Due Today</option>
+                            <option value="this_week" {% if request.args.get('due_filter') == 'this_week' %}selected{% endif %}>Due This Week</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label">&nbsp;</label>
-                        <div>
-                            <button type="submit" class="btn btn-outline-primary">
+                        <div class="d-grid gap-1">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
                                 <i class="bi bi-funnel"></i> Filter
                             </button>
-                            <a href="{{ url_for('kanban_view') }}" class="btn btn-outline-secondary">
+                            <a href="{{ url_for('kanban_view') }}" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-x-circle"></i> Clear
                             </a>
                         </div>
                     </div>
                 </form>
+                
+                <!-- Active Work Type Display -->
+                {% if current_work_type %}
+                <div class="mt-3">
+                    <div class="d-flex align-items-center">
+                        <span class="badge me-2" style="background-color: {{ current_work_type.color }}; font-size: 0.9em;">
+                            {{ current_work_type.name }}
+                        </span>
+                        <small class="text-muted">{{ current_work_type.description }}</small>
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-<!-- Kanban Board -->
-<div class="row">
-    <div class="col-md-3">
-        <div class="kanban-column">
-            <div class="kanban-header bg-secondary">
-                <h5 class="mb-0 text-white">
-                    <i class="bi bi-clock"></i> Not Started
-                    <span class="badge bg-white text-dark ms-2">{{ task_counts['Not Started'] }}</span>
-                </h5>
+<!-- Dynamic Kanban Board -->
+{% if current_work_type %}
+    <!-- Work Type Specific Columns -->
+    <div class="kanban-board-container" style="overflow-x: auto;">
+        <div class="d-flex" style="min-width: {{ (kanban_statuses|length * 280) }}px;">
+            {% for status in kanban_statuses %}
+            <div class="kanban-column me-3" style="min-width: 260px;">
+                <div class="kanban-header" style="background-color: {{ status.color }};">
+                    <h6 class="mb-0 text-white">
+                        {% if status.is_terminal %}
+                            <i class="bi bi-check-circle"></i>
+                        {% elif status.is_default %}
+                            <i class="bi bi-clock"></i>
+                        {% else %}
+                            <i class="bi bi-arrow-right-circle"></i>
+                        {% endif %}
+                        {{ status.name }}
+                        <span class="badge bg-white text-dark ms-2">{{ task_counts[status.id] or 0 }}</span>
+                    </h6>
+                </div>
+                <div class="kanban-body" data-status-id="{{ status.id }}" data-status-name="{{ status.name }}">
+                    {% for task in tasks_by_status[status.id] %}
+                    {% include 'kanban_card.html' %}
+                    {% endfor %}
+                </div>
             </div>
-            <div class="kanban-body" data-status="Not Started">
-                {% for task in tasks_by_status['Not Started'] %}
-                {% include 'kanban_card.html' %}
-                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+{% else %}
+    <!-- Legacy Status Columns (All Work Types) -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="kanban-column">
+                <div class="kanban-header bg-secondary">
+                    <h5 class="mb-0 text-white">
+                        <i class="bi bi-clock"></i> Not Started
+                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Not Started'] or 0 }}</span>
+                    </h5>
+                </div>
+                <div class="kanban-body" data-status="Not Started">
+                    {% for task in tasks_by_status['Not Started'] %}
+                    {% include 'kanban_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="kanban-column">
+                <div class="kanban-header bg-primary">
+                    <h5 class="mb-0 text-white">
+                        <i class="bi bi-play"></i> In Progress
+                        <span class="badge bg-white text-dark ms-2">{{ task_counts['In Progress'] or 0 }}</span>
+                    </h5>
+                </div>
+                <div class="kanban-body" data-status="In Progress">
+                    {% for task in tasks_by_status['In Progress'] %}
+                    {% include 'kanban_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="kanban-column">
+                <div class="kanban-header bg-warning">
+                    <h5 class="mb-0 text-white">
+                        <i class="bi bi-eye"></i> Needs Review
+                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Needs Review'] or 0 }}</span>
+                    </h5>
+                </div>
+                <div class="kanban-body" data-status="Needs Review">
+                    {% for task in tasks_by_status['Needs Review'] %}
+                    {% include 'kanban_card.html' %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="kanban-column">
+                <div class="kanban-header bg-success">
+                    <h5 class="mb-0 text-white">
+                        <i class="bi bi-check-circle"></i> Completed
+                        <span class="badge bg-white text-dark ms-2">{{ task_counts['Completed'] or 0 }}</span>
+                    </h5>
+                </div>
+                <div class="kanban-body" data-status="Completed">
+                    {% for task in tasks_by_status['Completed'] %}
+                    {% include 'kanban_card.html' %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="kanban-column">
-            <div class="kanban-header bg-primary">
-                <h5 class="mb-0 text-white">
-                    <i class="bi bi-play"></i> In Progress
-                    <span class="badge bg-white text-dark ms-2">{{ task_counts['In Progress'] }}</span>
-                </h5>
-            </div>
-            <div class="kanban-body" data-status="In Progress">
-                {% for task in tasks_by_status['In Progress'] %}
-                {% include 'kanban_card.html' %}
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="kanban-column">
-            <div class="kanban-header bg-warning">
-                <h5 class="mb-0 text-white">
-                    <i class="bi bi-eye"></i> Needs Review
-                    <span class="badge bg-white text-dark ms-2">{{ task_counts['Needs Review'] }}</span>
-                </h5>
-            </div>
-            <div class="kanban-body" data-status="Needs Review">
-                {% for task in tasks_by_status['Needs Review'] %}
-                {% include 'kanban_card.html' %}
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="kanban-column">
-            <div class="kanban-header bg-success">
-                <h5 class="mb-0 text-white">
-                    <i class="bi bi-check-circle"></i> Completed
-                    <span class="badge bg-white text-dark ms-2">{{ task_counts['Completed'] }}</span>
-                </h5>
-            </div>
-            <div class="kanban-body" data-status="Completed">
-                {% for task in tasks_by_status['Completed'] %}
-                {% include 'kanban_card.html' %}
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}

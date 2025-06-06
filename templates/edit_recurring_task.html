@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ recurring_task.title }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Recurring Task: {{ recurring_task.title }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('recurring_tasks') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Recurring Tasks
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Task Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Task Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ recurring_task.title }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ recurring_task.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="recurrence_rule" class="form-label">Recurrence Pattern <span class="text-danger">*</span></label>
+                                <select class="form-select" id="recurrence_rule" name="recurrence_rule" required>
+                                    <option value="">Select recurrence...</option>
+                                    <optgroup label="Common CPA Schedules">
+                                        <option value="monthly:15" {% if recurring_task.recurrence_rule == 'monthly:15' %}selected{% endif %}>Monthly on 15th</option>
+                                        <option value="monthly:last_biz_day" {% if recurring_task.recurrence_rule == 'monthly:last_biz_day' %}selected{% endif %}>Monthly - Last Business Day</option>
+                                        <option value="quarterly:last_biz_day" {% if recurring_task.recurrence_rule == 'quarterly:last_biz_day' %}selected{% endif %}>Quarterly - Last Business Day</option>
+                                        <option value="annually:1" {% if recurring_task.recurrence_rule == 'annually:1' %}selected{% endif %}>Annually on 1st</option>
+                                    </optgroup>
+                                    <optgroup label="Basic Schedules">
+                                        <option value="daily" {% if recurring_task.recurrence_rule == 'daily' %}selected{% endif %}>Daily</option>
+                                        <option value="weekly" {% if recurring_task.recurrence_rule == 'weekly' %}selected{% endif %}>Weekly</option>
+                                        <option value="monthly" {% if recurring_task.recurrence_rule == 'monthly' %}selected{% endif %}>Monthly</option>
+                                        <option value="quarterly" {% if recurring_task.recurrence_rule == 'quarterly' %}selected{% endif %}>Quarterly</option>
+                                        <option value="annually" {% if recurring_task.recurrence_rule == 'annually' %}selected{% endif %}>Annually</option>
+                                    </optgroup>
+                                    <optgroup label="Custom Monthly">
+                                        <option value="monthly:1" {% if recurring_task.recurrence_rule == 'monthly:1' %}selected{% endif %}>Monthly on 1st</option>
+                                        <option value="monthly:5" {% if recurring_task.recurrence_rule == 'monthly:5' %}selected{% endif %}>Monthly on 5th</option>
+                                        <option value="monthly:10" {% if recurring_task.recurrence_rule == 'monthly:10' %}selected{% endif %}>Monthly on 10th</option>
+                                        <option value="monthly:20" {% if recurring_task.recurrence_rule == 'monthly:20' %}selected{% endif %}>Monthly on 20th</option>
+                                        <option value="monthly:25" {% if recurring_task.recurrence_rule == 'monthly:25' %}selected{% endif %}>Monthly on 25th</option>
+                                        <option value="monthly:last_day" {% if recurring_task.recurrence_rule == 'monthly:last_day' %}selected{% endif %}>Monthly - Last Day</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="next_due_date" class="form-label">Next Due Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="next_due_date" name="next_due_date" 
+                                       value="{{ recurring_task.next_due_date.strftime('%Y-%m-%d') if recurring_task.next_due_date else '' }}" required>
+                                <div class="form-text">When should the next task be created?</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="High" {% if recurring_task.priority == 'High' %}selected{% endif %}>High</option>
+                                    <option value="Medium" {% if recurring_task.priority == 'Medium' %}selected{% endif %}>Medium</option>
+                                    <option value="Low" {% if recurring_task.priority == 'Low' %}selected{% endif %}>Low</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" id="estimated_hours" name="estimated_hours" 
+                                       step="0.25" min="0" value="{{ recurring_task.estimated_hours or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="assignee_id" class="form-label">Default Assignee</label>
+                                <select class="form-select" id="assignee_id" name="assignee_id">
+                                    <option value="">Auto-assign later</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if recurring_task.default_assignee_id == user.id %}selected{% endif %}>
+                                        {{ user.name }} ({{ user.role }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="client_id" class="form-label">Associated Client (Optional)</label>
+                                <select class="form-select" id="client_id" name="client_id">
+                                    <option value="">No specific client</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" {% if recurring_task.client_id == client.id %}selected{% endif %}>
+                                        {{ client.name }} ({{ client.entity_type }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="work_type_id" class="form-label">Work Type (Optional)</label>
+                                <select class="form-select" id="work_type_id" name="work_type_id">
+                                    <option value="">No specific work type</option>
+                                    {% for work_type in work_types %}
+                                    <option value="{{ work_type.id }}" {% if recurring_task.work_type_id == work_type.id %}selected{% endif %}>
+                                        {{ work_type.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                   {% if recurring_task.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">
+                                <strong>Active</strong> - Generate new tasks automatically
+                            </label>
+                            <div class="form-text">Uncheck to pause this recurring task without deleting it.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('recurring_tasks') }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Update Recurring Task
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Task Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">CREATED</label>
+                    <div>{{ recurring_task.created_at.strftime('%m/%d/%Y %I:%M %p') if recurring_task.created_at else 'N/A' }}</div>
+                </div>
+                
+                {% if recurring_task.last_generated %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">LAST GENERATED</label>
+                    <div>{{ recurring_task.last_generated.strftime('%m/%d/%Y') }}</div>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">TASKS GENERATED</label>
+                    <div>{{ recurring_task.generated_tasks|length }} total tasks</div>
+                </div>
+                
+                {% if recurring_task.generated_tasks %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-muted small">RECENT GENERATED TASKS</label>
+                    <div class="list-group list-group-flush">
+                        {% for task in recurring_task.generated_tasks|sort(attribute='due_date', reverse=true)[:5] %}
+                        <div class="list-group-item px-0 py-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <a href="{{ url_for('view_task', id=task.id) }}" class="text-decoration-none">
+                                        <small><strong>{{ task.title }}</strong></small>
+                                    </a>
+                                    <br>
+                                    <small class="text-muted">
+                                        Due: {{ task.due_date.strftime('%m/%d/%Y') if task.due_date else 'No due date' }}
+                                    </small>
+                                </div>
+                                <div>
+                                    {% if task.is_completed %}
+                                        <span class="badge bg-success">✓</span>
+                                    {% elif task.is_overdue %}
+                                        <span class="badge bg-danger">⚠</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">⏳</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Edit Guidelines</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle"></i> Changing Recurrence</h6>
+                    <p class="mb-0">Changing the recurrence pattern will affect when future tasks are created. Existing tasks will not be modified.</p>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Next Due Date</h6>
+                    <p class="mb-0">You can manually adjust the next due date to control when the next task will be generated.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

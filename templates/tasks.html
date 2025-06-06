@@ -255,13 +255,27 @@
                     <input type="checkbox" class="form-check-input task-select" value="{{ task.id }}">
                 </td>
                 <td>
-                    <strong>{{ task.title }}</strong>
-                    {% if task.description %}
-                        <br><small class="text-muted">{{ task.description }}</small>
-                    {% endif %}
-                    {% if task.estimated_hours %}
-                        <br><small class="text-info"><i class="bi bi-clock"></i> {{ task.estimated_hours }}h estimated</small>
-                    {% endif %}
+                    <div class="d-flex align-items-start">
+                        <div class="flex-grow-1">
+                            <strong>{{ task.title }}</strong>
+                            {% if task.is_blocked %}
+                            <span class="badge bg-warning ms-2" title="Task is blocked by dependencies">
+                                <i class="bi bi-lock"></i> Blocked
+                            </span>
+                            {% endif %}
+                            {% if task.blocking_tasks %}
+                            <span class="badge bg-info ms-2" title="Task is blocking other tasks">
+                                <i class="bi bi-unlock"></i> Blocking {{ task.blocking_tasks|length }}
+                            </span>
+                            {% endif %}
+                            {% if task.description %}
+                                <br><small class="text-muted">{{ task.description }}</small>
+                            {% endif %}
+                            {% if task.estimated_hours %}
+                                <br><small class="text-info"><i class="bi bi-clock"></i> {{ task.estimated_hours }}h estimated</small>
+                            {% endif %}
+                        </div>
+                    </div>
                 </td>
                 <td>
                     {% if task.priority %}

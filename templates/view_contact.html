@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}{{ contact.first_name }} {{ contact.last_name }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">
+        <i class="bi bi-person-circle me-2"></i>
+        {{ contact.first_name }} {{ contact.last_name }}
+        {% if contact.title %}
+        <small class="text-muted">{{ contact.title }}</small>
+        {% endif %}
+    </h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('edit_contact', id=contact.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil"></i> Edit Contact
+            </a>
+        </div>
+        <a href="{{ url_for('contacts') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Contacts
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Contact Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Personal Details</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Name:</strong></td>
+                                <td>{{ contact.first_name }} {{ contact.last_name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email:</strong></td>
+                                <td>
+                                    {% if contact.email %}
+                                    <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                                    {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Phone:</strong></td>
+                                <td>
+                                    {% if contact.phone %}
+                                    <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>
+                                    {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Professional Details</h6>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>Title:</strong></td>
+                                <td>{{ contact.title if contact.title else 'Not specified' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Company:</strong></td>
+                                <td>{{ contact.company if contact.company else 'Not specified' }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Address:</strong></td>
+                                <td>
+                                    {% if contact.address %}
+                                    {{ contact.address|nl2br|safe }}
+                                    {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if contact.notes %}
+                <div class="mt-3">
+                    <h6>Notes</h6>
+                    <div class="p-3 bg-light rounded">
+                        {{ contact.notes|nl2br|safe }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Associated Clients -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Associated Clients ({{ clients|length }})</h5>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#associateClientModal">
+                    <i class="bi bi-plus-circle"></i> Associate Client
+                </button>
+            </div>
+            <div class="card-body">
+                {% if clients %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Client Name</th>
+                                <th>Entity Type</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for client in clients %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('view_client', id=client.id) }}" class="text-decoration-none">
+                                        <strong>{{ client.name }}</strong>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if client.entity_type %}
+                                    <span class="badge bg-info">{{ client.entity_type }}</span>
+                                    {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if client.email %}
+                                    <a href="mailto:{{ client.email }}">{{ client.email }}</a>
+                                    {% else %}
+                                    <span class="text-muted">Not provided</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('disassociate_contact_client', contact_id=contact.id, client_id=client.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                onclick="return confirm('Remove association with {{ client.name }}?')"
+                                                title="Remove Association">
+                                            <i class="bi bi-x-circle"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-briefcase display-1 text-muted"></i>
+                    <h5 class="mt-3">No Associated Clients</h5>
+                    <p class="text-muted">This contact is not yet associated with any clients.</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#associateClientModal">
+                        <i class="bi bi-plus-circle"></i> Associate with Client
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if contact.email %}
+                <a href="mailto:{{ contact.email }}" class="btn btn-outline-primary btn-sm w-100 mb-2">
+                    <i class="bi bi-envelope"></i> Send Email
+                </a>
+                {% endif %}
+                
+                {% if contact.phone %}
+                <a href="tel:{{ contact.phone }}" class="btn btn-outline-success btn-sm w-100 mb-2">
+                    <i class="bi bi-telephone"></i> Call Phone
+                </a>
+                {% endif %}
+                
+                <a href="{{ url_for('edit_contact', id=contact.id) }}" class="btn btn-outline-secondary btn-sm w-100 mb-2">
+                    <i class="bi bi-pencil"></i> Edit Contact
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Associated Clients:</span>
+                    <span class="badge bg-primary">{{ clients|length }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Contact Created:</span>
+                    <span class="text-muted">{{ contact.created_at.strftime('%m/%d/%Y') if contact.created_at else 'Unknown' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Associate Client Modal -->
+<div class="modal fade" id="associateClientModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Associate with Client</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="associateClientForm" method="POST">
+                    <div class="mb-3">
+                        <label for="client_select" class="form-label">Select Client</label>
+                        <select class="form-select" id="client_select" name="client_id" required>
+                            <option value="">Choose a client...</option>
+                            <!-- Will be populated by JavaScript -->
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAssociation()">Associate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load available clients when modal opens
+document.getElementById('associateClientModal').addEventListener('show.bs.modal', function() {
+    fetch('/api/clients')
+        .then(response => response.json())
+        .then(clients => {
+            const select = document.getElementById('client_select');
+            select.innerHTML = '<option value="">Choose a client...</option>';
+            
+            // Get currently associated client IDs
+            const associatedClientIds = [{% for client in clients %}{{ client.id }}{{ ', ' if not loop.last }}{% endfor %}];
+            
+            clients.forEach(client => {
+                if (!associatedClientIds.includes(client.id)) {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = client.name;
+                    select.appendChild(option);
+                }
+            });
+        });
+});
+
+function submitAssociation() {
+    const clientId = document.getElementById('client_select').value;
+    if (clientId) {
+        const form = document.getElementById('associateClientForm');
+        form.action = `{{ url_for('associate_contact_client', contact_id=contact.id, client_id=0) }}`.replace('0', clientId);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}
