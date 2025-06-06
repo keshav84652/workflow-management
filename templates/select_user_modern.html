@@ -46,8 +46,9 @@
         <div class="bg-white px-6 py-8 shadow sm:rounded-lg sm:px-12">
             <div class="space-y-4">
                 {% for user in users %}
-                <a href="{{ url_for('select_user', user_id=user.id) }}" 
-                   class="group relative flex w-full items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400 hover:shadow-md transition-all duration-200">
+                <form method="POST" action="{{ url_for('set_user') }}" class="w-full">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <button type="submit" class="group relative flex w-full items-center space-x-3 rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400 hover:shadow-md transition-all duration-200 text-left">
                     <div class="flex-shrink-0">
                         <div class="h-12 w-12 rounded-full bg-gradient-to-r from-cpa-blue to-cpa-navy flex items-center justify-center">
                             <span class="text-lg font-semibold text-white">
@@ -72,7 +73,8 @@
                     <div class="flex-shrink-0">
                         <i class="bi bi-chevron-right h-5 w-5 text-gray-400 group-hover:text-cpa-blue"></i>
                     </div>
-                </a>
+                    </button>
+                </form>
                 {% endfor %}
             </div>
 
