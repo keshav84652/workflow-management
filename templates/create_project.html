@@ -1,48 +1,110 @@
-{% extends "base.html" %}
+{% extends "base_modern.html" %}
 
 {% block title %}Create Project - CPA WorkflowPilot{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Create Project</h1>
-</div>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                Create Project
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                Start a new client project with a workflow template
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <a href="{{ url_for('projects') }}" 
+               class="block rounded-md bg-gray-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </div>
 
-<form method="POST">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3">
-                <label for="client_name" class="form-label">Client Name</label>
-                <input type="text" class="form-control" id="client_name" name="client_name" required>
+    <!-- Form -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Form Column -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">
+                    <i class="bi bi-folder-plus text-cpa-blue mr-2"></i>
+                    Project Information
+                </h3>
             </div>
-            
-            <div class="mb-3">
-                <label for="template_id" class="form-label">Template</label>
-                <select class="form-select" id="template_id" name="template_id" required>
-                    <option value="">Select a template</option>
-                    {% for template in templates %}
-                    <option value="{{ template.id }}">{{ template.name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="mb-3">
-                <label for="start_date" class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="start_date" name="start_date" required>
+            <div class="px-6 py-6">
+                <form method="POST" class="space-y-6">
+                    <div>
+                        <label for="client_name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Client Name *
+                        </label>
+                        <input type="text" 
+                               id="client_name" 
+                               name="client_name" 
+                               required
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"
+                               placeholder="Enter client name">
+                    </div>
+                    
+                    <div>
+                        <label for="template_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Workflow Template *
+                        </label>
+                        <select id="template_id" 
+                                name="template_id" 
+                                required
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                            <option value="">Select a template</option>
+                            {% for template in templates %}
+                            <option value="{{ template.id }}">{{ template.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">Choose a template to define the project workflow</p>
+                    </div>
+                    
+                    <div>
+                        <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">
+                            Start Date *
+                        </label>
+                        <input type="date" 
+                               id="start_date" 
+                               name="start_date" 
+                               required
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                        <p class="mt-1 text-sm text-gray-500">When should this project begin?</p>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                        <a href="{{ url_for('projects') }}" 
+                           class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            <i class="bi bi-x-circle mr-1.5"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
+                            <i class="bi bi-plus-circle mr-1.5"></i>
+                            Create Project
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-        <div class="col-md-6">
-            <div id="template-preview" class="border p-3" style="display: none;">
-                <h6>Template Preview</h6>
+
+        <!-- Template Preview Column -->
+        <div id="template-preview" class="bg-white shadow rounded-lg" style="display: none;">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">
+                    <i class="bi bi-eye text-cpa-green mr-2"></i>
+                    Template Preview
+                </h3>
+            </div>
+            <div class="px-6 py-6">
                 <div id="template-tasks"></div>
             </div>
         </div>
     </div>
-
-    <div class="mb-3">
-        <button type="submit" class="btn btn-primary">Create Project</button>
-        <a href="{{ url_for('projects') }}" class="btn btn-secondary">Cancel</a>
-    </div>
-</form>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -72,19 +134,35 @@ document.getElementById('template_id').addEventListener('change', function() {
     
     if (templateId && templates[templateId]) {
         const template = templates[templateId];
-        let html = '<p><strong>' + template.name + '</strong></p>';
+        let html = '<div class="mb-4">';
+        html += '<h4 class="font-semibold text-gray-900 mb-2">' + template.name + '</h4>';
         if (template.description) {
-            html += '<p class="text-muted">' + template.description + '</p>';
+            html += '<p class="text-sm text-gray-600 mb-4">' + template.description + '</p>';
         }
-        html += '<ol>';
-        template.tasks.forEach(task => {
-            html += '<li>' + task.title;
-            if (task.recurrence) {
-                html += ' <span class="badge bg-info">' + task.recurrence + '</span>';
-            }
-            html += '</li>';
-        });
-        html += '</ol>';
+        html += '</div>';
+        
+        if (template.tasks && template.tasks.length > 0) {
+            html += '<div class="space-y-3">';
+            html += '<h5 class="text-sm font-medium text-gray-700 mb-3">Tasks in this template:</h5>';
+            template.tasks.forEach((task, index) => {
+                html += '<div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">';
+                html += '<div class="flex-shrink-0 w-6 h-6 bg-cpa-blue text-white rounded-full flex items-center justify-center text-xs font-medium">' + (index + 1) + '</div>';
+                html += '<div class="flex-1 min-w-0">';
+                html += '<p class="text-sm font-medium text-gray-900">' + task.title + '</p>';
+                if (task.description) {
+                    html += '<p class="text-sm text-gray-600 mt-1">' + task.description + '</p>';
+                }
+                if (task.recurrence) {
+                    html += '<span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 mt-2">';
+                    html += '<i class="bi bi-arrow-repeat mr-1"></i>' + task.recurrence;
+                    html += '</span>';
+                }
+                html += '</div></div>';
+            });
+            html += '</div>';
+        } else {
+            html += '<p class="text-sm text-gray-500 italic">No tasks defined in this template.</p>';
+        }
         
         tasksDiv.innerHTML = html;
         preview.style.display = 'block';

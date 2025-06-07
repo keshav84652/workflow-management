@@ -4,9 +4,9 @@
 This is a comprehensive CPA Workflow Management MVP application built with Flask, SQLite, and Bootstrap 5. The application provides template-driven workflows, client management, task tracking, and team collaboration features specifically designed for CPA firms.
 
 ## Development Commands
-- **Run Application**: `python app.py`
-- **Initialize Database**: `python init_db.py`
-- **Test Environment**: Run `python app.py` and visit `http://localhost:5000`
+- **Run Application**: `python3 app.py`
+- **Initialize Database**: `python3 init_db.py`
+- **Test Environment**: Run `python3 app.py` and visit `http://localhost:5000`
 - **Login**: Use access code `DEMO2024` to access the demo firm
 
 ## Git Workflow

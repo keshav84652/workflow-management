@@ -48,29 +48,27 @@
     <!-- Kanban Board -->
     <div class="overflow-x-auto">
         <div class="flex space-x-6 pb-4" style="min-width: max-content;">
-            {% for status in kanban_statuses %}
-            <div class="flex-shrink-0 w-80" data-status-id="{{ status.id }}">
+            {% for column in kanban_columns %}
+            <div class="flex-shrink-0 w-80" data-status-id="{{ column.id }}">
                 <!-- Column Header -->
                 <div class="bg-gray-50 rounded-t-lg px-4 py-3 border-b">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
-                            <div class="w-3 h-3 rounded-full mr-2" style="background-color: {{ status.color }}"></div>
-                            <h3 class="text-sm font-semibold text-gray-900">{{ status.name }}</h3>
+                            <div class="w-3 h-3 rounded-full mr-2 bg-cpa-blue"></div>
+                            <h3 class="text-sm font-semibold text-gray-900">{{ column.title }}</h3>
                             <span class="ml-2 bg-gray-200 text-gray-700 text-xs rounded-full px-2 py-1">
-                                {{ projects_by_status[status.id]|length }}
+                                {{ projects_by_column[column.id]|length }}
                             </span>
                         </div>
-                        {% if status.is_terminal %}
-                            <i class="bi bi-check-circle h-4 w-4 text-green-500" title="Terminal Status"></i>
-                        {% elif status.is_default %}
-                            <i class="bi bi-play-circle h-4 w-4 text-blue-500" title="Default Status"></i>
+                        {% if column.order == 0 %}
+                            <i class="bi bi-play-circle h-4 w-4 text-blue-500" title="Starting Task"></i>
                         {% endif %}
                     </div>
                 </div>
                 
                 <!-- Column Content -->
-                <div class="bg-gray-50 rounded-b-lg min-h-96 p-4 space-y-3" id="status-{{ status.id }}">
-                    {% for project in projects_by_status[status.id] %}
+                <div class="bg-gray-50 rounded-b-lg min-h-96 p-4 space-y-3" id="status-{{ column.id }}">
+                    {% for project in projects_by_column[column.id] %}
                     <div class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200 cursor-move" 
                          data-project-id="{{ project.id }}">
                         <div class="p-4">
@@ -125,9 +123,9 @@
                             <div class="mt-3 pt-3 border-t border-gray-100">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
-                                        {% if project.task_count > 0 %}
+                                        {% if project.tasks|length > 0 %}
                                         <span class="text-xs text-gray-500">
-                                            {{ project.completed_tasks_count }}/{{ project.task_count }} tasks
+                                            {{ project.tasks|selectattr('status', 'equalto', 'Completed')|list|length }}/{{ project.tasks|length }} tasks
                                         </span>
                                         {% endif %}
                                     </div>
@@ -142,7 +140,7 @@
                     {% endfor %}
                     
                     <!-- Empty State -->
-                    {% if projects_by_status[status.id]|length == 0 %}
+                    {% if projects_by_column[column.id]|length == 0 %}
                     <div class="text-center py-8">
                         <i class="bi bi-folder h-8 w-8 text-gray-300 mx-auto mb-2"></i>
                         <p class="text-sm text-gray-500">No projects in this stage</p>
@@ -151,6 +149,107 @@
                 </div>
             </div>
             {% endfor %}
+            
+            <!-- Completed Column -->
+            {% if projects_by_column['completed'] is defined %}
+            <div class="flex-shrink-0 w-80" data-status-id="completed">
+                <!-- Column Header -->
+                <div class="bg-gray-50 rounded-t-lg px-4 py-3 border-b">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full mr-2 bg-green-500"></div>
+                            <h3 class="text-sm font-semibold text-gray-900">Completed</h3>
+                            <span class="ml-2 bg-gray-200 text-gray-700 text-xs rounded-full px-2 py-1">
+                                {{ projects_by_column['completed']|length }}
+                            </span>
+                        </div>
+                        <i class="bi bi-check-circle h-4 w-4 text-green-500" title="Completed Projects"></i>
+                    </div>
+                </div>
+                
+                <!-- Column Content -->
+                <div class="bg-gray-50 rounded-b-lg min-h-96 p-4 space-y-3" id="status-completed">
+                    {% for project in projects_by_column['completed'] %}
+                    <div class="bg-white rounded-lg shadow-sm border hover:shadow-md transition-shadow duration-200 cursor-move" 
+                         data-project-id="{{ project.id }}">
+                        <div class="p-4">
+                            <!-- Project Header -->
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="min-w-0 flex-1">
+                                    <h4 class="text-sm font-semibold text-gray-900 truncate">
+                                        {{ project.client_name }}
+                                    </h4>
+                                    <p class="text-xs text-gray-600 mt-1">{{ project.name }}</p>
+                                </div>
+                                <div class="flex-shrink-0 ml-2">
+                                    <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium
+                                        {% if project.priority == 'High' %}bg-red-100 text-red-800
+                                        {% elif project.priority == 'Medium' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-green-100 text-green-800{% endif %}">
+                                        {{ project.priority }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <!-- Project Details -->
+                            <div class="space-y-2">
+                                {% if project.due_date %}
+                                <div class="flex items-center text-xs text-gray-500">
+                                    <i class="bi bi-calendar mr-1"></i>
+                                    <span class="{% if project.due_date < today %}text-red-600 font-medium{% elif project.due_date == today %}text-amber-600 font-medium{% endif %}">
+                                        Due {{ project.due_date.strftime('%m/%d') }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if project.progress_percentage > 0 %}
+                                <div class="flex items-center text-xs text-gray-500">
+                                    <i class="bi bi-bar-chart mr-1"></i>
+                                    <span>{{ project.progress_percentage }}% complete</span>
+                                    <div class="ml-2 flex-1 bg-gray-200 rounded-full h-1.5">
+                                        <div class="bg-green-600 h-1.5 rounded-full" style="width: {{ project.progress_percentage }}%"></div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                {% if project.assignee %}
+                                <div class="flex items-center text-xs text-gray-500">
+                                    <i class="bi bi-person mr-1"></i>
+                                    <span>{{ project.assignee.name }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Project Actions -->
+                            <div class="mt-3 pt-3 border-t border-gray-100">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-2">
+                                        {% if project.tasks|length > 0 %}
+                                        <span class="text-xs text-gray-500">
+                                            {{ project.tasks|selectattr('status', 'equalto', 'Completed')|list|length }}/{{ project.tasks|length }} tasks
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    <a href="{{ url_for('view_project', id=project.id) }}" 
+                                       class="text-xs text-cpa-blue hover:text-blue-600 font-medium">
+                                        View →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Empty State -->
+                    {% if projects_by_column['completed']|length == 0 %}
+                    <div class="text-center py-8">
+                        <i class="bi bi-folder h-8 w-8 text-gray-300 mx-auto mb-2"></i>
+                        <p class="text-sm text-gray-500">No completed projects</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -175,10 +274,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize sortable for each kanban column
-    {% for status in kanban_statuses %}
-    const column{{ status.id }} = document.getElementById('status-{{ status.id }}');
-    if (column{{ status.id }}) {
-        new Sortable(column{{ status.id }}, {
+    {% for column in kanban_columns %}
+    const column{{ column.id }} = document.getElementById('status-{{ column.id }}');
+    if (column{{ column.id }}) {
+        new Sortable(column{{ column.id }}, {
             group: 'kanban',
             animation: 150,
             ghostClass: 'opacity-50',
@@ -186,14 +285,33 @@ document.addEventListener('DOMContentLoaded', function() {
             dragClass: 'transform rotate-2',
             onEnd: function(evt) {
                 const projectId = evt.item.dataset.projectId;
-                const newStatusId = evt.to.closest('[data-status-id]').dataset.statusId;
+                const newColumnId = evt.to.closest('[data-status-id]').dataset.statusId;
                 
                 // Update project status via API
-                updateProjectStatus(projectId, newStatusId);
+                updateProjectStatus(projectId, newColumnId);
             }
         });
     }
     {% endfor %}
+    
+    // Initialize sortable for completed column
+    const completedColumn = document.getElementById('status-completed');
+    if (completedColumn) {
+        new Sortable(completedColumn, {
+            group: 'kanban',
+            animation: 150,
+            ghostClass: 'opacity-50',
+            chosenClass: 'bg-blue-50',
+            dragClass: 'transform rotate-2',
+            onEnd: function(evt) {
+                const projectId = evt.item.dataset.projectId;
+                const newColumnId = evt.to.closest('[data-status-id]').dataset.statusId;
+                
+                // Update project status via API
+                updateProjectStatus(projectId, newColumnId);
+            }
+        });
+    }
 });
 
 function updateProjectStatus(projectId, statusId) {

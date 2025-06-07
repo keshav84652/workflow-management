@@ -1559,15 +1559,22 @@ def kanban_view():
     # Get work types for filtering
     work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
     current_work_type = None
-    kanban_statuses = []
+    kanban_columns = []
     
     if work_type_filter:
         current_work_type = WorkType.query.filter_by(id=work_type_filter, firm_id=firm_id).first()
         if current_work_type:
-            kanban_statuses = TaskStatus.query.filter_by(
+            # Get the template associated with this work type
+            template = Template.query.filter_by(
                 work_type_id=current_work_type.id,
                 firm_id=firm_id
-            ).order_by(TaskStatus.position.asc()).all()
+            ).first()
+            
+            if template:
+                # Use template tasks as Kanban columns
+                kanban_columns = TemplateTask.query.filter_by(
+                    template_id=template.id
+                ).order_by(TemplateTask.order.asc()).all()
     
     # Base query for projects (not individual tasks)
     query = Project.query.filter_by(firm_id=firm_id, status='Active')
@@ -1593,44 +1600,80 @@ def kanban_view():
     # Get all projects
     projects = query.order_by(Project.created_at.desc()).all()
     
-    # Organize projects by workflow status
-    if current_work_type and kanban_statuses:
-        # Use template-driven workflow statuses
-        projects_by_status = {}
-        project_counts = {}
+    # Organize projects by current task progress (which template task they're currently on)
+    projects_by_column = {}
+    project_counts = {}
+    
+    if kanban_columns:
+        # Initialize columns
+        for column in kanban_columns:
+            projects_by_column[column.id] = []
+            project_counts[column.id] = 0
         
-        for status in kanban_statuses:
-            projects_by_status[status.id] = []
-            project_counts[status.id] = 0
+        # Add a "Completed" column for finished projects
+        projects_by_column['completed'] = []
+        project_counts['completed'] = 0
         
         for project in projects:
-            # Get project's current workflow status
-            if project.current_status_id and project.current_status_id in [s.id for s in kanban_statuses]:
-                projects_by_status[project.current_status_id].append(project)
-                project_counts[project.current_status_id] += 1
-            elif not project.current_status_id:
-                # If no current status, put in first (default) status
-                if kanban_statuses:
-                    default_status = kanban_statuses[0]
-                    projects_by_status[default_status.id].append(project)
-                    project_counts[default_status.id] += 1
-                    # Update project to have the default status
-                    project.current_status_id = default_status.id
-        
-        # Commit any status updates
-        db.session.commit()
+            # Determine which column this project belongs in based on task progress
+            project_tasks = Task.query.filter_by(project_id=project.id).all()
+            
+            if not project_tasks:
+                # No tasks yet - put in first column
+                if kanban_columns:
+                    first_column = kanban_columns[0]
+                    projects_by_column[first_column.id].append(project)
+                    project_counts[first_column.id] += 1
+            else:
+                # Find current task stage based on completion
+                all_completed = True
+                current_column_id = None
+                
+                # Go through template tasks in order to find current stage
+                for template_task in kanban_columns:
+                    # Find corresponding project task
+                    project_task = next(
+                        (t for t in project_tasks if t.template_task_origin_id == template_task.id),
+                        None
+                    )
+                    
+                    if project_task:
+                        if project_task.status != 'Completed':
+                            # This is the current stage
+                            current_column_id = template_task.id
+                            all_completed = False
+                            break
+                    else:
+                        # Task doesn't exist yet - this is the current stage
+                        current_column_id = template_task.id
+                        all_completed = False
+                        break
+                
+                if all_completed:
+                    # All template tasks are completed
+                    projects_by_column['completed'].append(project)
+                    project_counts['completed'] += 1
+                elif current_column_id:
+                    projects_by_column[current_column_id].append(project)
+                    project_counts[current_column_id] += 1
+                else:
+                    # Fallback to first column
+                    if kanban_columns:
+                        first_column = kanban_columns[0]
+                        projects_by_column[first_column.id].append(project)
+                        project_counts[first_column.id] += 1
     else:
         # If no work type selected, show message to select work type
-        projects_by_status = {}
+        projects_by_column = {}
         project_counts = {}
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
     
     return render_template('kanban_modern.html', 
-                         projects_by_status=projects_by_status,
+                         projects_by_column=projects_by_column,
                          project_counts=project_counts,
-                         kanban_statuses=kanban_statuses,
+                         kanban_columns=kanban_columns,
                          current_work_type=current_work_type,
                          work_types=work_types,
                          users=users,
@@ -1638,7 +1681,7 @@ def kanban_view():
 
 @app.route('/projects/<int:project_id>/move-status', methods=['POST'])
 def move_project_status(project_id):
-    """Move a project to a different workflow status"""
+    """Move a project to a different template task stage"""
     project = Project.query.get_or_404(project_id)
     
     # Check access
@@ -1646,40 +1689,103 @@ def move_project_status(project_id):
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
-        new_status_id = request.json.get('status_id')
+        new_column_id = request.json.get('status_id')  # Using same param name for compatibility
         
-        if not new_status_id:
-            return jsonify({'success': False, 'message': 'Status ID is required'}), 400
+        if not new_column_id:
+            return jsonify({'success': False, 'message': 'Column ID is required'}), 400
         
-        # Verify the status belongs to the project's work type
-        status = TaskStatus.query.filter_by(
-            id=new_status_id,
-            work_type_id=project.work_type_id
-        ).first()
-        
-        if not status:
-            return jsonify({'success': False, 'message': 'Invalid status for this project type'}), 400
-        
-        old_status_name = project.current_workflow_status_name
-        
-        # Move project to new status
-        if project.move_to_status(new_status_id):
+        # Handle special "completed" column
+        if new_column_id == 'completed':
+            # Mark all project tasks as completed
+            project_tasks = Task.query.filter_by(project_id=project.id).all()
+            for task in project_tasks:
+                if task.status != 'Completed':
+                    task.status = 'Completed'
+                    
+            # Log activity
+            activity_log = ActivityLog(
+                action=f"Project moved to Completed stage",
+                entity_type='project',
+                entity_id=project.id,
+                firm_id=session['firm_id'],
+                user_id=session.get('user_id')
+            )
+            db.session.add(activity_log)
             db.session.commit()
             
-            # Activity log
-            create_activity_log(
-                f'Project "{project.name}" moved from "{old_status_name}" to "{status.name}"',
-                session['user_id'],
-                project.id
-            )
+            return jsonify({'success': True, 'message': 'Project moved to completed stage'})
+        
+        # Verify the column (template task) exists
+        template_task = TemplateTask.query.get(new_column_id)
+        if not template_task:
+            return jsonify({'success': False, 'message': 'Invalid template task'}), 400
+        
+        # Get all template tasks for this project's template in order
+        template = project.template_origin
+        if not template:
+            return jsonify({'success': False, 'message': 'Project has no template'}), 400
             
-            return jsonify({
-                'success': True,
-                'message': f'Project moved to {status.name}',
-                'new_status': status.name
-            })
-        else:
-            return jsonify({'success': False, 'message': 'Failed to move project'}), 400
+        template_tasks = TemplateTask.query.filter_by(
+            template_id=template.id
+        ).order_by(TemplateTask.order.asc()).all()
+        
+        # Find the target template task position
+        target_position = None
+        for i, task in enumerate(template_tasks):
+            if task.id == int(new_column_id):
+                target_position = i
+                break
+        
+        if target_position is None:
+            return jsonify({'success': False, 'message': 'Invalid template task'}), 400
+        
+        # Update task statuses to reflect the new position
+        project_tasks = Task.query.filter_by(project_id=project.id).all()
+        
+        # Mark all tasks before the target position as completed
+        for i in range(target_position):
+            template_task_at_pos = template_tasks[i]
+            project_task = next(
+                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
+                None
+            )
+            if project_task and project_task.status != 'Completed':
+                project_task.status = 'Completed'
+        
+        # Mark the target task as in progress
+        target_template_task = template_tasks[target_position]
+        target_project_task = next(
+            (t for t in project_tasks if t.template_task_origin_id == target_template_task.id),
+            None
+        )
+        if target_project_task and target_project_task.status == 'Completed':
+            target_project_task.status = 'In Progress'
+        
+        # Mark all tasks after the target position as not started
+        for i in range(target_position + 1, len(template_tasks)):
+            template_task_at_pos = template_tasks[i]
+            project_task = next(
+                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
+                None
+            )
+            if project_task and project_task.status == 'Completed':
+                project_task.status = 'Not Started'
+        
+        # Log activity
+        activity_log = ActivityLog(
+            action=f"Project moved to {target_template_task.title} stage",
+            entity_type='project',
+            entity_id=project.id,
+            firm_id=session['firm_id'],
+            user_id=session.get('user_id')
+        )
+        db.session.add(activity_log)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Project moved to {target_template_task.title} stage'
+        })
             
     except Exception as e:
         db.session.rollback()
@@ -2181,17 +2287,21 @@ def admin_reorder_statuses(work_type_id):
 def contacts():
     firm_id = session['firm_id']
     
-    # Get all contacts - simplified query
-    all_contacts = Contact.query.all()
+    # Get only contacts associated with clients from this firm
+    contacts_query = db.session.query(Contact).join(ClientContact).join(Client).filter(
+        Client.firm_id == firm_id
+    ).distinct()
+    
+    firm_contacts = contacts_query.all()
     
     # Add client count for each contact (only count clients from this firm)
-    for contact in all_contacts:
+    for contact in firm_contacts:
         contact.client_count = db.session.query(ClientContact).join(Client).filter(
             ClientContact.contact_id == contact.id,
             Client.firm_id == firm_id
         ).count()
     
-    return render_template('contacts.html', contacts=all_contacts)
+    return render_template('contacts.html', contacts=firm_contacts)
 
 @app.route('/contacts/create', methods=['GET', 'POST'])
 def create_contact():
