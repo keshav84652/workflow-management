@@ -178,7 +178,20 @@
                                     <span>{{ client.phone }}</span>
                                 </div>
                                 {% endif %}
-                                {% if not client.email and not client.phone %}
+                                {% if client.contacts %}
+                                    {% for contact in client.contacts[:2] %}
+                                    <div class="flex items-center {% if client.email or client.phone or loop.index > 1 %}mt-1{% endif %}">
+                                        <i class="bi bi-person text-gray-400 mr-2"></i>
+                                        <span>{{ contact.full_name }}{% if contact.email %} ({{ contact.email }}){% endif %}</span>
+                                    </div>
+                                    {% endfor %}
+                                    {% if client.contacts|length > 2 %}
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        +{{ client.contacts|length - 2 }} more contact{{ 's' if client.contacts|length - 2 != 1 else '' }}
+                                    </div>
+                                    {% endif %}
+                                {% endif %}
+                                {% if not client.email and not client.phone and not client.contacts %}
                                 <span class="text-gray-500">No contact info</span>
                                 {% endif %}
                             </td>

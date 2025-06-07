@@ -1544,7 +1544,12 @@ def view_client(id):
         return redirect(url_for('clients'))
     
     projects = Project.query.filter_by(client_id=id).order_by(Project.created_at.desc()).all()
-    return render_template('view_client.html', client=client, projects=projects)
+    
+    # Get available contacts (not already associated with this client)
+    associated_contact_ids = db.session.query(ClientContact.contact_id).filter_by(client_id=id).subquery()
+    available_contacts = Contact.query.filter(~Contact.id.in_(associated_contact_ids)).all()
+    
+    return render_template('view_client.html', client=client, projects=projects, available_contacts=available_contacts)
 
 @app.route('/calendar')
 def calendar_view():
@@ -2454,15 +2459,20 @@ def create_contact():
 def view_contact(id):
     contact = Contact.query.get_or_404(id)
     
-    # Get clients associated with this contact in current firm
-    client_contacts = db.session.query(ClientContact, Client).join(Client).filter(
+    # Get client relationships associated with this contact in current firm
+    client_relationships = db.session.query(ClientContact).join(Client).filter(
         ClientContact.contact_id == id,
         Client.firm_id == session['firm_id']
     ).all()
     
-    clients = [cc[1] for cc in client_contacts]
+    # Get available clients (not already associated with this contact)
+    associated_client_ids = db.session.query(ClientContact.client_id).filter_by(contact_id=id).subquery()
+    available_clients = Client.query.filter(
+        Client.firm_id == session['firm_id'],
+        ~Client.id.in_(associated_client_ids)
+    ).all()
     
-    return render_template('view_contact.html', contact=contact, clients=clients)
+    return render_template('view_contact.html', contact=contact, client_relationships=client_relationships, available_clients=available_clients)
 
 @app.route('/contacts/<int:id>/edit', methods=['GET', 'POST'])
 def edit_contact(id):
@@ -2533,6 +2543,93 @@ def disassociate_contact_client(contact_id, client_id):
         contact = Contact.query.get(contact_id)
         create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" disassociated from client "{client.name}"', session['user_id'])
         flash('Contact disassociated from client successfully!', 'success')
+    
+    return redirect(url_for('view_contact', id=contact_id))
+
+@app.route('/clients/<int:client_id>/associate_contact', methods=['POST'])
+def associate_client_contact(client_id):
+    client = Client.query.get_or_404(client_id)
+    
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('clients'))
+    
+    contact_id = request.form.get('contact_id')
+    relationship_type = request.form.get('relationship_type')
+    is_primary = request.form.get('is_primary') == '1'
+    
+    if not contact_id:
+        flash('Please select a contact', 'error')
+        return redirect(url_for('view_client', id=client_id))
+    
+    # Check if association already exists
+    existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+    if existing:
+        flash('Contact is already associated with this client', 'error')
+        return redirect(url_for('view_client', id=client_id))
+    
+    # If setting as primary, remove primary status from other contacts
+    if is_primary:
+        ClientContact.query.filter_by(client_id=client_id, is_primary=True).update({'is_primary': False})
+    
+    # Create new association
+    client_contact = ClientContact(
+        client_id=client_id,
+        contact_id=contact_id,
+        relationship_type=relationship_type,
+        is_primary=is_primary
+    )
+    
+    db.session.add(client_contact)
+    db.session.commit()
+    
+    contact = Contact.query.get(contact_id)
+    create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
+    flash('Contact linked successfully!', 'success')
+    
+    return redirect(url_for('view_client', id=client_id))
+
+@app.route('/contacts/<int:contact_id>/link_client', methods=['POST'])
+def link_contact_client(contact_id):
+    contact = Contact.query.get_or_404(contact_id)
+    
+    client_id = request.form.get('client_id')
+    relationship_type = request.form.get('relationship_type')
+    is_primary = request.form.get('is_primary') == '1'
+    
+    if not client_id:
+        flash('Please select a client', 'error')
+        return redirect(url_for('view_contact', id=contact_id))
+    
+    client = Client.query.get_or_404(client_id)
+    
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('contacts'))
+    
+    # Check if association already exists
+    existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+    if existing:
+        flash('Contact is already associated with this client', 'error')
+        return redirect(url_for('view_contact', id=contact_id))
+    
+    # If setting as primary, remove primary status from other contacts for this client
+    if is_primary:
+        ClientContact.query.filter_by(client_id=client_id, is_primary=True).update({'is_primary': False})
+    
+    # Create new association
+    client_contact = ClientContact(
+        client_id=client_id,
+        contact_id=contact_id,
+        relationship_type=relationship_type,
+        is_primary=is_primary
+    )
+    
+    db.session.add(client_contact)
+    db.session.commit()
+    
+    create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
+    flash('Client linked successfully!', 'success')
     
     return redirect(url_for('view_contact', id=contact_id))
 

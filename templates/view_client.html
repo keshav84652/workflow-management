@@ -1,202 +1,393 @@
-{% extends "base.html" %}
+{% extends "base_modern.html" %}
 
 {% block title %}{{ client.name }} - CPA WorkflowPilot{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-    <h1 class="h2 text-dark fw-bold">
-        <i class="bi bi-person-circle text-primary me-2"></i>
-        {{ client.name }}
-        <span class="badge bg-{{ 'success' if client.is_active else 'secondary' }} ms-2">
-            {{ 'Active' if client.is_active else 'Inactive' }}
-        </span>
-    </h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <a href="{{ url_for('edit_client', id=client.id) }}" class="btn btn-outline-primary">
-                <i class="bi bi-pencil"></i> Edit Client
-            </a>
-            <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" class="btn btn-primary">
-                <i class="bi bi-plus-circle"></i> New Project
-            </a>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Client Information Card -->
-    <div class="col-lg-4 mb-4">
-        <div class="card fade-in">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-info-circle me-2"></i>
-                    Client Details
-                </h5>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <div class="flex items-center">
+                <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                    <i class="bi bi-person-circle text-cpa-blue mr-2"></i>
+                    {{ client.name }}
+                </h1>
+                <span class="ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {% if client.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ 'Active' if client.is_active else 'Inactive' }}
+                </span>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-muted small">ENTITY TYPE</label>
-                    <div><span class="badge bg-secondary">{{ client.entity_type or 'Individual' }}</span></div>
-                </div>
-
-                {% if client.tax_id %}
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-muted small">TAX ID</label>
-                    <div class="font-monospace">{{ client.tax_id }}</div>
-                </div>
-                {% endif %}
-
-                {% if client.contact_person %}
-                <div class="mb-3">
-                    <label class="form-label fw-bold text-muted small">CONTACT PERSON</label>
-                    <div>{{ client.contact_person }}</div>
-                </div>
-                {% endif %}
-
-                <hr>
-
-                <h6 class="fw-bold text-primary mb-3">Contact Information</h6>
-                
-                {% if client.email %}
-                <div class="mb-2">
-                    <i class="bi bi-envelope text-muted me-2"></i>
-                    <a href="mailto:{{ client.email }}" class="text-decoration-none">{{ client.email }}</a>
-                </div>
-                {% endif %}
-
-                {% if client.phone %}
-                <div class="mb-2">
-                    <i class="bi bi-telephone text-muted me-2"></i>
-                    <a href="tel:{{ client.phone }}" class="text-decoration-none">{{ client.phone }}</a>
-                </div>
-                {% endif %}
-
-                {% if client.address %}
-                <div class="mb-2">
-                    <i class="bi bi-geo-alt text-muted me-2"></i>
-                    <div class="d-inline-block">{{ client.address|replace('\n', '<br>')|safe }}</div>
-                </div>
-                {% endif %}
-
-                {% if not client.email and not client.phone and not client.address %}
-                <div class="text-muted text-center py-3">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    No contact information available
-                </div>
-                {% endif %}
-
-                {% if client.notes %}
-                <hr>
-                <h6 class="fw-bold text-primary mb-2">Notes</h6>
-                <div class="text-muted">{{ client.notes }}</div>
-                {% endif %}
-
-                <hr>
-                <small class="text-muted">
-                    <i class="bi bi-calendar3 me-1"></i>
-                    Created {{ client.created_at.strftime('%B %d, %Y') }}
-                </small>
+            <p class="mt-2 text-sm text-gray-700">
+                {{ client.entity_type or 'Individual' }} Client Profile
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <div class="flex space-x-2">
+                <a href="{{ url_for('clients') }}" 
+                   class="rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
+                    <i class="bi bi-arrow-left mr-1"></i> Back to Clients
+                </a>
+                <a href="{{ url_for('edit_client', id=client.id) }}" 
+                   class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                    <i class="bi bi-pencil mr-1"></i> Edit Client
+                </a>
+                <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" 
+                   class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                    <i class="bi bi-plus-circle mr-1"></i> New Project
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Projects Section -->
-    <div class="col-lg-8">
-        <!-- Project Stats -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <div class="kpi-number text-primary">{{ projects|length }}</div>
-                        <div class="kpi-label text-muted">Total Projects</div>
-                    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Client Information -->
+        <div class="lg:col-span-1">
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-900">
+                        <i class="bi bi-info-circle text-cpa-blue mr-2"></i>
+                        Client Information
+                    </h3>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <div class="kpi-number text-success">{{ projects|selectattr('status', 'equalto', 'Completed')|list|length }}</div>
-                        <div class="kpi-label text-muted">Completed</div>
+                <div class="px-6 py-6">
+                    <dl class="space-y-4">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Entity Type</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ client.entity_type or 'Individual' }}</dd>
+                        </div>
+                        
+                        {% if client.tax_id %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Tax ID</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ client.tax_id }}</dd>
+                        </div>
+                        {% endif %}
+                        
+                        {% if client.contact_person %}
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Contact Person</dt>
+                            <dd class="mt-1 text-sm text-gray-900">{{ client.contact_person }}</dd>
+                        </div>
+                        {% endif %}
+                    </dl>
+                    
+                    <div class="mt-6 border-t border-gray-200 pt-6">
+                        <h4 class="text-base font-medium text-gray-900 mb-4">
+                            <i class="bi bi-telephone text-cpa-blue mr-2"></i>
+                            Contact Information
+                        </h4>
+                        
+                        {% if client.email %}
+                        <div class="mb-3">
+                            <div class="flex items-center">
+                                <i class="bi bi-envelope text-gray-400 mr-2"></i>
+                                <a href="mailto:{{ client.email }}" class="text-cpa-blue hover:text-blue-600">{{ client.email }}</a>
+                                <span class="ml-2 text-xs text-gray-500">(Direct)</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if client.phone %}
+                        <div class="mb-3">
+                            <div class="flex items-center">
+                                <i class="bi bi-telephone text-gray-400 mr-2"></i>
+                                <a href="tel:{{ client.phone }}" class="text-cpa-blue hover:text-blue-600">{{ client.phone }}</a>
+                                <span class="ml-2 text-xs text-gray-500">(Direct)</span>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if client.address %}
+                        <div class="mb-3">
+                            <div class="flex items-start">
+                                <i class="bi bi-geo-alt text-gray-400 mr-2 mt-0.5"></i>
+                                <div class="text-sm text-gray-900">{{ client.address|replace('\n', '<br>')|safe }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Associated Contacts -->
+                        <div class="mt-4 border-t border-gray-200 pt-4" x-data="{ linkModalOpen: false }">
+                            <div class="flex items-center justify-between mb-3">
+                                <h5 class="text-sm font-medium text-gray-900">Associated Contacts</h5>
+                                <button @click="linkModalOpen = true" 
+                                        class="text-xs bg-cpa-blue text-white px-2 py-1 rounded hover:bg-blue-600">
+                                    <i class="bi bi-plus mr-1"></i>Link Contact
+                                </button>
+                            </div>
+                                
+                            <!-- Contact Linking Modal -->
+                            <div x-show="linkModalOpen" @keydown.escape.window="linkModalOpen = false" x-cloak
+                                 class="fixed inset-0 z-50 overflow-y-auto">
+                                <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                                    <div class="fixed inset-0 transition-opacity" @click="linkModalOpen = false">
+                                        <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+                                    </div>
+                                    
+                                    <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                        <form method="POST" action="{{ url_for('associate_client_contact', client_id=client.id) }}">
+                                            <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Link Contact to {{ client.name }}</h3>
+                                                
+                                                <div class="space-y-4">
+                                                    <div>
+                                                        <label for="contact_id" class="block text-sm font-medium text-gray-700 mb-2">Select Contact</label>
+                                                        <select name="contact_id" id="contact_id" required
+                                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                                            <option value="">Choose a contact...</option>
+                                                            {% for contact in available_contacts %}
+                                                            <option value="{{ contact.id }}">{{ contact.full_name }} - {{ contact.email }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div>
+                                                        <label for="relationship_type" class="block text-sm font-medium text-gray-700 mb-2">Relationship Type</label>
+                                                        <select name="relationship_type" id="relationship_type"
+                                                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                                            <option value="Contact">Contact</option>
+                                                            <option value="Owner">Owner</option>
+                                                            <option value="Accountant">Accountant</option>
+                                                            <option value="Bookkeeper">Bookkeeper</option>
+                                                            <option value="Manager">Manager</option>
+                                                            <option value="Administrator">Administrator</option>
+                                                        </select>
+                                                    </div>
+                                                    
+                                                    <div class="flex items-center">
+                                                        <input type="checkbox" name="is_primary" id="is_primary" value="1"
+                                                               class="h-4 w-4 text-cpa-blue focus:ring-cpa-blue border-gray-300 rounded">
+                                                        <label for="is_primary" class="ml-2 text-sm text-gray-700">Make this the primary contact</label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                                                <button type="submit" 
+                                                        class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-cpa-blue text-base font-medium text-white hover:bg-blue-700 sm:ml-3 sm:w-auto sm:text-sm">
+                                                    Link Contact
+                                                </button>
+                                                <button type="button" @click="linkModalOpen = false"
+                                                        class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:w-auto sm:text-sm">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {% if client.contacts %}
+                            {% for contact in client.contacts %}
+                            <div class="border border-gray-200 rounded-lg p-3 mb-3">
+                                <div class="font-medium text-gray-900">
+                                    <a href="{{ url_for('view_contact', id=contact.id) }}" class="text-cpa-blue hover:text-blue-600">
+                                        {{ contact.full_name }}
+                                    </a>
+                                    {% if contact.title %}
+                                    <span class="text-sm text-gray-500">({{ contact.title }})</span>
+                                    {% endif %}
+                                </div>
+                                {% if contact.email %}
+                                <div class="mt-1 text-sm">
+                                    <i class="bi bi-envelope text-gray-400 mr-1"></i>
+                                    <a href="mailto:{{ contact.email }}" class="text-cpa-blue hover:text-blue-600">{{ contact.email }}</a>
+                                </div>
+                                {% endif %}
+                                {% if contact.phone %}
+                                <div class="mt-1 text-sm">
+                                    <i class="bi bi-telephone text-gray-400 mr-1"></i>
+                                    <a href="tel:{{ contact.phone }}" class="text-cpa-blue hover:text-blue-600">{{ contact.phone }}</a>
+                                </div>
+                                {% endif %}
+                                {% if contact.company %}
+                                <div class="mt-1 text-sm">
+                                    <i class="bi bi-building text-gray-400 mr-1"></i>
+                                    <span class="text-gray-600">{{ contact.company }}</span>
+                                </div>
+                                {% endif %}
+                                <div class="mt-2 flex justify-end">
+                                    <form method="POST" action="{{ url_for('disassociate_contact_client', contact_id=contact.id, client_id=client.id) }}" 
+                                          onsubmit="return confirm('Remove this contact association?')" class="inline">
+                                        <button type="submit" class="text-xs text-red-600 hover:text-red-800">
+                                            <i class="bi bi-x-circle mr-1"></i>Unlink
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+
+                        {% if not client.email and not client.phone and not client.address and not client.contacts %}
+                        <div class="text-center py-4 text-gray-500">
+                            <i class="bi bi-exclamation-triangle mr-2"></i>
+                            No contact information available
+                        </div>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <div class="kpi-number text-warning">{{ projects|selectattr('status', 'equalto', 'Active')|list|length }}</div>
-                        <div class="kpi-label text-muted">Active</div>
+
+                    {% if client.notes %}
+                    <div class="mt-6 border-t border-gray-200 pt-6">
+                        <h4 class="text-base font-medium text-gray-900 mb-2">
+                            <i class="bi bi-sticky text-cpa-blue mr-2"></i>
+                            Notes
+                        </h4>
+                        <div class="text-sm text-gray-700 whitespace-pre-wrap">{{ client.notes }}</div>
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <div class="kpi-number text-danger">{{ projects|selectattr('is_overdue')|list|length }}</div>
-                        <div class="kpi-label text-muted">Overdue</div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
-        <!-- Projects List -->
-        <div class="card fade-in">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="bi bi-folder me-2"></i>
-                    Projects
-                </h5>
+        <!-- Projects Section -->
+        <div class="lg:col-span-2">
+            <!-- Project Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 overflow-hidden shadow-sm rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-folder text-white text-2xl opacity-80"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-blue-100 truncate">Total Projects</dt>
+                                    <dd class="text-2xl font-bold text-white">{{ projects|length }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-green-500 to-green-600 overflow-hidden shadow-sm rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-check-circle text-white text-2xl opacity-80"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-green-100 truncate">Completed</dt>
+                                    <dd class="text-2xl font-bold text-white">{{ projects|selectattr('status', 'equalto', 'Completed')|list|length }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-amber-500 to-amber-600 overflow-hidden shadow-sm rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-clock text-white text-2xl opacity-80"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-amber-100 truncate">Active</dt>
+                                    <dd class="text-2xl font-bold text-white">{{ projects|selectattr('status', 'equalto', 'Active')|list|length }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-red-500 to-red-600 overflow-hidden shadow-sm rounded-lg">
+                    <div class="p-6">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-exclamation-triangle text-white text-2xl opacity-80"></i>
+                            </div>
+                            <div class="ml-5 w-0 flex-1">
+                                <dl>
+                                    <dt class="text-sm font-medium text-red-100 truncate">Overdue</dt>
+                                    <dd class="text-2xl font-bold text-white">{{ projects|selectattr('is_overdue')|list|length }}</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-0">
+
+            <!-- Projects List -->
+            <div class="bg-white shadow rounded-lg">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-medium leading-6 text-gray-900">
+                        <i class="bi bi-folder mr-2"></i>
+                        Projects
+                    </h3>
+                </div>
                 {% if projects %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
+                <div class="overflow-hidden">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
                             <tr>
-                                <th>Project Name</th>
-                                <th>Status</th>
-                                <th>Priority</th>
-                                <th>Progress</th>
-                                <th>Due Date</th>
-                                <th>Actions</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Project
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Due Date
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Progress
+                                </th>
+                                <th scope="col" class="relative px-6 py-3">
+                                    <span class="sr-only">Actions</span>
+                                </th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="bg-white divide-y divide-gray-200">
                             {% for project in projects %}
-                            <tr class="{% if project.is_overdue %}table-danger{% endif %}">
-                                <td>
-                                    <div class="fw-bold">{{ project.name }}</div>
-                                    {% if project.template_origin %}
-                                        <small class="text-muted">{{ project.template_origin.name }}</small>
-                                    {% endif %}
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="flex-shrink-0 h-10 w-10">
+                                            <div class="h-10 w-10 rounded-lg bg-cpa-blue flex items-center justify-center">
+                                                <i class="bi bi-folder text-white"></i>
+                                            </div>
+                                        </div>
+                                        <div class="ml-4">
+                                            <div class="text-sm font-medium text-gray-900">
+                                                <a href="{{ url_for('view_project', id=project.id) }}" class="hover:text-cpa-blue">
+                                                    {{ project.name }}
+                                                </a>
+                                            </div>
+                                            {% if project.work_type %}
+                                            <div class="text-sm text-gray-500">{{ project.work_type.name }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                 </td>
-                                <td>
-                                    <span class="badge bg-{{ 'success' if project.status == 'Completed' else 'warning' if project.status == 'Active' else 'secondary' }}">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                        {% if project.status == 'Completed' %}bg-green-100 text-green-800
+                                        {% elif project.status == 'Active' %}bg-blue-100 text-blue-800
+                                        {% elif project.status == 'On Hold' %}bg-yellow-100 text-yellow-800
+                                        {% else %}bg-gray-100 text-gray-800{% endif %}">
                                         {{ project.status }}
                                     </span>
                                 </td>
-                                <td>
-                                    <span class="badge priority-{{ project.priority.lower() }}">
-                                        {{ project.priority }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar" style="width: {{ project.progress_percentage }}%"></div>
-                                    </div>
-                                    <small class="text-muted">{{ project.progress_percentage }}%</small>
-                                </td>
-                                <td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     {% if project.due_date %}
-                                        {{ project.due_date.strftime('%m/%d/%Y') }}
-                                        {% if project.is_overdue %}
-                                            <br><small class="text-danger">Overdue</small>
-                                        {% endif %}
+                                        <span class="{% if project.is_overdue %}text-red-600 font-medium{% endif %}">
+                                            {{ project.due_date.strftime('%m/%d/%Y') }}
+                                        </span>
                                     {% else %}
-                                        <span class="text-muted">No due date</span>
+                                        <span class="text-gray-500">No due date</span>
                                     {% endif %}
                                 </td>
-                                <td>
-                                    <a href="{{ url_for('view_project', id=project.id) }}" class="btn btn-outline-primary btn-sm">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="text-sm font-medium text-gray-900 mr-2">{{ project.progress }}%</div>
+                                        <div class="w-16 bg-gray-200 rounded-full h-2">
+                                            <div class="bg-cpa-blue h-2 rounded-full" style="width: {{ project.progress }}%"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <a href="{{ url_for('view_project', id=project.id) }}" 
+                                       class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                         <i class="bi bi-eye"></i>
                                     </a>
                                 </td>
@@ -206,12 +397,14 @@
                     </table>
                 </div>
                 {% else %}
-                <div class="text-center py-5">
-                    <i class="bi bi-folder-x text-muted" style="font-size: 3rem;"></i>
-                    <h5 class="mt-3 text-muted">No projects yet</h5>
-                    <p class="text-muted">Create the first project for {{ client.name }}</p>
-                    <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Create First Project
+                <div class="text-center py-12">
+                    <i class="bi bi-folder text-gray-300 text-5xl mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+                    <p class="text-gray-500 mb-6">Get started by creating your first project for this client.</p>
+                    <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cpa-blue hover:bg-blue-600">
+                        <i class="bi bi-plus-circle mr-2"></i>
+                        Create Project
                     </a>
                 </div>
                 {% endif %}

@@ -108,6 +108,21 @@ class Client(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     projects = db.relationship('Project', backref='client', lazy=True)
+    
+    @property
+    def contacts(self):
+        """Get all contacts associated with this client"""
+        return db.session.query(Contact).join(ClientContact).filter(
+            ClientContact.client_id == self.id
+        ).all()
+    
+    @property
+    def primary_contact(self):
+        """Get the primary contact for this client"""
+        return db.session.query(Contact).join(ClientContact).filter(
+            ClientContact.client_id == self.id,
+            ClientContact.is_primary == True
+        ).first()
 
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
