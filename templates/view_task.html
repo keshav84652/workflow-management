@@ -653,6 +653,12 @@ function updateTaskStatus(newStatus) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // If this task belongs to a project, update the Kanban progress
+            {% if task.project %}
+            if (typeof window.updateKanbanProgress === 'function') {
+                window.updateKanbanProgress({{ task.project.id }});
+            }
+            {% endif %}
             location.reload();
         } else {
             alert('Error updating task status');

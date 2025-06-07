@@ -73,6 +73,22 @@
                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
                         <p class="mt-1 text-sm text-gray-500">When should this project begin?</p>
                     </div>
+                    
+                    <div>
+                        <div class="flex items-center">
+                            <input type="checkbox" 
+                                   id="task_dependency_mode" 
+                                   name="task_dependency_mode" 
+                                   value="true"
+                                   class="h-4 w-4 text-cpa-blue focus:ring-cpa-blue border-gray-300 rounded">
+                            <label for="task_dependency_mode" class="ml-2 block text-sm text-gray-900">
+                                Sequential Task Completion
+                            </label>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-500">
+                            When enabled, completing a task will automatically mark all previous tasks as completed. This ensures tasks are done in order.
+                        </p>
+                    </div>
 
                     <!-- Action Buttons -->
                     <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">

@@ -122,6 +122,7 @@ class Project(db.Model):
     template_origin_id = db.Column(db.Integer, db.ForeignKey('template.id'))
     current_status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Current workflow status
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
+    task_dependency_mode = db.Column(db.Boolean, default=False)  # If True, completing a task auto-completes all previous tasks
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     tasks = db.relationship('Task', backref='project', lazy=True, cascade="all, delete-orphan")

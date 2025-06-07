@@ -101,15 +101,13 @@
                                 </div>
                                 {% endif %}
                                 
-                                {% if project.progress_percentage > 0 %}
                                 <div class="flex items-center text-xs text-gray-500">
                                     <i class="bi bi-bar-chart mr-1"></i>
-                                    <span>{{ project.progress_percentage }}% complete</span>
+                                    <span id="progress-text-{{ project.id }}">{{ project.progress_percentage }}% complete</span>
                                     <div class="ml-2 flex-1 bg-gray-200 rounded-full h-1.5">
-                                        <div class="bg-cpa-blue h-1.5 rounded-full" style="width: {{ project.progress_percentage }}%"></div>
+                                        <div id="progress-bar-{{ project.id }}" class="bg-cpa-blue h-1.5 rounded-full transition-all duration-500 ease-out" style="width: {{ project.progress_percentage }}%"></div>
                                     </div>
                                 </div>
-                                {% endif %}
                                 
                                 {% if project.assignee %}
                                 <div class="flex items-center text-xs text-gray-500">
@@ -124,8 +122,13 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
                                         {% if project.tasks|length > 0 %}
-                                        <span class="text-xs text-gray-500">
+                                        <span class="text-xs text-gray-500" id="task-count-{{ project.id }}">
                                             {{ project.tasks|selectattr('status', 'equalto', 'Completed')|list|length }}/{{ project.tasks|length }} tasks
+                                        </span>
+                                        {% endif %}
+                                        {% if project.task_dependency_mode %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" title="Sequential task completion enabled">
+                                            <i class="bi bi-arrow-right mr-1"></i>SEQ
                                         </span>
                                         {% endif %}
                                     </div>
@@ -139,13 +142,10 @@
                     </div>
                     {% endfor %}
                     
-                    <!-- Empty State -->
-                    {% if projects_by_column[column.id]|length == 0 %}
-                    <div class="text-center py-8">
-                        <i class="bi bi-folder h-8 w-8 text-gray-300 mx-auto mb-2"></i>
-                        <p class="text-sm text-gray-500">No projects in this stage</p>
+                    <!-- Dynamic Empty State -->
+                    <div class="text-center py-4 {% if projects_by_column[column.id]|length > 0 %}hidden{% endif %}" id="empty-state-{{ column.id }}">
+                        <p class="text-xs text-gray-400">No projects</p>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -202,15 +202,13 @@
                                 </div>
                                 {% endif %}
                                 
-                                {% if project.progress_percentage > 0 %}
                                 <div class="flex items-center text-xs text-gray-500">
                                     <i class="bi bi-bar-chart mr-1"></i>
-                                    <span>{{ project.progress_percentage }}% complete</span>
+                                    <span id="progress-text-{{ project.id }}">{{ project.progress_percentage }}% complete</span>
                                     <div class="ml-2 flex-1 bg-gray-200 rounded-full h-1.5">
-                                        <div class="bg-green-600 h-1.5 rounded-full" style="width: {{ project.progress_percentage }}%"></div>
+                                        <div id="progress-bar-{{ project.id }}" class="bg-green-600 h-1.5 rounded-full transition-all duration-500 ease-out" style="width: {{ project.progress_percentage }}%"></div>
                                     </div>
                                 </div>
-                                {% endif %}
                                 
                                 {% if project.assignee %}
                                 <div class="flex items-center text-xs text-gray-500">
@@ -225,8 +223,13 @@
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-center space-x-2">
                                         {% if project.tasks|length > 0 %}
-                                        <span class="text-xs text-gray-500">
+                                        <span class="text-xs text-gray-500" id="task-count-{{ project.id }}">
                                             {{ project.tasks|selectattr('status', 'equalto', 'Completed')|list|length }}/{{ project.tasks|length }} tasks
+                                        </span>
+                                        {% endif %}
+                                        {% if project.task_dependency_mode %}
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800" title="Sequential task completion enabled">
+                                            <i class="bi bi-arrow-right mr-1"></i>SEQ
                                         </span>
                                         {% endif %}
                                     </div>
@@ -240,13 +243,10 @@
                     </div>
                     {% endfor %}
                     
-                    <!-- Empty State -->
-                    {% if projects_by_column['completed']|length == 0 %}
-                    <div class="text-center py-8">
-                        <i class="bi bi-folder h-8 w-8 text-gray-300 mx-auto mb-2"></i>
-                        <p class="text-sm text-gray-500">No completed projects</p>
+                    <!-- Dynamic Empty State -->
+                    <div class="text-center py-4 {% if projects_by_column['completed']|length > 0 %}hidden{% endif %}" id="empty-state-completed">
+                        <p class="text-xs text-gray-400">No projects</p>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             {% endif %}
@@ -268,53 +268,98 @@
 .kanban-column.drag-over {
     background-color: #e0f2fe;
 }
+
+.transform-rotate-2 {
+    transform: rotate(2deg);
+}
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Kanban: DOM loaded, initializing sortable...');
+    
+    // Check if SortableJS is loaded
+    if (typeof Sortable === 'undefined') {
+        console.error('SortableJS not loaded!');
+        return;
+    }
+    
     // Initialize sortable for each kanban column
     {% for column in kanban_columns %}
     const column{{ column.id }} = document.getElementById('status-{{ column.id }}');
+    console.log('Kanban: Found column {{ column.id }}:', column{{ column.id }});
     if (column{{ column.id }}) {
-        new Sortable(column{{ column.id }}, {
+        const sortable{{ column.id }} = new Sortable(column{{ column.id }}, {
             group: 'kanban',
             animation: 150,
             ghostClass: 'opacity-50',
             chosenClass: 'bg-blue-50',
-            dragClass: 'transform rotate-2',
+            dragClass: 'transform-rotate-2',
+            onStart: function(evt) {
+                console.log('Drag started:', evt.item.dataset.projectId);
+            },
             onEnd: function(evt) {
+                console.log('Drag ended');
                 const projectId = evt.item.dataset.projectId;
                 const newColumnId = evt.to.closest('[data-status-id]').dataset.statusId;
                 
-                // Update project status via API
-                updateProjectStatus(projectId, newColumnId);
+                console.log('Moving project:', projectId, 'to column:', newColumnId);
+                
+                // Only update if actually moved to different column
+                if (evt.from !== evt.to) {
+                    updateProjectStatus(projectId, newColumnId);
+                    // Update empty states immediately
+                    updateEmptyStates(evt.from, evt.to);
+                } else {
+                    console.log('No move needed - same column');
+                }
             }
         });
+        console.log('Kanban: Initialized sortable for column {{ column.id }}');
+    } else {
+        console.error('Kanban: Could not find column {{ column.id }}');
     }
     {% endfor %}
     
     // Initialize sortable for completed column
     const completedColumn = document.getElementById('status-completed');
+    console.log('Kanban: Found completed column:', completedColumn);
     if (completedColumn) {
-        new Sortable(completedColumn, {
+        const sortableCompleted = new Sortable(completedColumn, {
             group: 'kanban',
             animation: 150,
             ghostClass: 'opacity-50',
             chosenClass: 'bg-blue-50',
-            dragClass: 'transform rotate-2',
+            dragClass: 'transform-rotate-2',
+            onStart: function(evt) {
+                console.log('Drag started on completed column:', evt.item.dataset.projectId);
+            },
             onEnd: function(evt) {
+                console.log('Drag ended on completed column');
                 const projectId = evt.item.dataset.projectId;
                 const newColumnId = evt.to.closest('[data-status-id]').dataset.statusId;
                 
-                // Update project status via API
-                updateProjectStatus(projectId, newColumnId);
+                console.log('Moving project:', projectId, 'to column:', newColumnId);
+                
+                if (evt.from !== evt.to) {
+                    updateProjectStatus(projectId, newColumnId);
+                    // Update empty states immediately
+                    updateEmptyStates(evt.from, evt.to);
+                } else {
+                    console.log('No move needed - same column');
+                }
             }
         });
+        console.log('Kanban: Initialized sortable for completed column');
+    } else {
+        console.error('Kanban: Could not find completed column');
     }
 });
 
 function updateProjectStatus(projectId, statusId) {
+    console.log('Moving project:', projectId, 'to column:', statusId);
+    
     fetch(`/projects/${projectId}/move-status`, {
         method: 'POST',
         headers: {
@@ -322,17 +367,124 @@ function updateProjectStatus(projectId, statusId) {
         },
         body: JSON.stringify({ status_id: statusId })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        if (!data.success) {
-            // Reload page on error to restore correct state
+        console.log('Response data:', data);
+        if (data.success) {
+            console.log('Success:', data.message || 'Project moved successfully');
+            
+            // Update dynamic progress if provided in response
+            if (data.project_progress !== undefined) {
+                updateProjectProgress(projectId, data.project_progress, data.completed_tasks, data.total_tasks);
+            }
+            
+            // Show a subtle success indicator
+            const projectCard = document.querySelector(`[data-project-id="${projectId}"]`);
+            if (projectCard) {
+                projectCard.classList.add('ring-2', 'ring-green-400');
+                setTimeout(() => {
+                    projectCard.classList.remove('ring-2', 'ring-green-400');
+                }, 2000);
+            }
+        } else {
+            console.error('Server error:', data.message);
+            alert('Error moving project: ' + (data.message || 'Unknown error'));
             location.reload();
         }
     })
     .catch(error => {
         console.error('Error updating project status:', error);
+        alert('Network error moving project. Please check console and try again.');
         location.reload();
     });
 }
+
+// Function to update project progress bars dynamically
+function updateProjectProgress(projectId, progressPercentage, completedTasks, totalTasks) {
+    const progressBar = document.getElementById(`progress-bar-${projectId}`);
+    const progressText = document.getElementById(`progress-text-${projectId}`);
+    const taskCount = document.getElementById(`task-count-${projectId}`);
+    
+    if (progressBar) {
+        // Animate the progress bar width change
+        progressBar.style.width = `${progressPercentage}%`;
+        
+        // Change color based on progress
+        progressBar.className = progressBar.className.replace(/bg-\w+-\d+/, '');
+        if (progressPercentage === 100) {
+            progressBar.classList.add('bg-green-600');
+        } else if (progressPercentage >= 75) {
+            progressBar.classList.add('bg-blue-600');
+        } else if (progressPercentage >= 50) {
+            progressBar.classList.add('bg-yellow-500');
+        } else {
+            progressBar.classList.add('bg-gray-400');
+        }
+    }
+    
+    if (progressText) {
+        progressText.textContent = `${progressPercentage}% complete`;
+    }
+    
+    if (taskCount && completedTasks !== undefined && totalTasks !== undefined) {
+        taskCount.textContent = `${completedTasks}/${totalTasks} tasks`;
+    }
+}
+
+// Function to refresh a specific project card's data
+function refreshProjectCard(projectId) {
+    fetch(`/api/project/${projectId}/progress`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateProjectProgress(projectId, data.progress_percentage, data.completed_tasks, data.total_tasks);
+            }
+        })
+        .catch(error => {
+            console.error('Error refreshing project progress:', error);
+        });
+}
+
+// Function to update empty state visibility
+function updateEmptyStates(fromColumn, toColumn) {
+    // Update source column
+    const fromColumnId = fromColumn.closest('[data-status-id]').dataset.statusId;
+    const fromEmptyState = document.getElementById(`empty-state-${fromColumnId}`);
+    const fromProjectCards = fromColumn.querySelectorAll('[data-project-id]');
+    
+    if (fromEmptyState) {
+        if (fromProjectCards.length === 0) {
+            fromEmptyState.classList.remove('hidden');
+        } else {
+            fromEmptyState.classList.add('hidden');
+        }
+    }
+    
+    // Update destination column
+    const toColumnId = toColumn.closest('[data-status-id]').dataset.statusId;
+    const toEmptyState = document.getElementById(`empty-state-${toColumnId}`);
+    const toProjectCards = toColumn.querySelectorAll('[data-project-id]');
+    
+    if (toEmptyState) {
+        if (toProjectCards.length === 0) {
+            toEmptyState.classList.remove('hidden');
+        } else {
+            toEmptyState.classList.add('hidden');
+        }
+    }
+}
+
+// Global function that can be called from other pages to update Kanban progress
+window.updateKanbanProgress = function(projectId) {
+    if (document.getElementById(`progress-bar-${projectId}`)) {
+        refreshProjectCard(projectId);
+    }
+};
 </script>
 {% endblock %}

@@ -589,6 +589,7 @@ def create_project():
         if due_date:
             due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
         priority = request.form.get('priority', 'Medium')
+        task_dependency_mode = request.form.get('task_dependency_mode') == 'true'
         
         # Find or create client
         client = find_or_create_client(client_name, firm_id)
@@ -616,6 +617,7 @@ def create_project():
             start_date=start_date,
             due_date=due_date,
             priority=priority,
+            task_dependency_mode=task_dependency_mode,
             firm_id=firm_id,
             template_origin_id=template_id
         )
@@ -1270,6 +1272,71 @@ def update_task(id):
     if new_status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
         task.status = new_status
         
+        # Handle task dependency mode for template projects
+        if (task.project and task.project.task_dependency_mode and 
+            task.template_task_origin_id and old_status != new_status):
+            
+            # Get all template tasks for this project's template in order
+            template = task.project.template_origin
+            if template:
+                template_tasks = TemplateTask.query.filter_by(
+                    template_id=template.id
+                ).order_by(TemplateTask.order.asc()).all()
+                
+                # Find the position of the current task
+                current_task_position = None
+                for i, template_task in enumerate(template_tasks):
+                    if template_task.id == task.template_task_origin_id:
+                        current_task_position = i
+                        break
+                
+                if current_task_position is not None:
+                    project_tasks = Task.query.filter_by(project_id=task.project_id).all()
+                    
+                    if new_status == 'Completed' and old_status != 'Completed':
+                        # Mark all previous tasks as completed
+                        auto_completed_count = 0
+                        for i in range(current_task_position):
+                            template_task_at_pos = template_tasks[i]
+                            project_task = next(
+                                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
+                                None
+                            )
+                            if project_task and project_task.status != 'Completed':
+                                project_task.status = 'Completed'
+                                project_task.completed_at = datetime.utcnow()
+                                auto_completed_count += 1
+                        
+                        if auto_completed_count > 0:
+                            create_activity_log(
+                                f'Auto-completed {auto_completed_count} previous tasks due to task dependency mode',
+                                session.get('user_id', 1),
+                                task.project_id,
+                                task.id
+                            )
+                    
+                    elif new_status == 'Not Started':
+                        # Mark all subsequent tasks as not started
+                        auto_reset_count = 0
+                        for i in range(current_task_position + 1, len(template_tasks)):
+                            template_task_at_pos = template_tasks[i]
+                            project_task = next(
+                                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
+                                None
+                            )
+                            if project_task and project_task.status != 'Not Started':
+                                project_task.status = 'Not Started'
+                                project_task.completed_at = None
+                                auto_reset_count += 1
+                        
+                        if auto_reset_count > 0:
+                            create_activity_log(
+                                f'Auto-reset {auto_reset_count} subsequent tasks to Not Started due to task dependency mode',
+                                session.get('user_id', 1),
+                                task.project_id,
+                                task.id
+                            )
+        
         # Handle recurring task completion
         if new_status == 'Completed' and old_status != 'Completed':
             task.completed_at = datetime.utcnow()
@@ -1705,15 +1772,22 @@ def move_project_status(project_id):
             # Log activity
             activity_log = ActivityLog(
                 action=f"Project moved to Completed stage",
-                entity_type='project',
-                entity_id=project.id,
-                firm_id=session['firm_id'],
+                project_id=project.id,
                 user_id=session.get('user_id')
             )
             db.session.add(activity_log)
             db.session.commit()
             
-            return jsonify({'success': True, 'message': 'Project moved to completed stage'})
+            # Calculate progress (should be 100%)
+            total_tasks = len(project_tasks)
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Project moved to completed stage',
+                'project_progress': 100,
+                'completed_tasks': total_tasks,
+                'total_tasks': total_tasks
+            })
         
         # Verify the column (template task) exists
         template_task = TemplateTask.query.get(new_column_id)
@@ -1740,6 +1814,8 @@ def move_project_status(project_id):
             return jsonify({'success': False, 'message': 'Invalid template task'}), 400
         
         # Update task statuses to reflect the new position
+        # This logic applies to ALL projects in Kanban - when moved to a column,
+        # all tasks up to that point should be completed
         project_tasks = Task.query.filter_by(project_id=project.id).all()
         
         # Mark all tasks before the target position as completed
@@ -1751,17 +1827,9 @@ def move_project_status(project_id):
             )
             if project_task and project_task.status != 'Completed':
                 project_task.status = 'Completed'
+                project_task.completed_at = datetime.utcnow()
         
-        # Mark the target task as in progress
-        target_template_task = template_tasks[target_position]
-        target_project_task = next(
-            (t for t in project_tasks if t.template_task_origin_id == target_template_task.id),
-            None
-        )
-        if target_project_task and target_project_task.status == 'Completed':
-            target_project_task.status = 'In Progress'
-        
-        # Mark all tasks after the target position as not started
+        # Mark all tasks after the target position as not started (if they were completed)
         for i in range(target_position + 1, len(template_tasks)):
             template_task_at_pos = template_tasks[i]
             project_task = next(
@@ -1770,25 +1838,69 @@ def move_project_status(project_id):
             )
             if project_task and project_task.status == 'Completed':
                 project_task.status = 'Not Started'
+                project_task.completed_at = None
+        
+        # Mark the target task as in progress
+        target_template_task = template_tasks[target_position]
+        target_project_task = next(
+            (t for t in project_tasks if t.template_task_origin_id == target_template_task.id),
+            None
+        )
+        if target_project_task:
+            if target_project_task.status == 'Completed':
+                target_project_task.status = 'In Progress'
+            elif target_project_task.status == 'Not Started':
+                target_project_task.status = 'In Progress'
         
         # Log activity
         activity_log = ActivityLog(
             action=f"Project moved to {target_template_task.title} stage",
-            entity_type='project',
-            entity_id=project.id,
-            firm_id=session['firm_id'],
+            project_id=project.id,
             user_id=session.get('user_id')
         )
         db.session.add(activity_log)
         db.session.commit()
         
+        # Calculate updated progress
+        completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
+        total_tasks = len(project_tasks)
+        progress_percentage = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
+        
         return jsonify({
             'success': True,
-            'message': f'Project moved to {target_template_task.title} stage'
+            'message': f'Project moved to {target_template_task.title} stage',
+            'project_progress': progress_percentage,
+            'completed_tasks': completed_tasks,
+            'total_tasks': total_tasks
         })
             
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/project/<int:project_id>/progress', methods=['GET'])
+def get_project_progress(project_id):
+    """Get current progress data for a project"""
+    project = Project.query.get_or_404(project_id)
+    
+    # Check access
+    if project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        # Calculate current progress
+        project_tasks = Task.query.filter_by(project_id=project.id).all()
+        completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
+        total_tasks = len(project_tasks)
+        progress_percentage = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
+        
+        return jsonify({
+            'success': True,
+            'progress_percentage': progress_percentage,
+            'completed_tasks': completed_tasks,
+            'total_tasks': total_tasks
+        })
+    except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/search')
@@ -2051,10 +2163,13 @@ def admin_work_types():
     
     work_types = WorkType.query.filter_by(firm_id=session['firm_id']).all()
     
-    # Get task count by work type
+    # Get task count by work type (through project relationship)
     work_type_usage = {}
     for wt in work_types:
-        task_count = Task.query.filter_by(firm_id=session['firm_id'], work_type_id=wt.id).count()
+        task_count = Task.query.join(Project).filter(
+            Task.firm_id == session['firm_id'],
+            Project.work_type_id == wt.id
+        ).count()
         work_type_usage[wt.id] = task_count
     
     return render_template('admin_work_types.html', 
