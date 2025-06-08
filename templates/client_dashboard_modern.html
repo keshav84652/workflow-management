@@ -84,7 +84,7 @@
                             {% if item.status == 'pending' %}
                             <div class="space-y-2">
                                 <!-- Upload Form -->
-                                <form method="POST" action="{{ url_for('client_upload', item_id=item.id) }}" 
+                                <form method="POST" action="{{ url_for('client_upload_document', item_id=item.id) }}" 
                                       enctype="multipart/form-data" class="space-y-2">
                                     <input type="file" 
                                            name="document" 

@@ -26,7 +26,7 @@ ALLOWED_EXTENSIONS = {
 os.makedirs('instance', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem, DocumentAnalysis, WorkpaperBatch, BatchDocument
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -3361,6 +3361,174 @@ def client_update_status(item_id):
         db.session.rollback()
         flash(f'Error updating status: {str(e)}', 'error')
         return redirect(url_for('client_dashboard'))
+
+
+# ====================================
+# DOCUMENT ANALYSIS ROUTES
+# ====================================
+
+@app.route('/analyze-documents/<int:client_id>')
+def view_document_analysis(client_id):
+    """CPA view to see document analysis results for a client"""
+    if session.get('user_role') != 'Admin':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    firm_id = session['firm_id']
+    
+    # Verify client belongs to this firm
+    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    
+    # Get all client documents with their analysis results
+    documents_with_analysis = db.session.query(ClientDocument, DocumentAnalysis).outerjoin(
+        DocumentAnalysis, ClientDocument.id == DocumentAnalysis.client_document_id
+    ).filter(ClientDocument.client_id == client_id).all()
+    
+    # Get workpaper batches for this client
+    workpaper_batches = WorkpaperBatch.query.filter_by(
+        client_id=client_id, firm_id=firm_id
+    ).order_by(WorkpaperBatch.created_at.desc()).all()
+    
+    return render_template('document_analysis_results.html', 
+                         client=client, 
+                         documents_with_analysis=documents_with_analysis,
+                         workpaper_batches=workpaper_batches)
+
+@app.route('/analyze-document/<int:document_id>', methods=['POST'])
+def analyze_single_document(document_id):
+    """Trigger analysis for a single document"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    # Get the document and verify it belongs to this firm's client
+    document = db.session.query(ClientDocument).join(Client).filter(
+        ClientDocument.id == document_id,
+        Client.firm_id == firm_id
+    ).first()
+    
+    if not document:
+        return jsonify({'error': 'Document not found'}), 404
+    
+    try:
+        from document_services import DocumentAnalysisService
+        
+        analysis_service = DocumentAnalysisService()
+        analysis = analysis_service.analyze_document(document_id, firm_id)
+        
+        return jsonify({
+            'success': True,
+            'analysis_id': analysis.id,
+            'status': analysis.processing_status,
+            'message': 'Document analysis completed'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/generate-workpaper', methods=['POST'])
+def generate_workpaper():
+    """Generate a consolidated workpaper from selected documents"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    try:
+        # Get form data
+        client_id = request.form.get('client_id', type=int)
+        batch_name = request.form.get('batch_name')
+        tax_year = request.form.get('tax_year')
+        preparer_name = request.form.get('preparer_name')
+        document_ids = request.form.getlist('document_ids[]', type=int)
+        
+        if not client_id or not batch_name or not document_ids:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Verify client belongs to this firm
+        client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        if not client:
+            return jsonify({'error': 'Client not found'}), 404
+        
+        # Generate workpaper
+        from document_services import WorkpaperGenerationService
+        
+        workpaper_service = WorkpaperGenerationService()
+        batch = workpaper_service.generate_workpaper(
+            client_id=client_id,
+            firm_id=firm_id,
+            document_ids=document_ids,
+            batch_name=batch_name,
+            tax_year=tax_year,
+            preparer_name=preparer_name
+        )
+        
+        return jsonify({
+            'success': True,
+            'batch_id': batch.id,
+            'workpaper_filename': batch.workpaper_filename,
+            'message': 'Workpaper generated successfully'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download-workpaper/<int:batch_id>')
+def download_workpaper(batch_id):
+    """Download a generated workpaper"""
+    if session.get('user_role') != 'Admin':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    firm_id = session['firm_id']
+    
+    # Get the batch and verify it belongs to this firm
+    batch = WorkpaperBatch.query.filter_by(id=batch_id, firm_id=firm_id).first_or_404()
+    
+    if not batch.workpaper_file_path or not os.path.exists(batch.workpaper_file_path):
+        flash('Workpaper file not found', 'error')
+        return redirect(url_for('view_document_analysis', client_id=batch.client_id))
+    
+    return send_file(
+        batch.workpaper_file_path,
+        as_attachment=True,
+        download_name=batch.workpaper_filename or 'workpaper.pdf',
+        mimetype='application/pdf'
+    )
+
+@app.route('/api/analysis/<int:analysis_id>')
+def get_analysis_details(analysis_id):
+    """Get detailed analysis results as JSON"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    # Get analysis and verify it belongs to this firm
+    analysis = DocumentAnalysis.query.filter_by(id=analysis_id, firm_id=firm_id).first()
+    
+    if not analysis:
+        return jsonify({'error': 'Analysis not found'}), 404
+    
+    return jsonify({
+        'id': analysis.id,
+        'processing_status': analysis.processing_status,
+        'processing_duration': analysis.processing_duration,
+        'azure_results': {
+            'doc_type': analysis.azure_doc_type,
+            'confidence': analysis.azure_confidence,
+            'fields': analysis.azure_fields
+        } if analysis.has_azure_results else None,
+        'gemini_results': {
+            'document_category': analysis.gemini_document_category,
+            'analysis_summary': analysis.gemini_analysis_summary,
+            'extracted_info': analysis.gemini_extracted_info,
+            'bookmark_structure': analysis.gemini_bookmark_structure
+        } if analysis.has_gemini_results else None,
+        'validation_errors': analysis.validation_errors,
+        'contains_pii': analysis.contains_pii
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
