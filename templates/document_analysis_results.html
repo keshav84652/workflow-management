@@ -119,6 +119,61 @@
             </div>
         </div>
         
+        <!-- Filters and Search -->
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <div class="flex flex-wrap gap-4 items-center">
+                <!-- Search -->
+                <div class="flex-1 min-w-64">
+                    <div class="relative">
+                        <input type="text" 
+                               x-model="filters.search" 
+                               @input="applyFilters"
+                               placeholder="Search documents..."
+                               class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cpa-blue focus:border-cpa-blue">
+                        <i class="bi bi-search absolute left-3 top-2.5 text-gray-400"></i>
+                    </div>
+                </div>
+                
+                <!-- Status Filter -->
+                <select x-model="filters.status" @change="applyFilters" 
+                        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cpa-blue focus:border-cpa-blue">
+                    <option value="">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="processing">Processing</option>
+                    <option value="error">Error</option>
+                    <option value="pending">Not Analyzed</option>
+                </select>
+                
+                <!-- Document Type Filter -->
+                <select x-model="filters.docType" @change="applyFilters"
+                        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cpa-blue focus:border-cpa-blue">
+                    <option value="">All Types</option>
+                    <option value="pdf">PDF</option>
+                    <option value="image">Image</option>
+                </select>
+                
+                <!-- Sort -->
+                <select x-model="filters.sortBy" @change="applyFilters"
+                        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cpa-blue focus:border-cpa-blue">
+                    <option value="uploaded_desc">Newest First</option>
+                    <option value="uploaded_asc">Oldest First</option>
+                    <option value="filename_asc">Filename A-Z</option>
+                    <option value="filename_desc">Filename Z-A</option>
+                    <option value="status_asc">Status</option>
+                </select>
+                
+                <!-- Clear Filters -->
+                <button @click="clearFilters" 
+                        x-show="hasActiveFilters"
+                        class="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <i class="bi bi-x-circle mr-1"></i>Clear
+                </button>
+                
+                <!-- Results Count -->
+                <div class="text-sm text-gray-600" x-text="getVisibleRowsCount()"></div>
+            </div>
+        </div>
+        
         <div class="overflow-x-auto">
             {% if documents_with_analysis %}
             <table class="min-w-full divide-y divide-gray-200">
@@ -127,8 +182,20 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <input type="checkbox" @change="toggleSelectAll" class="rounded border-gray-300 text-cpa-blue focus:ring-cpa-blue">
                         </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700" 
+                            @click="setSortBy('filename')">
+                            <div class="flex items-center">
+                                Document
+                                <i class="bi bi-chevron-expand ml-1 text-xs"></i>
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
+                            @click="setSortBy('status')">
+                            <div class="flex items-center">
+                                Status
+                                <i class="bi bi-chevron-expand ml-1 text-xs"></i>
+                            </div>
+                        </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Azure Analysis</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gemini Analysis</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Processing Time</th>
@@ -470,6 +537,12 @@ function documentAnalysis() {
             errors: 0,
             percentage: 0
         },
+        filters: {
+            search: '',
+            status: '',
+            docType: '',
+            sortBy: 'uploaded_desc'
+        },
         
         init() {
             // Start status polling if there are processing documents
@@ -586,6 +659,125 @@ function documentAnalysis() {
             .catch(error => {
                 console.error('Error updating batch progress:', error);
             });
+        },
+        
+        get hasActiveFilters() {
+            return this.filters.search || this.filters.status || this.filters.docType;
+        },
+        
+        clearFilters() {
+            this.filters.search = '';
+            this.filters.status = '';
+            this.filters.docType = '';
+            this.filters.sortBy = 'uploaded_desc';
+            this.applyFilters();
+        },
+        
+        setSortBy(column) {
+            // Toggle between asc and desc for the same column
+            if (this.filters.sortBy.startsWith(column)) {
+                if (this.filters.sortBy.endsWith('_asc')) {
+                    this.filters.sortBy = column + '_desc';
+                } else {
+                    this.filters.sortBy = column + '_asc';
+                }
+            } else {
+                this.filters.sortBy = column + '_asc';
+            }
+            this.applyFilters();
+        },
+        
+        applyFilters() {
+            const rows = document.querySelectorAll('tbody tr');
+            
+            rows.forEach(row => {
+                const filename = row.querySelector('.font-medium')?.textContent?.toLowerCase() || '';
+                const statusBadge = row.querySelector('.px-2\\.5')?.textContent?.toLowerCase() || '';
+                const isImage = row.querySelector('.bi-image') !== null;
+                const isPdf = row.querySelector('.bi-file-earmark-pdf') !== null;
+                
+                let visible = true;
+                
+                // Apply search filter
+                if (this.filters.search) {
+                    const searchTerm = this.filters.search.toLowerCase();
+                    if (!filename.includes(searchTerm)) {
+                        visible = false;
+                    }
+                }
+                
+                // Apply status filter
+                if (this.filters.status) {
+                    const statusMatch = {
+                        'completed': statusBadge.includes('completed'),
+                        'processing': statusBadge.includes('processing'),
+                        'error': statusBadge.includes('error'),
+                        'pending': statusBadge.includes('not analyzed')
+                    };
+                    
+                    if (!statusMatch[this.filters.status]) {
+                        visible = false;
+                    }
+                }
+                
+                // Apply document type filter
+                if (this.filters.docType) {
+                    const typeMatch = {
+                        'pdf': isPdf,
+                        'image': isImage
+                    };
+                    
+                    if (!typeMatch[this.filters.docType]) {
+                        visible = false;
+                    }
+                }
+                
+                row.style.display = visible ? '' : 'none';
+            });
+            
+            this.applySorting();
+        },
+        
+        applySorting() {
+            const tbody = document.querySelector('tbody');
+            if (!tbody) return;
+            
+            const rows = Array.from(tbody.querySelectorAll('tr')).filter(row => row.style.display !== 'none');
+            
+            rows.sort((a, b) => {
+                const aFilename = a.querySelector('.font-medium')?.textContent || '';
+                const bFilename = b.querySelector('.font-medium')?.textContent || '';
+                const aStatus = a.querySelector('.px-2\\.5')?.textContent || '';
+                const bStatus = b.querySelector('.px-2\\.5')?.textContent || '';
+                
+                switch (this.filters.sortBy) {
+                    case 'filename_asc':
+                        return aFilename.localeCompare(bFilename);
+                    case 'filename_desc':
+                        return bFilename.localeCompare(aFilename);
+                    case 'status_asc':
+                        return aStatus.localeCompare(bStatus);
+                    case 'uploaded_asc':
+                    case 'uploaded_desc':
+                    default:
+                        // Keep original order for date sorting (already sorted server-side)
+                        return 0;
+                }
+            });
+            
+            // Reorder the DOM
+            rows.forEach(row => tbody.appendChild(row));
+        },
+        
+        getVisibleRowsCount() {
+            const visibleRows = document.querySelectorAll('tbody tr:not([style*="display: none"])').length;
+            const totalRows = document.querySelectorAll('tbody tr').length;
+            
+            if (this.hasActiveFilters) {
+                return `Showing ${visibleRows} of ${totalRows} documents`;
+            } else {
+                return `${totalRows} documents`;
+            }
         },
         
         get hasUnanalyzedDocuments() {
