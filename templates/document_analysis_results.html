@@ -86,6 +86,25 @@
         </div>
     </div>
 
+    <!-- Batch Progress Indicator -->
+    <div x-show="batchProgress.active" 
+         class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6"
+         style="display: none;">
+        <div class="flex items-center justify-between mb-2">
+            <h4 class="font-medium text-blue-900">Batch Processing Progress</h4>
+            <span class="text-sm text-blue-700" x-text="`${batchProgress.completed} of ${batchProgress.total} completed`"></span>
+        </div>
+        <div class="w-full bg-blue-200 rounded-full h-2 mb-2">
+            <div class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                 :style="`width: ${batchProgress.percentage}%`"></div>
+        </div>
+        <div class="flex justify-between text-xs text-blue-600">
+            <span x-text="`Processing: ${batchProgress.processing}`"></span>
+            <span x-text="`Errors: ${batchProgress.errors}`"></span>
+            <span x-text="`${batchProgress.percentage.toFixed(1)}% Complete`"></span>
+        </div>
+    </div>
+
     <!-- Documents Table -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
@@ -440,6 +459,134 @@ function documentAnalysis() {
             tax_year: '2024',
             preparer_name: '{{ session.get("user_name", "") }}'
         },
+        processingDocuments: new Set(),
+        statusPollingInterval: null,
+        batchProgressInterval: null,
+        batchProgress: {
+            active: false,
+            total: 0,
+            completed: 0,
+            processing: 0,
+            errors: 0,
+            percentage: 0
+        },
+        
+        init() {
+            // Start status polling if there are processing documents
+            this.checkForProcessingDocuments();
+            if (this.processingDocuments.size > 0) {
+                this.startStatusPolling();
+            }
+        },
+        
+        checkForProcessingDocuments() {
+            // Check for documents that are currently processing
+            const processingRows = document.querySelectorAll('tr:has(.bg-yellow-100)');
+            processingRows.forEach(row => {
+                const checkbox = row.querySelector('.document-checkbox');
+                if (checkbox) {
+                    this.processingDocuments.add(parseInt(checkbox.value));
+                }
+            });
+        },
+        
+        startStatusPolling() {
+            if (this.statusPollingInterval) return;
+            
+            this.statusPollingInterval = setInterval(() => {
+                this.updateProcessingStatus();
+            }, 5000); // Poll every 5 seconds
+        },
+        
+        stopStatusPolling() {
+            if (this.statusPollingInterval) {
+                clearInterval(this.statusPollingInterval);
+                this.statusPollingInterval = null;
+            }
+        },
+        
+        updateProcessingStatus() {
+            if (this.processingDocuments.size === 0) {
+                this.stopStatusPolling();
+                return;
+            }
+            
+            fetch(`/api/processing-status/{{ client.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Status update error:', data.error);
+                    return;
+                }
+                
+                let hasChanges = false;
+                
+                data.documents.forEach(doc => {
+                    if (this.processingDocuments.has(doc.document_id)) {
+                        if (doc.status === 'completed' || doc.status === 'error') {
+                            this.processingDocuments.delete(doc.document_id);
+                            hasChanges = true;
+                        }
+                    }
+                });
+                
+                if (hasChanges) {
+                    // Reload the page to show updated status
+                    location.reload();
+                }
+                
+                if (this.processingDocuments.size === 0) {
+                    this.stopStatusPolling();
+                }
+            })
+            .catch(error => {
+                console.error('Error updating status:', error);
+                // Don't stop polling on error, just log it
+            });
+        },
+        
+        startBatchProgress() {
+            this.batchProgress.active = true;
+            this.updateBatchProgress();
+            
+            // Update batch progress every 3 seconds
+            if (!this.batchProgressInterval) {
+                this.batchProgressInterval = setInterval(() => {
+                    this.updateBatchProgress();
+                }, 3000);
+            }
+        },
+        
+        updateBatchProgress() {
+            fetch(`/api/batch-progress/{{ client.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Batch progress error:', data.error);
+                    return;
+                }
+                
+                this.batchProgress.total = data.total_documents;
+                this.batchProgress.completed = data.completed;
+                this.batchProgress.processing = data.processing;
+                this.batchProgress.errors = data.errors;
+                this.batchProgress.percentage = data.progress_percentage;
+                
+                // Stop tracking if all processing is complete
+                if (data.processing === 0 && this.batchProgress.active) {
+                    setTimeout(() => {
+                        this.batchProgress.active = false;
+                        if (this.batchProgressInterval) {
+                            clearInterval(this.batchProgressInterval);
+                            this.batchProgressInterval = null;
+                        }
+                    }, 3000); // Show completed state for 3 seconds
+                }
+            })
+            .catch(error => {
+                console.error('Error updating batch progress:', error);
+            });
+        },
         
         get hasUnanalyzedDocuments() {
             return document.querySelectorAll('.bg-gray-100.text-gray-800').length > 0;
@@ -477,7 +624,13 @@ function documentAnalysis() {
             .then(data => {
                 if (data.success) {
                     this.showAlert('Document analysis started successfully', 'success');
-                    setTimeout(() => location.reload(), 2000);
+                    
+                    // Add to processing set and start polling
+                    this.processingDocuments.add(documentId);
+                    this.startStatusPolling();
+                    
+                    // Don't reload immediately, let polling handle updates
+                    // setTimeout(() => location.reload(), 2000);
                 } else {
                     this.showAlert(data.error || 'Failed to start analysis', 'error');
                 }
@@ -490,11 +643,13 @@ function documentAnalysis() {
         analyzeAllDocuments() {
             const unanalyzedRows = document.querySelectorAll('tr:has(.bg-gray-100.text-gray-800)');
             let analysisPromises = [];
+            let documentIds = [];
             
             unanalyzedRows.forEach(row => {
                 const checkbox = row.querySelector('.document-checkbox');
                 if (checkbox) {
                     const documentId = parseInt(checkbox.value);
+                    documentIds.push(documentId);
                     analysisPromises.push(
                         fetch(`/analyze-document/${documentId}`, {
                             method: 'POST',
@@ -506,10 +661,16 @@ function documentAnalysis() {
             
             if (analysisPromises.length > 0) {
                 this.showAlert(`Starting analysis for ${analysisPromises.length} documents...`, 'info');
+                
                 Promise.all(analysisPromises)
                     .then(() => {
+                        // Add all documents to processing set and start polling
+                        documentIds.forEach(id => this.processingDocuments.add(id));
+                        this.startStatusPolling();
+                        this.startBatchProgress();
+                        
                         this.showAlert('All documents queued for analysis', 'success');
-                        setTimeout(() => location.reload(), 3000);
+                        // Don't reload immediately, let polling handle updates
                     })
                     .catch(error => {
                         this.showAlert('Some analyses failed to start', 'warning');

@@ -3623,5 +3623,183 @@ def view_document_with_analysis(document_id):
                          document=document, 
                          analysis=analysis)
 
+@app.route('/api/processing-status/<int:client_id>')
+def get_processing_status(client_id):
+    """Get real-time processing status for client documents"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    # Get all documents for this client with their analysis status
+    documents_with_status = db.session.query(ClientDocument, DocumentAnalysis).join(
+        Client, ClientDocument.client_id == Client.id
+    ).outerjoin(
+        DocumentAnalysis, ClientDocument.id == DocumentAnalysis.client_document_id
+    ).filter(
+        Client.id == client_id,
+        Client.firm_id == firm_id
+    ).all()
+    
+    status_data = []
+    for document, analysis in documents_with_status:
+        doc_status = {
+            'document_id': document.id,
+            'filename': document.original_filename,
+            'status': 'pending',
+            'progress': 0,
+            'analysis_id': None
+        }
+        
+        if analysis:
+            doc_status['analysis_id'] = analysis.id
+            doc_status['status'] = analysis.processing_status
+            
+            # Calculate progress based on status
+            if analysis.is_pending:
+                doc_status['progress'] = 10
+            elif analysis.is_processing:
+                doc_status['progress'] = 50
+            elif analysis.is_completed:
+                doc_status['progress'] = 100
+            elif analysis.is_error:
+                doc_status['progress'] = 0
+                doc_status['error'] = 'Processing failed'
+        
+        status_data.append(doc_status)
+    
+    return jsonify({
+        'client_id': client_id,
+        'documents': status_data,
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+@app.route('/analyze-batch', methods=['POST'])
+def analyze_document_batch():
+    """Analyze multiple documents in batch with progress tracking"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    try:
+        # Get document IDs from form data
+        document_ids = request.form.getlist('document_ids[]', type=int)
+        if not document_ids:
+            return jsonify({'error': 'No documents selected'}), 400
+        
+        # Verify all documents belong to this firm
+        documents = db.session.query(ClientDocument).join(Client).filter(
+            ClientDocument.id.in_(document_ids),
+            Client.firm_id == firm_id
+        ).all()
+        
+        if len(documents) != len(document_ids):
+            return jsonify({'error': 'Some documents not found or access denied'}), 404
+        
+        # Start analysis for each document
+        analysis_service = DocumentAnalysisService()
+        batch_results = []
+        
+        for document in documents:
+            try:
+                # Check if analysis already exists
+                existing_analysis = DocumentAnalysis.query.filter_by(
+                    client_document_id=document.id,
+                    firm_id=firm_id
+                ).first()
+                
+                if existing_analysis and not existing_analysis.is_error:
+                    batch_results.append({
+                        'document_id': document.id,
+                        'status': 'skipped',
+                        'message': 'Already analyzed'
+                    })
+                    continue
+                
+                # Start analysis
+                analysis = analysis_service.analyze_document(document.id, firm_id)
+                batch_results.append({
+                    'document_id': document.id,
+                    'analysis_id': analysis.id,
+                    'status': 'started',
+                    'message': 'Analysis started'
+                })
+                
+            except Exception as e:
+                batch_results.append({
+                    'document_id': document.id,
+                    'status': 'error',
+                    'message': str(e)
+                })
+        
+        return jsonify({
+            'success': True,
+            'batch_size': len(document_ids),
+            'results': batch_results,
+            'message': f'Batch analysis started for {len(document_ids)} documents'
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/batch-progress/<int:client_id>')
+def get_batch_progress(client_id):
+    """Get overall batch progress for a client"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    # Get total documents and analysis status
+    total_docs = db.session.query(ClientDocument).join(Client).filter(
+        Client.id == client_id,
+        Client.firm_id == firm_id
+    ).count()
+    
+    if total_docs == 0:
+        return jsonify({
+            'client_id': client_id,
+            'total_documents': 0,
+            'completed': 0,
+            'processing': 0,
+            'errors': 0,
+            'pending': 0,
+            'progress_percentage': 0
+        })
+    
+    # Count by status
+    analysis_counts = db.session.query(
+        DocumentAnalysis.processing_status,
+        db.func.count(DocumentAnalysis.id)
+    ).join(
+        ClientDocument, DocumentAnalysis.client_document_id == ClientDocument.id
+    ).join(
+        Client, ClientDocument.client_id == Client.id
+    ).filter(
+        Client.id == client_id,
+        Client.firm_id == firm_id
+    ).group_by(DocumentAnalysis.processing_status).all()
+    
+    status_counts = {status: count for status, count in analysis_counts}
+    
+    completed = status_counts.get('completed', 0)
+    processing = status_counts.get('processing', 0) + status_counts.get('pending', 0)
+    errors = status_counts.get('error', 0)
+    analyzed_total = sum(status_counts.values())
+    pending = total_docs - analyzed_total
+    
+    progress_percentage = (completed / total_docs * 100) if total_docs > 0 else 0
+    
+    return jsonify({
+        'client_id': client_id,
+        'total_documents': total_docs,
+        'completed': completed,
+        'processing': processing,
+        'errors': errors,
+        'pending': pending,
+        'progress_percentage': round(progress_percentage, 1)
+    })
+
 if __name__ == '__main__':
     app.run(debug=True)
