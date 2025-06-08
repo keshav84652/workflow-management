@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from datetime import datetime, date, timedelta
 import os
 import secrets
@@ -28,6 +29,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment
 
 db.init_app(app)
+migrate = Migrate(app, db)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
 # Recurring tasks are now integrated into the Task model
@@ -1866,17 +1868,13 @@ def move_project_status(project_id):
         db.session.add(activity_log)
         db.session.commit()
         
-        # Calculate updated progress
-        completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
-        total_tasks = len(project_tasks)
-        progress_percentage = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
-        
+        # Use Project model's progress calculation (single source of truth)
         return jsonify({
             'success': True,
             'message': f'Project moved to {target_template_task.title} stage',
-            'project_progress': progress_percentage,
-            'completed_tasks': completed_tasks,
-            'total_tasks': total_tasks
+            'project_progress': project.progress_percentage,
+            'completed_tasks': len([t for t in project_tasks if t.status == 'Completed']),
+            'total_tasks': len(project_tasks)
         })
             
     except Exception as e:
@@ -1893,17 +1891,14 @@ def get_project_progress(project_id):
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
-        # Calculate current progress
+        # Use Project model's progress calculation (single source of truth)
         project_tasks = Task.query.filter_by(project_id=project.id).all()
-        completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
-        total_tasks = len(project_tasks)
-        progress_percentage = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
         
         return jsonify({
             'success': True,
-            'progress_percentage': progress_percentage,
-            'completed_tasks': completed_tasks,
-            'total_tasks': total_tasks
+            'progress_percentage': project.progress_percentage,
+            'completed_tasks': len([t for t in project_tasks if t.status == 'Completed']),
+            'total_tasks': len(project_tasks)
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
