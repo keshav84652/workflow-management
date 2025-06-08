@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 import os
 import secrets
 import calendar
+from pathlib import Path
 from dateutil.relativedelta import relativedelta
 from werkzeug.utils import secure_filename
 import mimetypes
@@ -31,6 +32,7 @@ from models import db, Firm, User, Template, TemplateTask, Project, Task, Activi
 db.init_app(app)
 migrate = Migrate(app, db)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
+from document_services import DocumentAnalysisService, WorkpaperGenerationService, DocumentVisualizationService
 
 # Recurring tasks are now integrated into the Task model
 
@@ -3529,6 +3531,97 @@ def get_analysis_details(analysis_id):
         'validation_errors': analysis.validation_errors,
         'contains_pii': analysis.contains_pii
     })
+
+@app.route('/create-visualization/<int:analysis_id>', methods=['POST'])
+def create_document_visualization(analysis_id):
+    """Create annotated visualization for a document analysis"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    
+    # Get analysis and verify it belongs to this firm
+    analysis = DocumentAnalysis.query.filter_by(id=analysis_id, firm_id=firm_id).first()
+    
+    if not analysis:
+        return jsonify({'error': 'Analysis not found'}), 404
+    
+    try:
+        visualization_service = DocumentVisualizationService()
+        annotated_image_path = visualization_service.create_annotated_image(analysis)
+        
+        if annotated_image_path:
+            return jsonify({
+                'success': True,
+                'annotated_image_url': url_for('serve_annotated_image', analysis_id=analysis_id),
+                'message': 'Visualization created successfully'
+            })
+        else:
+            return jsonify({'error': 'Failed to create visualization'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/annotated-image/<int:analysis_id>')
+def serve_annotated_image(analysis_id):
+    """Serve annotated document image"""
+    if session.get('user_role') != 'Admin':
+        return redirect(url_for('login'))
+    
+    firm_id = session['firm_id']
+    
+    # Get analysis and verify it belongs to this firm
+    analysis = DocumentAnalysis.query.filter_by(id=analysis_id, firm_id=firm_id).first_or_404()
+    
+    # Build expected annotated image path
+    client_doc = analysis.client_document
+    if not client_doc:
+        return "Document not found", 404
+    
+    base_name = Path(client_doc.original_filename).stem
+    annotated_dir = Path("uploads") / f"client_{client_doc.client_id}" / "annotated"
+    annotated_path = annotated_dir / f"{base_name}_annotated.jpg"
+    
+    if not annotated_path.exists():
+        # Try to create the visualization if it doesn't exist
+        try:
+            visualization_service = DocumentVisualizationService()
+            created_path = visualization_service.create_annotated_image(analysis)
+            if not created_path or not Path(created_path).exists():
+                return "Visualization not available", 404
+        except Exception:
+            return "Visualization not available", 404
+    
+    return send_file(
+        str(annotated_path),
+        mimetype='image/jpeg',
+        as_attachment=False
+    )
+
+@app.route('/view-document/<int:document_id>')
+def view_document_with_analysis(document_id):
+    """View document with analysis overlay"""
+    if session.get('user_role') != 'Admin':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard'))
+    
+    firm_id = session['firm_id']
+    
+    # Get the document and verify it belongs to this firm's client
+    document = db.session.query(ClientDocument).join(Client).filter(
+        ClientDocument.id == document_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    # Get analysis if available
+    analysis = DocumentAnalysis.query.filter_by(
+        client_document_id=document_id,
+        firm_id=firm_id
+    ).first()
+    
+    return render_template('document_viewer.html', 
+                         document=document, 
+                         analysis=analysis)
 
 if __name__ == '__main__':
     app.run(debug=True)

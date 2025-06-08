@@ -45,6 +45,15 @@ except ImportError:
     PDF_AVAILABLE = False
     print("PDF processing not available. Install PyPDF2, Pillow, img2pdf, reportlab packages.")
 
+# OpenCV for document visualization
+try:
+    import cv2
+    import numpy as np
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
+    print("OpenCV not available. Install opencv-python package for document visualization.")
+
 from models import db, DocumentAnalysis, WorkpaperBatch, BatchDocument, ClientDocument
 
 # Set up logging
@@ -674,3 +683,209 @@ class WorkpaperGenerationService:
             except Exception as e2:
                 logger.error(f"Fallback conversion also failed: {e2}")
                 return None
+
+
+class DocumentVisualizationService:
+    """Service for creating document visualizations with field extraction overlays"""
+    
+    def __init__(self):
+        """Initialize the document visualization service"""
+        self.config = {
+            'annotation_color': (0, 128, 255),  # Orange in BGR
+            'annotation_thickness': 2,
+            'box_alpha': 0.2,
+            'font_scale': 0.5,
+            'font_thickness': 1,
+            'tick_size': 20,
+            'tick_position_offset': 10,
+            'visualization_type': 'both'  # 'box', 'tick', or 'both'
+        }
+    
+    def create_annotated_image(self, document_analysis: DocumentAnalysis) -> Optional[str]:
+        """
+        Create an annotated image showing field extractions with tick marks and bounding boxes.
+        
+        Args:
+            document_analysis: DocumentAnalysis object with Azure results
+            
+        Returns:
+            Path to the annotated image file, or None if failed
+        """
+        if not OPENCV_AVAILABLE:
+            logger.error("OpenCV not available for document visualization")
+            return None
+        
+        if not document_analysis.azure_fields:
+            logger.warning("No Azure field data available for visualization")
+            return None
+        
+        # Get the original document
+        client_doc = document_analysis.client_document
+        if not client_doc or not client_doc.file_path:
+            logger.error("No client document file path available")
+            return None
+        
+        # Load the image
+        try:
+            image = cv2.imread(client_doc.file_path)
+            if image is None:
+                logger.error(f"Could not load image from {client_doc.file_path}")
+                return None
+            
+            # Create annotations
+            annotated_image = self._annotate_fields(image, document_analysis.azure_fields)
+            
+            # Save annotated image
+            output_dir = Path("uploads") / f"client_{client_doc.client_id}" / "annotated"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            base_name = Path(client_doc.original_filename).stem
+            output_path = output_dir / f"{base_name}_annotated.jpg"
+            
+            cv2.imwrite(str(output_path), annotated_image)
+            logger.info(f"Created annotated image: {output_path}")
+            return str(output_path)
+            
+        except Exception as e:
+            logger.error(f"Error creating annotated image: {e}")
+            return None
+    
+    def _annotate_fields(self, image, azure_fields: Dict[str, Any]) -> Any:
+        """
+        Add field annotations to the image.
+        
+        Args:
+            image: OpenCV image array
+            azure_fields: Dictionary of Azure field extraction results
+            
+        Returns:
+            Annotated image array
+        """
+        if not azure_fields:
+            return image
+        
+        result_image = image.copy()
+        
+        # Process each field
+        for field_name, field_data in azure_fields.items():
+            if not isinstance(field_data, dict):
+                continue
+            
+            # Look for bounding regions
+            bounding_regions = field_data.get('boundingRegions', [])
+            if not bounding_regions:
+                continue
+            
+            for region in bounding_regions:
+                if not isinstance(region, dict) or 'polygon' not in region:
+                    continue
+                
+                polygon_coords = region.get('polygon', [])
+                if len(polygon_coords) < 6:  # Need at least 3 points (6 coordinates)
+                    continue
+                
+                # Draw annotations
+                if self.config['visualization_type'] in ['box', 'both']:
+                    result_image = self._draw_bounding_box(result_image, polygon_coords, field_name)
+                
+                if self.config['visualization_type'] in ['tick', 'both']:
+                    result_image = self._draw_tick_mark(result_image, polygon_coords, field_name)
+        
+        return result_image
+    
+    def _draw_bounding_box(self, image, polygon_coords: List[float], label: str) -> Any:
+        """Draw a bounding box around a field"""
+        try:
+            # Convert coordinates to numpy array
+            points = np.array(
+                [(int(polygon_coords[i]), int(polygon_coords[i+1])) 
+                 for i in range(0, len(polygon_coords), 2)], 
+                np.int32
+            )
+            points = points.reshape((-1, 1, 2))
+            
+            # Create overlay for transparency
+            overlay = image.copy()
+            color = self.config['annotation_color']
+            
+            # Draw filled polygon with transparency
+            cv2.fillPoly(overlay, [points], color)
+            cv2.addWeighted(overlay, self.config['box_alpha'], image, 1 - self.config['box_alpha'], 0, image)
+            
+            # Draw outline
+            cv2.polylines(image, [points], True, color, self.config['annotation_thickness'])
+            
+            # Add label
+            if label:
+                # Find top-left corner for label placement
+                min_x = min(p[0][0] for p in points)
+                min_y = min(p[0][1] for p in points)
+                
+                # Clean up label (remove prefixes)
+                clean_label = label.replace('_', ' ').title()
+                if len(clean_label) > 15:
+                    clean_label = clean_label[:12] + "..."
+                
+                # Draw label background
+                text_size = cv2.getTextSize(
+                    clean_label, cv2.FONT_HERSHEY_SIMPLEX, 
+                    self.config['font_scale'], self.config['font_thickness']
+                )[0]
+                
+                cv2.rectangle(
+                    image, 
+                    (min_x, min_y - text_size[1] - 8), 
+                    (min_x + text_size[0] + 4, min_y), 
+                    color, -1
+                )
+                
+                # Draw label text
+                cv2.putText(
+                    image, clean_label, (min_x + 2, min_y - 4), 
+                    cv2.FONT_HERSHEY_SIMPLEX, self.config['font_scale'], 
+                    (255, 255, 255), self.config['font_thickness']
+                )
+            
+            return image
+            
+        except Exception as e:
+            logger.error(f"Error drawing bounding box for {label}: {e}")
+            return image
+    
+    def _draw_tick_mark(self, image, polygon_coords: List[float], field_name: str) -> Any:
+        """Draw a tick mark next to a field"""
+        try:
+            # Convert coordinates to bounding rectangle
+            points = np.array(
+                [(int(polygon_coords[i]), int(polygon_coords[i+1]))
+                 for i in range(0, len(polygon_coords), 2)],
+                np.int32
+            ).reshape((-1, 1, 2))
+            
+            rect_x, rect_y, rect_w, rect_h = cv2.boundingRect(points)
+            
+            # Calculate tick mark position (to the right of the field)
+            tick_x = rect_x + rect_w + self.config['tick_position_offset']
+            tick_y = rect_y + rect_h // 2
+            
+            # Draw tick mark (checkmark)
+            tick_size = self.config['tick_size']
+            color = (0, 200, 0)  # Green color for tick
+            thickness = self.config['annotation_thickness'] + 1
+            
+            # Checkmark points
+            p1 = (tick_x, tick_y)
+            p2 = (tick_x + tick_size // 3, tick_y + tick_size // 3)
+            p3 = (tick_x + tick_size, tick_y - tick_size // 2)
+            
+            # Ensure points are within image bounds
+            img_h, img_w = image.shape[:2]
+            if all(0 <= x < img_w and 0 <= y < img_h for x, y in [p1, p2, p3]):
+                cv2.line(image, p1, p2, color, thickness)
+                cv2.line(image, p2, p3, color, thickness)
+            
+            return image
+            
+        except Exception as e:
+            logger.error(f"Error drawing tick mark for {field_name}: {e}")
+            return image
