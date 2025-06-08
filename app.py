@@ -26,7 +26,7 @@ ALLOWED_EXTENSIONS = {
 os.makedirs('instance', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -2926,6 +2926,441 @@ def admin_process_recurring():
         return jsonify({'success': True, 'message': 'Recurring tasks processed successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
+# CPA Document Checklist Management Routes
+@app.route('/checklists')
+def document_checklists():
+    """CPA view to manage document checklists"""
+    firm_id = session['firm_id']
+    
+    # Get all checklists for the firm
+    checklists = DocumentChecklist.query.join(Client).filter(
+        Client.firm_id == firm_id
+    ).all()
+    
+    # Get all clients for creating new checklists
+    clients = Client.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('document_checklists.html', checklists=checklists, clients=clients)
+
+@app.route('/create-checklist', methods=['GET', 'POST'])
+def create_checklist():
+    """Create a new document checklist"""
+    firm_id = session['firm_id']
+    
+    if request.method == 'POST':
+        client_id = request.form.get('client_id')
+        name = request.form.get('name')
+        description = request.form.get('description', '')
+        
+        # Verify client belongs to this firm
+        client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        if not client:
+            flash('Invalid client selected', 'error')
+            return redirect(url_for('document_checklists'))
+        
+        checklist = DocumentChecklist(
+            client_id=client_id,
+            name=name,
+            description=description,
+            created_by=session['user_id'],
+            is_active=True
+        )
+        
+        db.session.add(checklist)
+        db.session.commit()
+        
+        flash(f'Checklist "{name}" created successfully for {client.name}', 'success')
+        return redirect(url_for('edit_checklist', checklist_id=checklist.id))
+    
+    # GET request - show form
+    clients = Client.query.filter_by(firm_id=firm_id).all()
+    return render_template('create_checklist_modern.html', clients=clients)
+
+@app.route('/edit-checklist/<int:checklist_id>', methods=['GET', 'POST'])
+def edit_checklist(checklist_id):
+    """Edit a document checklist and its items"""
+    firm_id = session['firm_id']
+    
+    # Get checklist and verify it belongs to this firm
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_checklist':
+            checklist.name = request.form.get('name')
+            checklist.description = request.form.get('description', '')
+            db.session.commit()
+            flash('Checklist updated successfully', 'success')
+            
+        elif action == 'add_item':
+            title = request.form.get('title')
+            description = request.form.get('description', '')
+            is_required = request.form.get('is_required') == 'on'
+            
+            # Get next sort order
+            max_order = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
+                checklist_id=checklist_id
+            ).scalar() or 0
+            
+            item = ChecklistItem(
+                checklist_id=checklist_id,
+                title=title,
+                description=description,
+                is_required=is_required,
+                sort_order=max_order + 1
+            )
+            
+            db.session.add(item)
+            db.session.commit()
+            flash(f'Document item "{title}" added successfully', 'success')
+            
+        elif action == 'delete_item':
+            item_id = request.form.get('item_id')
+            item = ChecklistItem.query.filter_by(
+                id=item_id, 
+                checklist_id=checklist_id
+            ).first()
+            if item:
+                db.session.delete(item)
+                db.session.commit()
+                flash('Document item deleted successfully', 'success')
+        
+        return redirect(url_for('edit_checklist', checklist_id=checklist_id))
+    
+    return render_template('edit_checklist.html', checklist=checklist)
+
+@app.route('/client-access-setup/<int:client_id>', methods=['GET', 'POST'])
+def client_access_setup(client_id):
+    """Set up client portal access for a client"""
+    firm_id = session['firm_id']
+    
+    # Verify client belongs to this firm
+    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    
+    # Check if client user already exists
+    client_user = ClientUser.query.filter_by(client_id=client_id).first()
+    
+    if request.method == 'POST':
+        action = request.form.get('action', 'create')
+        
+        if action == 'create' and not client_user:
+            # Create new client user
+            email = request.form.get('email')
+            
+            client_user = ClientUser(
+                client_id=client_id,
+                email=email,
+                is_active=True
+            )
+            # Generate 8-character access code
+            client_user.generate_access_code()
+            
+            db.session.add(client_user)
+            db.session.commit()
+            
+            flash(f'Client portal access created successfully! Access code: {client_user.access_code}', 'success')
+            
+        elif action == 'regenerate' and client_user:
+            # Regenerate access code
+            old_code = client_user.access_code
+            client_user.generate_access_code()
+            db.session.commit()
+            
+            flash(f'New access code generated: {client_user.access_code}', 'success')
+            
+        elif action == 'toggle' and client_user:
+            # Toggle active status
+            client_user.is_active = not client_user.is_active
+            db.session.commit()
+            
+            status = 'activated' if client_user.is_active else 'deactivated'
+            flash(f'Client portal access {status}', 'success')
+        
+        # Refresh client_user object after changes
+        if client_user:
+            db.session.refresh(client_user)
+    
+    return render_template('client_access_setup.html', client=client, client_user=client_user)
+
+@app.route('/checklist-dashboard/<int:checklist_id>')
+def checklist_dashboard(checklist_id):
+    """Modern dashboard view for a specific checklist"""
+    firm_id = session['firm_id']
+    
+    # Get checklist and verify it belongs to this firm
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    return render_template('checklist_dashboard.html', checklist=checklist)
+
+@app.route('/download-document/<int:document_id>')
+def download_document(document_id):
+    """Download a client-uploaded document"""
+    firm_id = session['firm_id']
+    
+    # Get document and verify access
+    document = ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+        ClientDocument.id == document_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    if not os.path.exists(document.file_path):
+        flash('File not found', 'error')
+        return redirect(request.referrer or url_for('document_checklists'))
+    
+    return send_file(
+        document.file_path,
+        as_attachment=True,
+        download_name=document.original_filename,
+        mimetype=document.mime_type
+    )
+
+@app.route('/uploaded-documents')
+def uploaded_documents():
+    """View all uploaded documents across all checklists"""
+    firm_id = session['firm_id']
+    
+    # Get all uploaded documents for this firm
+    documents = ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+        Client.firm_id == firm_id
+    ).order_by(ClientDocument.uploaded_at.desc()).all()
+    
+    return render_template('uploaded_documents.html', documents=documents)
+
+@app.route('/api/checklist-stats/<int:checklist_id>')
+def checklist_stats_api(checklist_id):
+    """API endpoint for real-time checklist statistics"""
+    firm_id = session['firm_id']
+    
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    stats = {
+        'total_items': len(checklist.items),
+        'pending': checklist.pending_items_count,
+        'uploaded': checklist.uploaded_items_count,
+        'completed': checklist.completed_items_count,
+        'progress': checklist.progress_percentage,
+        'last_activity': None
+    }
+    
+    # Get last activity
+    if checklist.items:
+        latest_update = max([item.updated_at for item in checklist.items if item.updated_at])
+        if latest_update:
+            stats['last_activity'] = latest_update.strftime('%Y-%m-%d %H:%M:%S')
+    
+    return jsonify(stats)
+
+# Client Portal Authentication Routes
+@app.route('/client-portal')
+@app.route('/client-login')
+def client_login():
+    """Client portal login page"""
+    return render_template('client_login.html')
+
+@app.route('/client-authenticate', methods=['POST'])
+def client_authenticate():
+    """Authenticate client user"""
+    access_code = request.form.get('access_code', '').strip()
+    client_user = ClientUser.query.filter_by(access_code=access_code, is_active=True).first()
+    
+    if client_user:
+        session['client_user_id'] = client_user.id
+        session['client_id'] = client_user.client_id
+        session['client_email'] = client_user.email
+        client_user.last_login = datetime.utcnow()
+        db.session.commit()
+        
+        flash(f'Welcome to the client portal!', 'success')
+        return redirect(url_for('client_dashboard'))
+    else:
+        flash('Invalid access code', 'error')
+        return redirect(url_for('client_login'))
+
+@app.route('/client-dashboard')
+def client_dashboard():
+    """Client portal dashboard"""
+    if 'client_user_id' not in session:
+        return redirect(url_for('client_login'))
+    
+    client_id = session['client_id']
+    client = Client.query.get(client_id)
+    
+    # Get active checklists for this client
+    checklists = DocumentChecklist.query.filter_by(
+        client_id=client_id, 
+        is_active=True
+    ).all()
+    
+    return render_template('client_dashboard_modern.html', client=client, checklists=checklists)
+
+@app.route('/client-logout')
+def client_logout():
+    """Client logout"""
+    session.pop('client_user_id', None)
+    session.pop('client_id', None)
+    session.pop('client_email', None)
+    flash('You have been logged out', 'info')
+    return redirect(url_for('client_login'))
+
+@app.route('/client-upload/<int:item_id>', methods=['POST'])
+def client_upload_document(item_id):
+    """Handle client document upload"""
+    if 'client_user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    client_id = session['client_id']
+    
+    # Verify the checklist item belongs to this client
+    item = ChecklistItem.query.join(DocumentChecklist).filter(
+        ChecklistItem.id == item_id,
+        DocumentChecklist.client_id == client_id
+    ).first()
+    
+    if not item:
+        return jsonify({'success': False, 'message': 'Invalid document item'}), 404
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+    
+    try:
+        # Generate unique filename
+        original_filename = secure_filename(file.filename)
+        file_extension = original_filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # Create client-specific subdirectory
+        client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f'client_{client_id}')
+        os.makedirs(client_upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(client_upload_dir, unique_filename)
+        
+        # Save file
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        
+        # Detect MIME type
+        mime_type, _ = mimetypes.guess_type(original_filename)
+        
+        # Delete any existing document for this item
+        existing_doc = ClientDocument.query.filter_by(
+            client_id=client_id,
+            checklist_item_id=item_id
+        ).first()
+        
+        if existing_doc:
+            # Remove old file
+            if os.path.exists(existing_doc.file_path):
+                os.remove(existing_doc.file_path)
+            db.session.delete(existing_doc)
+        
+        # Create new document record
+        document = ClientDocument(
+            client_id=client_id,
+            checklist_item_id=item_id,
+            filename=unique_filename,
+            original_filename=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=mime_type,
+            uploaded_by_client=True
+        )
+        
+        db.session.add(document)
+        
+        # Update item status
+        item.status = 'uploaded'
+        item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': 'File uploaded successfully',
+            'filename': original_filename
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        # Clean up file if database operation fails
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/client-update-status/<int:item_id>', methods=['POST'])
+def client_update_status(item_id):
+    """Update document item status (already provided, not applicable)"""
+    if 'client_user_id' not in session:
+        flash('Not authenticated', 'error')
+        return redirect(url_for('client_login'))
+    
+    client_id = session['client_id']
+    new_status = request.form.get('status')
+    
+    if new_status not in ['already_provided', 'not_applicable', 'pending']:
+        flash('Invalid status selected', 'error')
+        return redirect(url_for('client_dashboard'))
+    
+    # Verify the checklist item belongs to this client
+    item = ChecklistItem.query.join(DocumentChecklist).filter(
+        ChecklistItem.id == item_id,
+        DocumentChecklist.client_id == client_id
+    ).first()
+    
+    if not item:
+        flash('Document not found', 'error')
+        return redirect(url_for('client_dashboard'))
+    
+    try:
+        # If changing from uploaded status, remove the uploaded file
+        if item.status == 'uploaded' and new_status != 'uploaded':
+            existing_doc = ClientDocument.query.filter_by(
+                client_id=client_id,
+                checklist_item_id=item_id
+            ).first()
+            
+            if existing_doc:
+                # Remove file
+                if os.path.exists(existing_doc.file_path):
+                    os.remove(existing_doc.file_path)
+                db.session.delete(existing_doc)
+        
+        # Update status
+        item.status = new_status
+        item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        status_messages = {
+            'already_provided': 'Marked as already provided',
+            'not_applicable': 'Marked as not applicable',
+            'pending': 'Reset to pending'
+        }
+        
+        flash(status_messages.get(new_status, 'Status updated'), 'success')
+        return redirect(url_for('client_dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating status: {str(e)}', 'error')
+        return redirect(url_for('client_dashboard'))
 
 if __name__ == '__main__':
     app.run(debug=True)

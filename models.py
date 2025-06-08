@@ -653,3 +653,200 @@ class Attachment(db.Model):
                          'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                          'text/plain', 'text/csv']
         return self.mime_type in document_types
+
+
+# ====================================
+# CLIENT PORTAL MODELS
+# ====================================
+
+class ClientUser(db.Model):
+    """Client portal user authentication"""
+    __tablename__ = 'client_user'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    access_code = db.Column(db.String(20), unique=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_login = db.Column(db.DateTime)
+    
+    # Relationships
+    client = db.relationship('Client', backref='client_users')
+    
+    def generate_access_code(self):
+        """Generate a unique 8-character access code"""
+        import string
+        import random
+        while True:
+            code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            if not ClientUser.query.filter_by(access_code=code).first():
+                self.access_code = code
+                break
+    
+    def update_last_login(self):
+        """Update last login timestamp"""
+        self.last_login = datetime.utcnow()
+
+
+class DocumentChecklist(db.Model):
+    """Document checklist created by CPAs for clients"""
+    __tablename__ = 'document_checklist'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
+    client = db.relationship('Client', backref='document_checklists')
+    creator = db.relationship('User', backref='created_checklists')
+    
+    @property
+    def progress_percentage(self):
+        """Calculate progress percentage of checklist"""
+        if not self.items:
+            return 0
+        completed_items = len([item for item in self.items if item.status != 'pending'])
+        return round((completed_items / len(self.items)) * 100)
+    
+    @property
+    def completion_percentage(self):
+        """Alias for progress_percentage"""
+        return self.progress_percentage
+    
+    @property
+    def pending_items_count(self):
+        """Count of pending items"""
+        return len([item for item in self.items if item.status == 'pending'])
+    
+    @property
+    def completed_items_count(self):
+        """Count of completed items (any status except pending)"""
+        return len([item for item in self.items if item.status != 'pending'])
+    
+    @property
+    def uploaded_items_count(self):
+        """Count of uploaded items"""
+        return len([item for item in self.items if item.status == 'uploaded'])
+
+
+class ChecklistItem(db.Model):
+    """Individual items in a document checklist"""
+    __tablename__ = 'checklist_item'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('document_checklist.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_required = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0)
+    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, uploaded, already_provided, not_applicable
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    checklist = db.relationship('DocumentChecklist', backref='items')
+    
+    def update_status(self, new_status):
+        """Update item status with timestamp"""
+        self.status = new_status
+        self.updated_at = datetime.utcnow()
+    
+    @property
+    def status_display(self):
+        """Human-readable status"""
+        status_map = {
+            'pending': 'Pending Upload',
+            'uploaded': 'Uploaded',
+            'already_provided': 'Already Provided',
+            'not_applicable': 'Doesn\'t Apply'
+        }
+        return status_map.get(self.status, 'Unknown')
+    
+    @property
+    def status_icon(self):
+        """Bootstrap icon for status"""
+        icon_map = {
+            'pending': 'bi-clock text-orange-500',
+            'uploaded': 'bi-check-circle text-green-500',
+            'already_provided': 'bi-check-square text-blue-500',
+            'not_applicable': 'bi-x-circle text-gray-500'
+        }
+        return icon_map.get(self.status, 'bi-question-circle')
+
+
+class ClientDocument(db.Model):
+    """Documents uploaded by clients"""
+    __tablename__ = 'client_document'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    client_id = db.Column(db.Integer, db.ForeignKey('client.id'), nullable=False)
+    checklist_item_id = db.Column(db.Integer, db.ForeignKey('checklist_item.id'), nullable=True)
+    filename = db.Column(db.String(255), nullable=False)  # Unique filename on disk
+    original_filename = db.Column(db.String(255), nullable=False)  # Original user filename
+    file_path = db.Column(db.String(500), nullable=False)  # Full path to file
+    file_size = db.Column(db.Integer, nullable=False)  # File size in bytes
+    mime_type = db.Column(db.String(100))  # MIME type
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_by_client = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
+    client = db.relationship('Client', backref='uploaded_documents')
+    checklist_item = db.relationship('ChecklistItem', backref='client_documents')
+    
+    @property
+    def file_size_formatted(self):
+        """Human-readable file size"""
+        if self.file_size < 1024:
+            return f"{self.file_size} B"
+        elif self.file_size < 1024 * 1024:
+            return f"{self.file_size / 1024:.1f} KB"
+        else:
+            return f"{self.file_size / (1024 * 1024):.1f} MB"
+    
+    @property
+    def is_image(self):
+        """Check if document is an image"""
+        if not self.mime_type:
+            return False
+        return self.mime_type.startswith('image/')
+    
+    @property
+    def is_pdf(self):
+        """Check if document is a PDF"""
+        return self.mime_type == 'application/pdf'
+
+
+class DocumentTemplate(db.Model):
+    """Reusable document checklist templates"""
+    __tablename__ = 'document_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    template_type = db.Column(db.String(50), nullable=False)  # 'individual_tax', 'business_tax', 'audit', etc.
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
+    creator = db.relationship('User', backref='created_templates')
+
+
+class DocumentTemplateItem(db.Model):
+    """Items in document checklist templates"""
+    __tablename__ = 'document_template_item'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('document_template.id'), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    is_required = db.Column(db.Boolean, default=True, nullable=False)
+    sort_order = db.Column(db.Integer, default=0)
+    
+    # Relationships
+    template = db.relationship('DocumentTemplate', backref='template_items')
