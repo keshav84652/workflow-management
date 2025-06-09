@@ -1,0 +1,37 @@
+We need to develop a web application for tax professionals, serving as a copilot for tax preparation.
+
+The application should provide the following core functionalities:
+
+1.  **Document Upload:** Implement a file upload interface that supports single or batch uploads of tax documents (PDF, JPG, PNG, TIFF) with drag-and-drop capability.
+
+2.  **Azure Document Intelligence Processing:** The application will send the uploaded tax documents directly to the Microsoft Azure Document Intelligence platform for comprehensive data extraction.
+    * Use the Azure Document Intelligence endpoint: `https://cpa-flow.cognitiveservices.azure.com/`
+    * Use the Azure API key: `8G7QWtkdtERYu5uGvnBrMgnYtVcbwT9Wbz1rNXSBWPW2Xhq1rmV5JQQJ99BEACYeBjFXJ3w3AAALACOGv122`
+    * The `prebuilt-tax.us` model should be utilized to automatically identify document types and extract relevant data fields (e.g., values for specific tax forms like W-2, 1040, 1099-INT).
+
+3.  **Gemini Document Understanding & Structural Suggestion:** This is a crucial step where each uploaded tax document will be sent to **Gemini** (using the `gemini-2.5-flash-preview-05-20` model) for multi-modal understanding and structured output generation.
+    * **Input:** All uploaded documents (PDF, JPG, PNG, TIFF) will be sent to Gemini directly as multi-modal input.
+    * **Gemini's Task:** Gemini should analyze the document content. Its output should be structured to include:
+        * `document_category`: The primary category or type of the document (e.g., "W-2", "1099-INT", "Investment Statement", "Deduction Receipt").
+        * `document_analysis_summary`: A concise textual summary or professional analysis for the document, highlighting key information or observations relevant to tax preparation.
+        * `extracted_key_info`: All important information extractable from the document, presented in a structured (e.g., JSON or key-value pair) format.
+        * `suggested_bookmark_structure`: A hierarchical suggestion for how this specific document should be organized within the final workpaper's bookmarks. This structure will always consist of three levels:
+            * `level1`: Category (e.g., "Income Documents", "Deduction Documents").
+            * `level2`: File Type (e.g., "W-2", "1099-INT").
+            * `level3`: Specifics (e.g., "W-2 - [Employee Name]", "1099-INT - [Payer Name]").
+    * **Implementation Note:** This functionality will reside in a dedicated Python component.
+
+4.  **Data Handling and Display:** The application will process the output received from both Azure Document Intelligence (Point 2) and the structured insights from Gemini (Point 3).
+    * The raw JSON output from the Azure API will be transformed into structured, usable tax document objects (e.g., like the `ExtractedDocument` objects in the provided `enhanced_tax_processor.py` library), facilitating operations such as data validation and PII (Personally Identifiable Information) handling (e.g., masking or removal options).
+    * Users should have the option to download the raw Azure Document Intelligence JSON response, the processed flat or hierarchical data, and the Gemini structured insights for each processed document.
+
+5.  **Intelligent Workpaper Creation:** The application should be capable of generating comprehensive workpapers based on the processed tax documents. This functionality will:
+    * **PDF Consolidation & Hierarchical Bookmarking:** Combine all original uploaded documents (converting images to PDF where necessary) into a single, cohesive PDF workpaper. This consolidated PDF must include a hierarchical bookmark structure for easy navigation, logically grouping documents. The **`suggested_bookmark_structure` provided by Gemini (from Point 3)** will directly drive this hierarchical organization. The bookmark structure will always follow the defined three-level hierarchy (Category, File Type, Specifics) for clarity and ease of review.
+
+6.  **Future Functionalities:** More functionalities to be added after these core features are established. For example, the addition of agentic tax preparer and tax researcher bots, and other functionalities yet to be defined. Later, Gemini should also compare the extractions from Azure and its own analysis to identify discrepancies.
+
+### Architectural Guidelines & Best Practices
+
+* The architecture should prioritize scalability and separation of concerns, ensuring that backend logic and functions remain robust and minimally affected by future changes to the frontend UI.
+* Implement robust error handling and comprehensive logging throughout the application.
+* Centralize all API keys, endpoints, and model names in a configuration system (e.g., `config.py` or environment variables).

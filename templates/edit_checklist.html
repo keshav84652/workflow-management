@@ -295,7 +295,20 @@ function checklistEditor() {
 }
 
 function removeItem(button) {
-    button.closest('.border.border-gray-200').remove();
+    const itemDiv = button.closest('.border.border-gray-200');
+    const itemIdInput = itemDiv.querySelector('input[name="item_ids[]"]');
+    
+    if (itemIdInput && itemIdInput.value) {
+        // This is an existing item - mark it for deletion
+        const deletedInput = document.createElement('input');
+        deletedInput.type = 'hidden';
+        deletedInput.name = 'deleted_item_ids[]';
+        deletedInput.value = itemIdInput.value;
+        document.querySelector('form').appendChild(deletedInput);
+    }
+    
+    // Remove the item from the DOM
+    itemDiv.remove();
 }
 
 function previewChecklist() {

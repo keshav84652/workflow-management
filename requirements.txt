@@ -1,22 +1,54 @@
+# Flask Web Framework
 Flask==2.3.3
 Flask-SQLAlchemy==3.0.5
 Flask-Migrate==4.0.5
 Werkzeug==2.3.7
-python-dateutil==2.8.2
 
-# Document Analysis Dependencies
-azure-ai-documentintelligence==1.0.0b1
-google-generativeai==0.3.2
+# Core Dependencies
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6
+python-dateutil>=2.8.0
 
-# PDF and Image Processing
-PyPDF2==3.0.1
-Pillow==10.1.0
-img2pdf==0.4.4
-reportlab==4.0.7
-opencv-python==4.8.1.78
-numpy==1.24.3
+# Azure Document Intelligence
+azure-ai-documentintelligence>=1.0.2
+azure-core>=1.29.0
 
-# Environment and Configuration
-python-dotenv==1.0.0
-pydantic==2.5.0
-pydantic-settings==2.0.3
+# Google Gemini AI
+google-genai>=0.9.0
+
+# Document Processing
+PyPDF2>=3.0.0
+pdf2image>=1.16.0
+Pillow>=10.0.0
+pypdf>=3.17.0
+reportlab>=4.0.0
+python-docx>=1.0.0
+img2pdf>=0.5.0
+opencv-python>=4.8.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
+PyYAML>=6.0
+
+# Utilities
+httpx>=0.25.0
+aiofiles>=23.0.0
+watchdog>=3.0.0
+tenacity>=8.0.0
+
+# Logging & Monitoring
+loguru>=0.7.0
+rich>=13.5.0
+
+# Security
+cryptography>=41.0.0
+
+# Development & Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0

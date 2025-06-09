@@ -1,0 +1,75 @@
+✅ AI Services loaded successfully
+ * Serving Flask app 'app'
+ * Debug mode: on
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://172.19.164.153:5000
+Press CTRL+C to quit
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 717-419-213
+127.0.0.1 - - [09/Jun/2025 13:13:13] "GET /checklist-dashboard/3 HTTP/1.1" 302 -
+127.0.0.1 - - [09/Jun/2025 13:13:14] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:13:15] "POST /authenticate HTTP/1.1" 302 -
+127.0.0.1 - - [09/Jun/2025 13:13:16] "GET /select-user HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:13:17] "POST /set-user HTTP/1.1" 302 -
+127.0.0.1 - - [09/Jun/2025 13:13:17] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:13:19] "GET /checklists HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:13:21] "GET /checklist-dashboard/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:13:52] "POST /api/document-analysis/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:14:11] "POST /create-document-visualization/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 13:14:11] "GET /document-visualization/5 HTTP/1.1" 304 -
+127.0.0.1 - - [09/Jun/2025 13:14:19] "POST /generate-bulk-workpaper HTTP/1.1" 500 -
+127.0.0.1 - - [09/Jun/2025 13:14:58] "POST /api/document-analysis/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:39:35] "GET /checklist-dashboard/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:40:09] "POST /api/document-analysis/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:40:26] "POST /create-document-visualization/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:40:26] "GET /document-visualization/5 HTTP/1.1" 304 -
+127.0.0.1 - - [09/Jun/2025 14:40:34] "POST /generate-bulk-workpaper HTTP/1.1" 500 -
+127.0.0.1 - - [09/Jun/2025 14:42:10] "GET /dashboard HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:11] "GET /tasks HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:12] "GET /projects HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:15] "GET /kanban HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:15] "GET /projects HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:20] "GET /projects/3 HTTP/1.1" 200 -
+/mnt/c/projects/workflow-management/app.py:1365: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  task.completed_at = datetime.utcnow()
+/mnt/c/projects/workflow-management/app.py:147: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+  project = Project.query.get(project_id)
+127.0.0.1 - - [09/Jun/2025 14:42:24] "POST /tasks/12/update HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:24] "GET /projects/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:26] "POST /tasks/13/update HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:42:26] "GET /projects/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:49:36] "GET /projects/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:57:25] "GET /templates HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:57:27] "GET /checklists HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:57:29] "GET /checklist-dashboard/3 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:58:11] "POST /api/document-analysis/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:58:17] "POST /create-document-visualization/5 HTTP/1.1" 200 -
+127.0.0.1 - - [09/Jun/2025 14:58:18] "GET /document-visualization/5 HTTP/1.1" 304 -
+127.0.0.1 - - [09/Jun/2025 14:58:20] "POST /generate-bulk-workpaper HTTP/1.1" 500 -
+ * Detected change in '/mnt/c/projects/workflow-management/app.py', reloading
+✅ AI Services loaded successfully
+Visualization error: cannot access local variable 'Path' where it is not associated with a value
+Workpaper generation error: Entity namespace for "client_document" has no property "firm_id"
+Bulk workpaper error: name 'make_response' is not defined
+Visualization error: cannot access local variable 'Path' where it is not associated with a value
+Workpaper generation error: Entity namespace for "client_document" has no property "firm_id"
+Bulk workpaper error: name 'make_response' is not defined
+Visualization error: cannot access local variable 'Path' where it is not associated with a value
+Workpaper generation error: Entity namespace for "client_document" has no property "firm_id"
+Bulk workpaper error: name 'make_response' is not defined
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 717-419-213
+ * Detected change in '/mnt/c/projects/workflow-management/app.py', reloading
+✅ AI Services loaded successfully
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 717-419-213
+ * Detected change in '/mnt/c/projects/workflow-management/app.py', reloading
+✅ AI Services loaded successfully
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 717-419-213
