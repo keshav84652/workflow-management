@@ -3657,7 +3657,7 @@ def create_document_visualization(document_id):
         
         # Create FileUpload object
         file_upload = FileUpload(
-            filename=document.filename,
+            filename=document.original_filename,  # Use original filename
             content_type=document.mime_type or 'application/pdf',
             size=os.path.getsize(document.file_path) if os.path.exists(document.file_path) else 0,
             file_path=Path(document.file_path)

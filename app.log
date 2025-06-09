@@ -73,3 +73,8 @@ Bulk workpaper error: name 'make_response' is not defined
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 717-419-213
+ * Detected change in '/mnt/c/projects/workflow-management/app.py', reloading
+✅ AI Services loaded successfully
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 717-419-213
