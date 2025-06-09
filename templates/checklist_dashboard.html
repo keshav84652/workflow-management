@@ -70,6 +70,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">AI Analysis</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Download</th>
                         </tr>
                     </thead>
@@ -105,6 +106,55 @@
                                     <i class="bi bi-x-circle mr-1"></i>
                                     N/A
                                 </span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if item.status == 'uploaded' %}
+                                {% set documents = item.documents|list %}
+                                {% if documents %}
+                                {% set document = documents[0] %}
+                                {% set analysis = document.analysis %}
+                                
+                                <div class="flex items-center space-x-2">
+                                    {% if analysis %}
+                                        {% if analysis.is_completed %}
+                                        <!-- View Analysis Results -->
+                                        <button onclick="viewDocumentAnalysis({{ document.id }}, {{ analysis.id }})"
+                                                class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 rounded text-xs hover:bg-green-200 transition-colors">
+                                            <i class="bi bi-eye mr-1"></i>
+                                            View Results
+                                        </button>
+                                        
+                                        <!-- View with Annotations -->
+                                        <button onclick="viewAnnotatedDocument({{ document.id }}, {{ analysis.id }})"
+                                                class="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs hover:bg-blue-200 transition-colors">
+                                            <i class="bi bi-bullseye mr-1"></i>
+                                            Annotations
+                                        </button>
+                                        {% elif analysis.is_processing %}
+                                        <span class="inline-flex items-center px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
+                                            <i class="bi bi-hourglass-split mr-1"></i>
+                                            Processing...
+                                        </span>
+                                        {% elif analysis.is_error %}
+                                        <button onclick="analyzeDocument({{ document.id }})"
+                                                class="inline-flex items-center px-2 py-1 bg-red-100 text-red-800 rounded text-xs hover:bg-red-200 transition-colors">
+                                            <i class="bi bi-arrow-clockwise mr-1"></i>
+                                            Retry Analysis
+                                        </button>
+                                        {% endif %}
+                                    {% else %}
+                                        <!-- Start Analysis -->
+                                        <button onclick="analyzeDocument({{ document.id }})"
+                                                class="inline-flex items-center px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors">
+                                            <i class="bi bi-robot mr-1"></i>
+                                            Analyze with AI
+                                        </button>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-gray-400 text-xs">Upload required</span>
                                 {% endif %}
                             </td>
                             <td class="px-4 py-3">
@@ -198,4 +248,163 @@
         </div>
     </div>
 </div>
+
+<script>
+function analyzeDocument(documentId) {
+    // Start document analysis
+    fetch(`/analyze-document/${documentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Document analysis started successfully! Results will appear shortly.', 'success');
+            // Reload page to show processing status
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showAlert(data.error || 'Failed to start analysis', 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error starting analysis: ' + error.message, 'error');
+    });
+}
+
+function viewDocumentAnalysis(documentId, analysisId) {
+    // Open analysis results in new window/tab
+    window.open(`/api/analysis/${analysisId}`, '_blank');
+}
+
+function viewAnnotatedDocument(documentId, analysisId) {
+    // Create visualization and show modal
+    fetch(`/create-visualization/${analysisId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDocumentViewer(analysisId);
+        } else {
+            showAlert(data.error || 'Failed to create visualization', 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('Error creating visualization: ' + error.message, 'error');
+    });
+}
+
+function showDocumentViewer(analysisId) {
+    // Create and show modal with annotated document
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+    modal.id = 'documentModal';
+    
+    modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-11/12 max-w-6xl shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Document with AI Field Extraction</h3>
+                <button onclick="closeDocumentModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="bi bi-x-lg text-xl"></i>
+                </button>
+            </div>
+            <div class="max-h-screen-75 overflow-auto">
+                <div class="flex flex-col lg:flex-row gap-4">
+                    <div class="flex-1">
+                        <div class="border rounded-lg p-2 bg-gray-50">
+                            <img src="/annotated-image/${analysisId}" 
+                                 alt="Document with field extraction annotations" 
+                                 class="max-w-full h-auto cursor-zoom-in"
+                                 onclick="toggleImageZoom(this)">
+                        </div>
+                        <div class="mt-2 text-sm text-gray-600 text-center">
+                            <i class="bi bi-info-circle mr-1"></i>
+                            Orange boxes show extracted fields, green check marks indicate successful extraction
+                        </div>
+                    </div>
+                    <div class="lg:w-1/3">
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Field Extraction Legend</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex items-center">
+                                    <div class="w-4 h-4 border-2 border-orange-400 bg-orange-100 mr-2"></div>
+                                    <span>Field boundaries (with labels)</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <div class="w-4 h-4 flex items-center justify-center mr-2">
+                                        <svg class="w-3 h-3 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                        </svg>
+                                    </div>
+                                    <span>Successfully extracted fields</span>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-gray-200">
+                                <button onclick="downloadAnnotatedImage(${analysisId})" 
+                                        class="w-full bg-cpa-blue text-white px-4 py-2 rounded-lg hover:bg-cpa-navy transition-colors">
+                                    <i class="bi bi-download mr-2"></i>Download Annotated Image
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Add global functions for modal interactions
+    window.closeDocumentModal = () => {
+        const modal = document.getElementById('documentModal');
+        if (modal) modal.remove();
+    };
+    
+    window.toggleImageZoom = (img) => {
+        if (img.style.transform === 'scale(2)') {
+            img.style.transform = 'scale(1)';
+            img.style.cursor = 'zoom-in';
+        } else {
+            img.style.transform = 'scale(2)';
+            img.style.cursor = 'zoom-out';
+        }
+    };
+    
+    window.downloadAnnotatedImage = (analysisId) => {
+        window.open(`/annotated-image/${analysisId}`, '_blank');
+    };
+}
+
+function showAlert(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `fixed top-4 right-4 z-50 max-w-sm w-full bg-white border-l-4 ${
+        type === 'error' ? 'border-red-500' : 
+        type === 'warning' ? 'border-yellow-500' : 
+        type === 'info' ? 'border-blue-500' : 'border-green-500'
+    } p-4 shadow-lg rounded-r-lg`;
+    
+    alertDiv.innerHTML = `
+        <div class="flex items-center">
+            <i class="bi bi-${
+                type === 'error' ? 'exclamation-circle text-red-500' : 
+                type === 'warning' ? 'exclamation-triangle text-yellow-500' : 
+                type === 'info' ? 'info-circle text-blue-500' : 'check-circle text-green-500'
+            } mr-2"></i>
+            <p class="text-sm text-gray-900">${message}</p>
+        </div>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.parentNode.removeChild(alertDiv);
+        }
+    }, 5000);
+}
+</script>
+
 {% endblock %}

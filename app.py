@@ -3100,6 +3100,14 @@ def checklist_dashboard(checklist_id):
         Client.firm_id == firm_id
     ).first_or_404()
     
+    # Add analysis data to each document
+    for item in checklist.items:
+        for document in item.documents:
+            document.analysis = DocumentAnalysis.query.filter_by(
+                client_document_id=document.id,
+                firm_id=firm_id
+            ).first()
+    
     return render_template('checklist_dashboard.html', checklist=checklist)
 
 @app.route('/download-document/<int:document_id>')
