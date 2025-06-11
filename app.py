@@ -809,7 +809,15 @@ def tasks():
     # Date-based filters
     today = date.today()
     if overdue_filter == 'true':
-        query = query.filter(Task.due_date < today, Task.status != 'Completed')
+        # Exclude completed tasks and tasks from completed projects
+        query = query.filter(
+            Task.due_date < today, 
+            Task.status != 'Completed',
+            db.or_(
+                Task.project_id.is_(None),  # Independent tasks
+                Project.status != 'Completed'  # Tasks from non-completed projects
+            )
+        )
     elif due_date_filter == 'today':
         query = query.filter(Task.due_date == today)
     elif due_date_filter == 'soon':

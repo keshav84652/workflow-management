@@ -273,18 +273,40 @@ class Task(db.Model):
     @property
     def is_completed(self):
         """Check if task is completed using new or legacy status"""
+        # Check legacy status first for backward compatibility
+        if self.status == 'Completed':
+            return True
+        
+        # Then check new status system
         if self.status_id and self.task_status_ref:
             return self.task_status_ref.is_terminal
-        return self.status == 'Completed'
+        
+        return False
     
     @property
     def is_overdue(self):
-        return self.due_date and self.due_date < date.today() and not self.is_completed
+        # Task is not overdue if:
+        # 1. No due date
+        # 2. Task itself is completed
+        # 3. Project is completed (if task belongs to a project)
+        if not self.due_date or self.is_completed:
+            return False
+        
+        # If task belongs to a project and project is completed, task is not overdue
+        if self.project and self.project.status == 'Completed':
+            return False
+        
+        return self.due_date < date.today()
     
     @property
     def is_due_soon(self):
         if not self.due_date or self.is_completed:
             return False
+        
+        # If task belongs to a project and project is completed, task is not due soon
+        if self.project and self.project.status == 'Completed':
+            return False
+        
         days_until_due = (self.due_date - date.today()).days
         return 0 <= days_until_due <= 3
     
