@@ -58,6 +58,23 @@
                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"
                               placeholder="Describe the purpose and scope of this template"></textarea>
                 </div>
+                
+                <div>
+                    <div class="flex items-center">
+                        <input type="checkbox" 
+                               id="task_dependency_mode" 
+                               name="task_dependency_mode" 
+                               value="true"
+                               checked
+                               class="h-4 w-4 text-cpa-blue focus:ring-cpa-blue border-gray-300 rounded">
+                        <label for="task_dependency_mode" class="ml-2 block text-sm text-gray-900">
+                            Sequential Workflow Template
+                        </label>
+                    </div>
+                    <p class="mt-1 text-sm text-gray-500">
+                        When enabled, projects created from this template will have sequential task dependencies. Tasks must be completed in order.
+                    </p>
+                </div>
 
                 <!-- Tasks Section -->
                 <div class="space-y-4">

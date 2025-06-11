@@ -32,6 +32,7 @@ class Template(db.Model):
     firm_id = db.Column(db.Integer, db.ForeignKey('firm.id'), nullable=False)
     work_type_id = db.Column(db.Integer, db.ForeignKey('work_type.id'), nullable=True)  # Link to work type
     auto_create_work_type = db.Column(db.Boolean, default=True)  # Whether to auto-create work type from template
+    task_dependency_mode = db.Column(db.Boolean, default=True)  # If True, projects from this template will be sequential
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     template_tasks = db.relationship('TemplateTask', backref='template', lazy=True, cascade="all, delete-orphan")

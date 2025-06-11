@@ -494,6 +494,7 @@ def create_template():
         template = Template(
             name=request.form.get('name'),
             description=request.form.get('description'),
+            task_dependency_mode=request.form.get('task_dependency_mode') == 'true',
             firm_id=firm_id
         )
         db.session.add(template)
@@ -534,6 +535,7 @@ def edit_template(id):
     if request.method == 'POST':
         template.name = request.form.get('name')
         template.description = request.form.get('description')
+        template.task_dependency_mode = request.form.get('task_dependency_mode') == 'true'
         
         TemplateTask.query.filter_by(template_id=template.id).delete()
         
@@ -632,6 +634,9 @@ def create_project():
             is_default=True
         ).first()
         
+        # Inherit sequential flag from template
+        inherited_task_dependency_mode = template.task_dependency_mode if template else task_dependency_mode
+        
         project = Project(
             name=project_name or f"{client.name} - {template.name}",
             client_id=client.id,
@@ -640,7 +645,7 @@ def create_project():
             start_date=start_date,
             due_date=due_date,
             priority=priority,
-            task_dependency_mode=task_dependency_mode,
+            task_dependency_mode=inherited_task_dependency_mode,  # Inherit from template
             firm_id=firm_id,
             template_origin_id=template_id
         )

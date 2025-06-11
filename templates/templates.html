@@ -42,14 +42,21 @@
                     {{ template.description or 'No description provided' }}
                 </p>
                 
-                {% if template.work_type %}
-                <div class="mb-4">
+                <div class="mb-4 flex flex-wrap gap-2">
+                    {% if template.work_type %}
                     <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">
                         <i class="bi bi-tag mr-1"></i>
                         {{ template.work_type.name }}
                     </span>
+                    {% endif %}
+                    
+                    {% if template.task_dependency_mode %}
+                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        <i class="bi bi-arrow-right mr-1"></i>
+                        Sequential
+                    </span>
+                    {% endif %}
                 </div>
-                {% endif %}
                 
                 <div class="flex justify-between items-center">
                     <div class="flex space-x-2">
