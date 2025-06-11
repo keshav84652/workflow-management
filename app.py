@@ -759,6 +759,7 @@ def tasks():
     project_filters = request.args.getlist('project')
     overdue_filter = request.args.get('overdue')
     due_date_filter = request.args.get('due_date')
+    show_completed = request.args.get('show_completed', 'false').lower() == 'true'
     
     # Base query - include both project tasks and independent tasks
     query = Task.query.outerjoin(Project).filter(
@@ -767,6 +768,10 @@ def tasks():
             db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
         )
     )
+    
+    # Hide completed tasks by default
+    if not show_completed:
+        query = query.filter(Task.status != 'completed')
     
     # Apply multi-select filters
     if status_filters:
@@ -812,8 +817,8 @@ def tasks():
         soon_date = today + timedelta(days=3)
         query = query.filter(Task.due_date.between(today, soon_date))
     
-    # Order by due date (nulls last) and priority
-    tasks = query.order_by(
+    # Get all tasks first
+    all_tasks = query.order_by(
         Task.due_date.asc().nullslast(),
         db.case(
             (Task.priority == 'High', 1),
@@ -822,6 +827,20 @@ def tasks():
             else_=4
         )
     ).all()
+    
+    # Filter to show only current active task per interdependent project
+    tasks = []
+    seen_projects = set()
+    
+    for task in all_tasks:
+        if task.project and task.project.task_dependency_mode:
+            # For interdependent projects, only show the first active task per project
+            if task.project_id not in seen_projects and not task.is_completed:
+                tasks.append(task)
+                seen_projects.add(task.project_id)
+        else:
+            # For independent tasks or non-interdependent projects, show all tasks
+            tasks.append(task)
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
