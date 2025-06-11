@@ -3617,124 +3617,98 @@ def get_document_analysis(document_id):
 
 @app.route('/create-document-visualization/<int:document_id>', methods=['POST'])
 def create_document_visualization(document_id):
-    """Create visual annotation overlay for document"""
-    firm_id = session['firm_id']
-    
-    # Get the document and verify access
-    document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-        ClientDocument.id == document_id,
-        Client.firm_id == firm_id
-    ).first()
-    
-    if not document:
-        return jsonify({'error': 'Document not found'}), 404
-    
+    """Create a visualization of a document with field detection annotations"""
     try:
-        # Check if annotated image already exists (improved caching)
+        firm_id = session['firm_id']
+        
+        # Get the document and verify access
+        document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            ClientDocument.id == document_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not document:
+            return jsonify({'error': 'Document not found'}), 404
+        
+        # Check if document file exists
+        if not os.path.exists(document.file_path):
+            return jsonify({
+                'success': False, 
+                'error': 'Document file not found on server'
+            }), 404
+        
+        # Setup output paths
         output_dir = Path('static/visualizations')
         output_dir.mkdir(exist_ok=True, parents=True)
         output_path = output_dir / f'document_{document_id}_annotated.png'
         
-        # Check if we have a recent cached version (within last hour)
+        # Check for recent cached version (1 hour cache)
         if output_path.exists():
             file_age = time.time() - output_path.stat().st_mtime
-            if file_age < 3600:  # 1 hour cache
+            if file_age < 3600:  # 1 hour
                 return jsonify({
                     'success': True,
                     'visualization_url': f'/document-visualization/{document_id}',
                     'message': 'Visualization loaded from cache'
                 })
             else:
-                # Remove old cached file
+                # Remove old cache
                 output_path.unlink(missing_ok=True)
         
-        # Need to process the document to get Azure result with field coordinates
-        from backend.services.document_processor import DocumentProcessor
+        # Import services
+        from backend.services.azure_service import AzureDocumentService
         from backend.services.document_visualizer import DocumentVisualizer
-        from backend.models.document import FileUpload
-        from pathlib import Path
-        import asyncio
         
-        # Create FileUpload object
-        file_upload = FileUpload(
-            filename=document.filename,
-            content_type=document.mime_type or 'application/pdf',
-            size=os.path.getsize(document.file_path) if os.path.exists(document.file_path) else 0,
-            file_path=Path(document.file_path)
+        # Initialize services
+        azure_service = AzureDocumentService()
+        visualizer = DocumentVisualizer({
+            'visualization_type': 'tick',
+            'annotation_color': (0, 255, 0),  # Green ticks (BGR)
+            'tick_size': 20,
+            'annotation_thickness': 3,
+            'show_label': False
+        })
+        
+        # Process document with Azure
+        azure_result = azure_service.analyze_document_from_file(document.file_path)
+        
+        if not azure_result or 'documents' not in azure_result or not azure_result['documents']:
+            return jsonify({
+                'success': False,
+                'error': 'Could not analyze document fields'
+            }), 500
+        
+        # Format result for visualizer
+        formatted_result = {
+            'documents': azure_result['documents']
+        }
+        
+        # Create annotated visualization
+        annotated_path = visualizer.create_visualization(
+            image_path=document.file_path,
+            api_result=formatted_result,
+            output_path=str(output_path)
         )
         
-        # Process document to get Azure results with field coordinates (faster - only Azure, no Gemini)
-        # Use minimal processing for visualization only
-        processor = DocumentProcessor()
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            # Optimize for speed - only get field coordinates, no detailed analysis
-            processed_doc = loop.run_until_complete(
-                processor.process_document(file_upload, enable_azure=True, enable_gemini=False, pii_mode='none')
-            )
-            
-            if processed_doc.azure_result and hasattr(processed_doc.azure_result, 'raw_response'):
-                # Create visualizer with tick marks configuration
-                visualizer = DocumentVisualizer({
-                    'visualization_type': 'tick',  # Only show tick marks
-                    'annotation_color': (0, 0, 255),  # Red ticks (BGR format)
-                    'tick_size': 20,
-                    'annotation_thickness': 3,
-                    'show_label': False  # Don't show field labels
-                })
-                
-                # Ensure output directory exists
-                output_dir.mkdir(exist_ok=True, parents=True)
-                
-                # Convert PDF to image if necessary
-                original_image_path = document.file_path
-                if document.filename.lower().endswith('.pdf'):
-                    # Convert PDF to image first
-                    try:
-                        from pdf2image import convert_from_path
-                        pages = convert_from_path(document.file_path, first_page=1, last_page=1)
-                        if pages:
-                            temp_image_path = output_dir / f'document_{document_id}_temp.png'
-                            pages[0].save(temp_image_path, 'PNG')
-                            original_image_path = str(temp_image_path)
-                    except ImportError:
-                        print("pdf2image not available, cannot convert PDF")
-                        return jsonify({
-                            'success': False,
-                            'error': 'PDF conversion not available'
-                        }), 500
-                
-                # Create the visualization
-                annotated_path = visualizer.create_visualization(
-                    str(original_image_path),
-                    processed_doc.azure_result.raw_response,
-                    output_path=str(output_path)
-                )
-                
-                if annotated_path:
-                    return jsonify({
-                        'success': True,
-                        'visualization_url': f'/document-visualization/{document_id}',
-                        'message': 'Visualization with tick marks created successfully'
-                    })
-                else:
-                    raise Exception("Failed to create annotated image")
-                    
-            else:
-                raise Exception("No Azure analysis result available for visualization")
-                
-        finally:
-            loop.close()
+        if annotated_path and os.path.exists(annotated_path):
+            return jsonify({
+                'success': True,
+                'visualization_url': f'/document-visualization/{document_id}',
+                'message': 'Visualization created successfully'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to create visualization'
+            }), 500
             
     except Exception as e:
-        print(f"Visualization error: {e}")
+        print(f"Visualization creation error: {str(e)}")
         return jsonify({
-            'success': True,  # Still return success to show original document
-            'visualization_url': f'/document-visualization/{document_id}',
-            'message': f'Showing original document (annotation failed: {str(e)})'
-        })
+            'success': False,
+            'error': 'Visualization creation failed',
+            'details': str(e)
+        }), 500
 
 @app.route('/document-visualization/<int:document_id>')
 def serve_document_visualization(document_id):
