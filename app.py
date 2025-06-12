@@ -190,6 +190,22 @@ def check_access():
         return redirect(url_for('select_user'))
 
 @app.route('/')
+def home():
+    # If user is fully logged in, redirect to dashboard
+    if 'firm_id' in session and 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    # If user has partial session (firm selected but no user), redirect to user selection
+    elif 'firm_id' in session and 'user_id' not in session:
+        return redirect(url_for('select_user'))
+    # Show landing page for completely new visitors
+    return render_template('landing.html')
+
+@app.route('/landing')
+def landing():
+    # Direct access to landing page (bypass session checks)
+    return render_template('landing.html')
+
+@app.route('/login')
 def login():
     if 'firm_id' in session:
         if 'user_id' in session:
@@ -248,7 +264,13 @@ def switch_user():
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('login'))
+    return redirect(url_for('home'))
+
+@app.route('/clear-session')
+def clear_session():
+    """Clear session and redirect to landing page"""
+    session.clear()
+    return redirect(url_for('home'))
 
 @app.route('/dashboard')
 def dashboard():
