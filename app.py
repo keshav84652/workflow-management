@@ -3628,8 +3628,11 @@ def get_document_analysis(document_id):
     if not document:
         return jsonify({'error': 'Document not found'}), 404
     
-    # Check if AI analysis has already been completed
-    if document.ai_analysis_completed and document.ai_analysis_results:
+    # Check for force_reanalysis parameter
+    force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
+    
+    # Check if AI analysis has already been completed (unless forcing re-analysis)
+    if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
         try:
             import json
             cached_results = json.loads(document.ai_analysis_results)
@@ -3812,6 +3815,109 @@ def analyze_checklist_api(checklist_id):
         
         return jsonify({
             'error': 'Checklist analysis failed',
+            'details': str(e)
+        }), 500
+
+@app.route('/api/export-checklist-analysis/<int:checklist_id>', methods=['GET'])
+def export_checklist_analysis_api(checklist_id):
+    """Export all analysis results from a checklist in JSON format"""
+    try:
+        firm_id = session['firm_id']
+        
+        # Get checklist and verify it belongs to this firm
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+        
+        # Collect all analyzed documents from the checklist
+        analyzed_documents = []
+        for item in checklist.items:
+            for document in item.client_documents:
+                if document.ai_analysis_completed and document.ai_analysis_results:
+                    # Extract the actual analysis data from saved results
+                    saved_results = document.ai_analysis_results
+                    
+                    doc_data = {
+                        'filename': document.original_filename,
+                        'processing_status': 'completed',
+                        'processing_time': 0,
+                        'document_id': document.id,
+                        'created_at': document.uploaded_at.isoformat() if document.uploaded_at else None,
+                        'processing_notes': f"Cached analysis from {document.ai_analysis_timestamp.strftime('%m/%d/%Y %I:%M %p') if document.ai_analysis_timestamp else 'unknown time'}",
+                        
+                        # Include the actual Azure and Gemini results
+                        'azure_result': saved_results.get('azure_result', {}),
+                        'gemini_result': saved_results.get('gemini_result', {}),
+                        
+                        # Flatten Azure results to top level for compatibility
+                        'doc_type': saved_results.get('azure_result', {}).get('doc_type', 'unknown'),
+                        'confidence': saved_results.get('azure_result', {}).get('confidence', 0),
+                        
+                        # Add Gemini categorization to top level
+                        'gemini_category': saved_results.get('gemini_result', {}).get('document_type', 'Unknown'),
+                        'gemini_summary': saved_results.get('gemini_result', {}).get('summary', ''),
+                        
+                        'validation_errors_count': 0
+                    }
+                    
+                    # Flatten Azure key-value pairs to top level
+                    azure_result = saved_results.get('azure_result', {})
+                    if azure_result.get('key_value_pairs'):
+                        for pair in azure_result['key_value_pairs']:
+                            if pair.get('key') and pair.get('value'):
+                                # Clean up key name for consistent format
+                                clean_key = "".join(c if c.isalnum() else '_' for c in pair['key'])
+                                doc_data[clean_key] = pair['value']
+                    
+                    # Add Gemini key findings with better field names
+                    gemini_result = saved_results.get('gemini_result', {})
+                    if gemini_result.get('key_findings'):
+                        for index, finding in enumerate(gemini_result['key_findings']):
+                            doc_data[f'key_finding_{index + 1}'] = finding
+                    
+                    analyzed_documents.append(doc_data)
+        
+        if not analyzed_documents:
+            return jsonify({
+                'error': 'No analyzed documents found',
+                'message': 'Please analyze documents before exporting'
+            }), 400
+        
+        # Create export data structure in the same format as the original JavaScript export
+        export_data = {
+            'export_date': datetime.utcnow().isoformat(),
+            'document_count': len(analyzed_documents),
+            'documents': analyzed_documents
+        }
+        
+        # Create filename
+        safe_client_name = "".join(c for c in checklist.client.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        filename = f"analysis_export_{safe_client_name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        
+        # Return JSON as a direct download (not through jsonify which adds HTML wrapper)
+        from flask import Response
+        import json
+        
+        json_str = json.dumps(export_data, indent=2)
+        
+        response = Response(
+            json_str,
+            mimetype='application/json',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"'
+            }
+        )
+        
+        return response
+        
+    except Exception as e:
+        print(f"Analysis export error: {e}")
+        return jsonify({
+            'error': 'Export failed',
             'details': str(e)
         }), 500
 

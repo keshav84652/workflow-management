@@ -359,7 +359,16 @@ document.addEventListener('DOMContentLoaded', function() {
     allDocuments = Array.from(documentElements).map(el => {
         const documentId = el.id.replace('document-content-', '');
         const filename = document.querySelector(`#expand-icon-${documentId}`).parentElement.parentElement.querySelector('h4').textContent;
-        return { id: parseInt(documentId), filename: filename };
+        
+        // Check if document is already analyzed
+        const statusElement = document.getElementById(`analysis-status-${documentId}`);
+        const isAnalyzed = statusElement && statusElement.textContent.trim() === 'Analyzed';
+        
+        return { 
+            id: parseInt(documentId), 
+            filename: filename,
+            isAnalyzed: isAnalyzed
+        };
     });
     
     // Load saved worksheet status
@@ -625,7 +634,7 @@ function showAnalysisModal(data) {
     document.body.appendChild(modal);
 }
 
-// Analyze all documents
+// Analyze all documents (always re-run analysis)
 async function analyzeAllDocuments() {
     if (allDocuments.length === 0) {
         alert('No documents to analyze');
@@ -648,7 +657,7 @@ async function analyzeAllDocuments() {
             statusElement.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800';
             
             try {
-                const result = await analyzeDocument(doc.id, doc.filename, false); // Don't show modal
+                const result = await analyzeDocument(doc.id, doc.filename, false, true); // Don't show modal, force re-analysis
                 analysisResults[doc.id] = result;
                 
                 // Update status to success
@@ -689,10 +698,14 @@ async function analyzeAllDocuments() {
 }
 
 // Document analysis functionality (updated)
-async function analyzeDocument(documentId, filename, showModal = true) {
+async function analyzeDocument(documentId, filename, showModal = true, forceReanalysis = false) {
     try {
-        // Call the analysis API
-        const response = await fetch(`/api/document-analysis/${documentId}`, {
+        // Call the analysis API with force_reanalysis parameter if needed
+        const url = forceReanalysis ? 
+            `/api/document-analysis/${documentId}?force_reanalysis=true` : 
+            `/api/document-analysis/${documentId}`;
+            
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -891,98 +904,98 @@ async function showDocumentVisualization(documentId) {
     }
 }
 
-// Export all documents in Streamlit format
+// Export all documents using saved analysis results from database
 async function exportAllDocuments() {
-    if (Object.keys(analysisResults).length === 0) {
-        alert('No analysis results to export. Please analyze documents first.');
-        return;
-    }
+    const checklistId = {{ checklist.id }};
     
     try {
-        // Transform to Streamlit flat format
-        const exportData = {
-            export_date: new Date().toISOString(),
-            document_count: Object.keys(analysisResults).length,
-            documents: []
-        };
+        const response = await fetch(`/api/export-checklist-analysis/${checklistId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
         
-        for (const [documentId, data] of Object.entries(analysisResults)) {
-            const flatDoc = {
-                filename: data.filename,
-                processing_status: data.status || 'completed',
-                processing_time: 0, // We don't track this currently
-                document_id: documentId,
-                created_at: new Date().toISOString(),
-                processing_notes: data.processing_notes || '',
-                
-                // Flatten Azure results to top level
-                doc_type: data.azure_result?.doc_type || 'unknown',
-                confidence: data.azure_result?.confidence || 0,
-                
-                // Add Gemini categorization
-                gemini_category: data.gemini_result?.document_type || 'Unknown',
-                gemini_summary: data.gemini_result?.summary || '',
-                
-                validation_errors_count: 0
-            };
-            
-            // Flatten Azure key-value pairs to top level
-            if (data.azure_result && data.azure_result.key_value_pairs) {
-                data.azure_result.key_value_pairs.forEach(pair => {
-                    if (pair.key && pair.value) {
-                        // Clean up key name for consistent format
-                        const cleanKey = pair.key.replace(/[^a-zA-Z0-9]/g, '_');
-                        flatDoc[cleanKey] = pair.value;
-                    }
-                });
-            }
-            
-            // Add Gemini key findings with better field names
-            if (data.gemini_result && data.gemini_result.key_findings) {
-                data.gemini_result.key_findings.forEach((finding, index) => {
-                    flatDoc[`key_finding_${index + 1}`] = finding;
-                });
-            }
-            
-            exportData.documents.push(flatDoc);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to export analysis');
         }
         
-        // Download as JSON
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], {type: 'application/json'});
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `tax_documents_analysis_${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        // Get the filename from the response headers
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = 'analysis_export.json';
+        if (contentDisposition) {
+            const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+            if (filenameMatch) {
+                filename = filenameMatch[1];
+            }
+        }
+        
+        // Download the file
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Show success message
+        const exportData = await blob.text();
+        const parsedData = JSON.parse(exportData);
+        alert(`Analysis export completed successfully!\n\nDocuments exported: ${parsedData.document_count}\nFilename: ${filename}`);
         
     } catch (error) {
+        console.error('Export error:', error);
         alert('Export failed: ' + error.message);
     }
 }
 
-// Generate workpaper PDF
+// Generate workpaper PDF using saved analysis results
 async function generateWorkpaper() {
-    if (Object.keys(analysisResults).length === 0) {
-        alert('No analysis results available. Please analyze documents first.');
-        return;
-    }
+    const checklistId = {{ checklist.id }};
     
     try {
+        // First check if we have any analyzed documents
+        const checkResponse = await fetch(`/api/export-checklist-analysis/${checklistId}`, {
+            method: 'GET'
+        });
+        
+        if (!checkResponse.ok) {
+            const errorData = await checkResponse.json();
+            alert(errorData.message || 'No analysis results available. Please analyze documents first.');
+            return;
+        }
+        
+        const exportData = await checkResponse.json();
+        
+        // Transform export data to workpaper format
+        const workpaperData = {
+            documents: {},
+            title: 'Tax Document Workpaper',
+            client_name: exportData.client_name,
+            tax_year: new Date().getFullYear().toString()
+        };
+        
+        // Convert saved analysis results to workpaper format
+        exportData.documents.forEach(doc => {
+            workpaperData.documents[doc.document_id] = {
+                filename: doc.filename,
+                status: doc.processing_status,
+                azure_result: doc.analysis_results?.azure_result || {},
+                gemini_result: doc.analysis_results?.gemini_result || {},
+                processing_notes: `Analyzed on ${doc.analysis_timestamp}`
+            };
+        });
+        
         const response = await fetch('/generate-bulk-workpaper', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                documents: analysisResults,
-                title: 'Tax Document Workpaper',
-                client_name: 'Client Documents',
-                tax_year: new Date().getFullYear().toString()
-            })
+            body: JSON.stringify(workpaperData)
         });
         
         if (response.ok) {
@@ -990,16 +1003,19 @@ async function generateWorkpaper() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `workpaper_${new Date().toISOString().split('T')[0]}.pdf`;
+            a.download = `workpaper_${exportData.client_name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
+            
+            alert(`Workpaper generated successfully!\n\nDocuments included: ${exportData.document_count}\nClient: ${exportData.client_name}`);
         } else {
             throw new Error('Failed to generate workpaper');
         }
         
     } catch (error) {
+        console.error('Workpaper generation error:', error);
         alert('Workpaper generation failed: ' + error.message);
     }
 }

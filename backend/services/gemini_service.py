@@ -197,8 +197,6 @@ class GeminiDocumentService:
             # Handle custom prompt responses (non-JSON)
             if custom_prompt:
                 # For custom prompts, return raw response in a simple structure
-                from ..models.document import BookmarkStructure
-                
                 analysis_result = GeminiAnalysisResult(
                     document_category="Custom Analysis",
                     document_analysis_summary="Custom prompt analysis completed",
