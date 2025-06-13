@@ -334,6 +334,18 @@ def ctrl_filing():
     """CtrlFiling document management system - accessible without login"""
     return send_file('CtrlFiling/index.html')
 
+@app.route('/ctrl-filing/<path:filename>')
+def ctrl_filing_assets(filename):
+    """Serve CtrlFiling static assets"""
+    try:
+        # Try public folder first (for images)
+        if os.path.exists(f'CtrlFiling/public/{filename}'):
+            return send_file(f'CtrlFiling/public/{filename}')
+        # Then try root CtrlFiling folder
+        return send_file(f'CtrlFiling/{filename}')
+    except:
+        return "File not found", 404
+
 @app.route('/dashboard')
 def dashboard():
     firm_id = session['firm_id']
