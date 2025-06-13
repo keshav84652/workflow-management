@@ -331,10 +331,7 @@ def clear_session():
 
 @app.route('/ctrl-filing')
 def ctrl_filing():
-    """CtrlFiling document management system"""
-    if 'firm_id' not in session or 'user_id' not in session:
-        return redirect(url_for('login'))
-    
+    """CtrlFiling document management system - accessible without login"""
     return send_file('CtrlFiling/index.html')
 
 @app.route('/dashboard')
