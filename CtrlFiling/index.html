@@ -3,115 +3,690 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CtrlFiling - Document Management System</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>Ctrl+Filing - AI-Powered Tax Preparation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blue: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.7s ease-in-out',
+                        'slide-in-from-bottom': 'slideInFromBottom 0.7s ease-in-out',
+                        'slide-in-from-left': 'slideInFromLeft 0.7s ease-in-out',
+                        'slide-in-from-right': 'slideInFromRight 0.7s ease-in-out',
+                        'scale-up': 'scaleUp 0.3s ease-in-out'
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideInFromBottom: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        slideInFromLeft: {
+                            '0%': { opacity: '0', transform: 'translateX(-20px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' }
+                        },
+                        slideInFromRight: {
+                            '0%': { opacity: '0', transform: 'translateX(20px)' },
+                            '100%': { opacity: '1', transform: 'translateX(0)' }
+                        },
+                        scaleUp: {
+                            '0%': { transform: 'scale(0.95)' },
+                            '100%': { transform: 'scale(1)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .ctrl-filing-header {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-            color: white;
-            padding: 2rem 0;
+        .animate-in {
+            animation-fill-mode: both;
         }
-        .feature-card {
-            transition: transform 0.3s ease;
-            border: none;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .fade-in-50 {
+            animation: fadeIn 0.7s ease-in-out;
         }
-        .feature-card:hover {
-            transform: translateY(-5px);
+        .slide-in-from-bottom-5 {
+            animation: slideInFromBottom 0.7s ease-in-out;
         }
-        .login-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
+        .slide-in-from-left-5 {
+            animation: slideInFromLeft 0.7s ease-in-out;
+        }
+        .slide-in-from-right-5 {
+            animation: slideInFromRight 0.7s ease-in-out;
+        }
+        .delay-100 { animation-delay: 100ms; }
+        .delay-200 { animation-delay: 200ms; }
+        .delay-300 { animation-delay: 300ms; }
+        .delay-400 { animation-delay: 400ms; }
+        .duration-700 { animation-duration: 700ms; }
+        .duration-1000 { animation-duration: 1000ms; }
+        
+        /* Custom button styles */
+        .btn-primary {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        .btn-outline {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium border border-white bg-transparent text-white hover:bg-blue-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        .btn-secondary {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-white text-blue-600 hover:bg-blue-50 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        .btn-green {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-green-600 text-white hover:bg-green-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        .btn-red {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-red-500 text-white hover:bg-red-600 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        .btn-amber {
+            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+        }
+        
+        /* Custom toggle styles */
+        .toggle-btn {
+            @apply inline-flex items-center justify-center text-sm font-medium transition-all duration-200 ease-in-out h-10 px-3 min-w-10 bg-gray-100 text-gray-700 hover:bg-gray-200;
+        }
+        
+        .toggle-btn.active {
+            @apply bg-blue-600 text-white;
+        }
+        
+        /* File upload area */
+        .file-upload-area {
+            @apply transition-all duration-250 ease-in-out;
+        }
+        
+        .file-upload-area.drag-active {
+            @apply scale-[1.02] border-blue-500 bg-blue-50;
+        }
+        
+        /* Progress bars */
+        .progress-bar {
+            animation: progressSlide 1s ease-in-out forwards;
+        }
+        
+        @keyframes progressSlide {
+            from { width: 0%; }
+        }
+        
+        /* Alert styles */
+        .alert {
+            @apply relative w-full rounded-lg border p-4;
+        }
+        
+        .alert.destructive {
+            @apply border-red-200 bg-red-50 text-red-700;
+        }
+        
+        /* Hover effects */
+        .hover-lift {
+            @apply transition-all duration-300 hover:shadow-xl hover:translate-y-[-4px];
+        }
+        
+        .hover-scale {
+            @apply transition-transform duration-500 ease-in-out hover:scale-105;
+        }
+        
+        .icon-hover {
+            @apply transition-transform duration-300 hover:scale-110;
         }
     </style>
 </head>
-<body>
-    <a href="/login" class="btn btn-primary login-btn">
-        <i class="fas fa-sign-in-alt"></i> Login to Workflow
-    </a>
+<body class="bg-white">
+    <!-- Hero Section -->
+    <div class="bg-blue-600 text-white">
+        <div class="container mx-auto px-4 py-12">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <!-- File Upload Section -->
+                <div class="order-2 md:order-1">
+                    <div class="bg-blue-50 rounded-xl p-6 shadow-sm">
+                        <div class="flex space-x-2 mb-6">
+                            <button id="batchToggle" class="toggle-btn rounded-l-full rounded-r-none flex-1 justify-center active">
+                                Batch Upload
+                            </button>
+                            <button id="sampleToggle" class="toggle-btn rounded-r-full rounded-l-none flex-1 justify-center">
+                                Use Sample Files
+                            </button>
+                        </div>
 
-    <div class="ctrl-filing-header">
-        <div class="container">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h1 class="display-4 mb-3">
-                        <i class="fas fa-file-archive"></i> CtrlFiling
-                    </h1>
-                    <p class="lead">Advanced Document Management & Filing System</p>
-                    <p class="mb-0">Streamline your document workflow with intelligent organization and secure storage.</p>
+                        <div id="batchUploadArea" class="file-upload-area border-2 border-dashed border-blue-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50">
+                            <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.csv" class="hidden">
+                            <div class="flex flex-col items-center">
+                                <svg class="h-12 w-12 text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <p class="text-gray-700 mb-2">Click to browse or drag and drop your files</p>
+                                <p class="text-sm text-gray-500">Max 10 files (.pdf, .xlsx, .xls, .csv)</p>
+                            </div>
+                        </div>
+
+                        <div id="sampleUploadArea" class="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hidden">
+                            <svg class="h-12 w-12 text-blue-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-gray-700 mb-2">Use our sample tax files for demonstration</p>
+                            <button class="btn-primary mt-4" onclick="handleUseSampleFiles()">
+                                Load Sample Files
+                            </button>
+                        </div>
+
+                        <div id="errorAlert" class="alert destructive mt-4 hidden">
+                            <svg class="h-4 w-4 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div class="pl-7">
+                                <p id="errorMessage"></p>
+                            </div>
+                        </div>
+
+                        <div id="filesList" class="mt-6 hidden">
+                            <p id="filesCount" class="text-sm font-medium text-gray-700 mb-2"></p>
+                            <ul id="filesContainer" class="space-y-2 max-h-32 overflow-y-auto"></ul>
+                            <button class="btn-primary w-full mt-4" onclick="handleUpload()">
+                                Upload Files
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-4 text-center">
-                    <i class="fas fa-folder-open" style="font-size: 8rem; opacity: 0.3;"></i>
+
+                <!-- Display Section -->
+                <div class="order-1 md:order-2">
+                    <div class="text-center md:text-left mb-8 md:mb-0">
+                        <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
+                            Supercharge Tax Preparation with AI
+                        </h1>
+                        <p class="text-xl md:text-2xl mb-6 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200">
+                            Unsh*t Your Tax Season with Ctrl+Filing
+                        </p>
+                        <img src="/illustration.png" alt="Tax Preparation Illustration" class="mx-auto md:mx-0 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-300 max-w-full h-auto">
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="container my-5">
-        <div class="row">
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-upload fa-3x text-primary mb-3"></i>
-                        <h5 class="card-title">Smart Upload</h5>
-                        <p class="card-text">Drag and drop files with automatic categorization and metadata extraction.</p>
-                        <button class="btn btn-primary" disabled>Coming Soon</button>
-                    </div>
-                </div>
+    <!-- Features Section -->
+    <div class="py-16">
+        <div class="container mx-auto px-4">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    Ctrl+Filing – Tax Tech With Actual Intelligence
+                </h2>
+                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
+                    Empowering you to handle tax season with greater speed, accuracy, and confidence - with our suite of AI Agents.
+                </p>
             </div>
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-search fa-3x text-success mb-3"></i>
-                        <h5 class="card-title">Advanced Search</h5>
-                        <p class="card-text">Find documents instantly with powerful search filters and AI-powered content recognition.</p>
-                        <button class="btn btn-success" disabled>Coming Soon</button>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 mb-4">
-                <div class="card feature-card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-shield-alt fa-3x text-warning mb-3"></i>
-                        <h5 class="card-title">Secure Storage</h5>
-                        <p class="card-text">Bank-level encryption and compliance-ready security for all your sensitive documents.</p>
-                        <button class="btn btn-warning" disabled>Coming Soon</button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <div class="row mt-5">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <h5><i class="fas fa-info-circle"></i> Integration Status</h5>
-                    <p class="mb-2">CtrlFiling is being integrated with your CPA WorkflowPilot system.</p>
-                    <p class="mb-0"><strong>Note:</strong> Export functionality is currently not working and is being addressed.</p>
+            <!-- TaxPrep Bot Feature -->
+            <div class="max-w-6xl mx-auto mb-24">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="group">
+                        <img src="/taxprep-bot.png" alt="TaxPrep Bot Illustration" class="mx-auto hover-scale max-w-full h-auto">
+                    </div>
+                    <div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">TaxPrep Bot</h3>
+                        <p class="text-xl text-gray-600 mb-4">"AI that prepares in CCH Axcess & Lacerte"</p>
+                        <p class="text-gray-600 mb-4">
+                            Export directly to tax software like <strong>CCH Axcess & Lacerte</strong>, extract data with AI,
+                            validate inputs with smart checks, and get client-ready returns in minutes
+                            <strong>—cutting prep time by up to 80%</strong>.
+                        </p>
+                        <button class="btn-green group">
+                            Learn More
+                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="row mt-4">
-            <div class="col-12 text-center">
-                <h3>Quick Actions</h3>
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-outline-primary" disabled>
-                        <i class="fas fa-file-pdf"></i> View Documents
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" disabled>
-                        <i class="fas fa-folder-plus"></i> Create Folder
-                    </button>
-                    <button type="button" class="btn btn-outline-info" disabled>
-                        <i class="fas fa-cog"></i> Settings
-                    </button>
+            <!-- Reconciliation Wizard Feature -->
+            <div class="max-w-6xl mx-auto mb-24">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="order-2 md:order-1">
+                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Reconciliation Wizard</h3>
+                        <p class="text-xl text-gray-600 mb-4">"Magically matches. No wand required."</p>
+                        <p class="text-gray-600 mb-4">
+                            Automatically generate formatted <strong>reconciliation sheets</strong>, spot key year-over-year
+                            changes, tie schedules to returns with precision, and request custom templates
+                            <strong>tailored to your firm's workflows</strong>—all in one place.
+                        </p>
+                        <button class="btn-red group">
+                            Learn More
+                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="order-1 md:order-2 group">
+                        <img src="/reconciliation-wizard.png" alt="Reconciliation Wizard Illustration" class="mx-auto hover-scale max-w-full h-auto">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tic Tie Slayer Feature -->
+            <div class="max-w-6xl mx-auto">
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <div class="group">
+                        <img src="/tic-tie-slayer.png" alt="Tic Tie Slayer Illustration" class="mx-auto hover-scale max-w-full h-auto">
+                    </div>
+                    <div>
+                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Tic Tie Slayer</h3>
+                        <p class="text-xl text-gray-600 mb-4">"Destroying busywork, one tie at a time."</p>
+                        <p class="text-gray-600 mb-4">
+                            Easily navigate tax files with <strong>auto-generated bookmarks</strong>, verify all calculations
+                            instantly, generate <strong>compliant audit-ready workpapers</strong>, & link source documents to
+                            final returns with <strong>audit trails — all fully automated</strong>.
+                        </p>
+                        <button class="btn-amber group">
+                            Learn More
+                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Roadmap Section -->
+    <div class="bg-gray-900 text-white py-16">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <h2 class="text-4xl font-bold mb-4 text-center animate-in fade-in-50 duration-700">Roadmap</h2>
+                <p class="text-xl text-gray-400 mb-16 text-center animate-in fade-in-50 duration-700 delay-100">
+                    This roadmap outlines our goals and where we want to take Ctrl+Filing.
+                </p>
+
+                <div class="relative">
+                    <!-- Vertical line -->
+                    <div class="absolute left-4 md:left-8 top-0 bottom-0 w-0.5 bg-gray-700"></div>
+
+                    <!-- Roadmap items -->
+                    <div class="space-y-16">
+                        <!-- Item 1 -->
+                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700">
+                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
+                                <div class="h-2 w-2 rounded-full bg-white"></div>
+                            </div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div>
+                                    <h3 class="text-2xl font-bold mb-2">Planning & Pre-Production</h3>
+                                    <p class="text-gray-400 mb-4">
+                                        Quality comes first. We took our time to plan out everything and build our production pipeline.
+                                    </p>
+                                </div>
+                                <div class="text-gray-500 md:ml-8">1. Sept</div>
+                            </div>
+                        </div>
+
+                        <!-- Item 2 -->
+                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-100">
+                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
+                                <div class="h-2 w-2 rounded-full bg-white"></div>
+                            </div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div>
+                                    <h3 class="text-2xl font-bold mb-2">Production</h3>
+                                    <p class="text-gray-400 mb-4">
+                                        Starting the production on the AI models and integrations with tax software platforms.
+                                    </p>
+                                </div>
+                                <div class="text-gray-500 md:ml-8">1. Oct</div>
+                            </div>
+                        </div>
+
+                        <!-- Item 3 -->
+                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-200">
+                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
+                                <div class="h-2 w-2 rounded-full bg-white"></div>
+                            </div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div>
+                                    <h3 class="text-2xl font-bold mb-2">Beta Launch</h3>
+                                    <p class="text-gray-400 mb-4">
+                                        Our most active community members will be able to join the beta testing program.
+                                    </p>
+                                </div>
+                                <div class="text-gray-500 md:ml-8">End of Nov</div>
+                            </div>
+                        </div>
+
+                        <!-- Item 4 -->
+                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-300">
+                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-gray-700 border-4 border-gray-800 z-10 flex items-center justify-center">
+                                <div class="h-2 w-2 rounded-full bg-white"></div>
+                            </div>
+                            <div class="flex flex-col md:flex-row md:items-center justify-between">
+                                <div>
+                                    <h3 class="text-2xl font-bold mb-2">Public Launch</h3>
+                                    <p class="text-gray-400 mb-4">
+                                        Full public launch with all features available to subscribers. Special pricing for early adopters.
+                                    </p>
+                                </div>
+                                <div class="text-gray-500 md:ml-8">TBA</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Feature Section -->
+    <div class="bg-gray-100 py-16">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="animate-in fade-in-50 slide-in-from-left-5 duration-700">
+                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simplify your tax filing process</h2>
+                    <p class="text-lg text-gray-600 mb-6">
+                        Our AI-powered platform automatically identifies and categorizes tax documents, extracts relevant
+                        information, and helps you maximize deductions.
+                    </p>
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex items-start group">
+                            <div class="flex-shrink-0 mt-1 icon-hover">
+                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-lg font-medium text-gray-900">Automatic Document Recognition</h3>
+                                <p class="text-gray-600">Our AI identifies W-2s, 1099s, and other tax forms automatically</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start group">
+                            <div class="flex-shrink-0 mt-1 icon-hover">
+                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-lg font-medium text-gray-900">Save Hours of Manual Work</h3>
+                                <p class="text-gray-600">Reduce tax preparation time by up to 80% with our automated system</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start group">
+                            <div class="flex-shrink-0 mt-1 icon-hover">
+                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-lg font-medium text-gray-900">Secure and Compliant</h3>
+                                <p class="text-gray-600">Bank-level encryption and compliance with tax regulations</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-8 flex items-center">
+                        <div class="flex -space-x-2 mr-4">
+                            <div class="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-xs text-blue-600 border-2 border-white">
+                                JD
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-xs text-green-600 border-2 border-white">
+                                KL
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-xs text-purple-600 border-2 border-white">
+                                MN
+                            </div>
+                        </div>
+                        <span class="text-sm text-gray-600">5,000+ tax professionals trust Ctrl+Filing</span>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg hover-lift animate-in fade-in-50 slide-in-from-right-5 duration-700">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-xl font-bold text-gray-900">Tax Savings Dashboard</h3>
+                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-medium">Business Expenses</span>
+                                <span class="text-green-600 font-medium">$4,250</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full progress-bar" style="width: 75%"></div>
+                            </div>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-medium">Charitable Donations</span>
+                                <span class="text-green-600 font-medium">$1,800</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full progress-bar delay-200" style="width: 40%"></div>
+                            </div>
+                        </div>
+                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-medium">Home Office Deduction</span>
+                                <span class="text-green-600 font-medium">$2,100</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full progress-bar delay-400" style="width: 55%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-4 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <span class="text-lg font-bold">Potential Tax Savings</span>
+                            <span class="text-xl font-bold text-green-600">$2,430</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTA Section -->
+    <div class="bg-blue-600 text-white py-16">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-3xl md:text-4xl font-bold mb-4 animate-in fade-in-50 duration-700">Ready to transform your tax preparation?</h2>
+            <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-in fade-in-50 duration-700 delay-100">
+                Join thousands of tax professionals who are saving time and reducing errors with Ctrl+Filing.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in-50 duration-700 delay-200">
+                <button class="btn-secondary">Get Started</button>
+                <button class="btn-outline">Schedule a Demo</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        let uploadMethod = 'batch';
+        let selectedFiles = [];
+        let error = null;
+
+        // DOM elements
+        const batchToggle = document.getElementById('batchToggle');
+        const sampleToggle = document.getElementById('sampleToggle');
+        const batchUploadArea = document.getElementById('batchUploadArea');
+        const sampleUploadArea = document.getElementById('sampleUploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const errorAlert = document.getElementById('errorAlert');
+        const errorMessage = document.getElementById('errorMessage');
+        const filesList = document.getElementById('filesList');
+        const filesCount = document.getElementById('filesCount');
+        const filesContainer = document.getElementById('filesContainer');
+
+        // Event listeners
+        batchToggle.addEventListener('click', () => handleToggleChange('batch'));
+        sampleToggle.addEventListener('click', () => handleToggleChange('sample'));
+        
+        // File input handling
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and drop
+        batchUploadArea.addEventListener('click', () => fileInput.click());
+        batchUploadArea.addEventListener('dragover', handleDragOver);
+        batchUploadArea.addEventListener('dragleave', handleDragLeave);
+        batchUploadArea.addEventListener('drop', handleDrop);
+
+        function handleToggleChange(method) {
+            uploadMethod = method;
+            selectedFiles = [];
+            hideError();
+            
+            // Update toggle buttons
+            batchToggle.classList.toggle('active', method === 'batch');
+            sampleToggle.classList.toggle('active', method === 'sample');
+            
+            // Show/hide upload areas
+            if (method === 'batch') {
+                batchUploadArea.classList.remove('hidden');
+                sampleUploadArea.classList.add('hidden');
+            } else {
+                batchUploadArea.classList.add('hidden');
+                sampleUploadArea.classList.remove('hidden');
+            }
+            
+            // Hide files list
+            filesList.classList.add('hidden');
+        }
+
+        function handleFileSelect(event) {
+            const files = Array.from(event.target.files);
+            validateAndSetFiles(files);
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+            batchUploadArea.classList.add('drag-active');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            batchUploadArea.classList.remove('drag-active');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            batchUploadArea.classList.remove('drag-active');
+            
+            const files = Array.from(event.dataTransfer.files);
+            validateAndSetFiles(files);
+        }
+
+        function validateAndSetFiles(files) {
+            hideError();
+            
+            if (files.length > 10) {
+                showError('Maximum 10 files allowed');
+                return;
+            }
+            
+            // Validate file types
+            const allowedTypes = [
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                'application/vnd.ms-excel',
+                'text/csv'
+            ];
+            
+            const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
+            if (invalidFiles.length > 0) {
+                showError('Only PDF, Excel (.xlsx, .xls), and CSV files are allowed');
+                return;
+            }
+            
+            selectedFiles = files;
+            displayFiles();
+        }
+
+        function displayFiles() {
+            if (selectedFiles.length === 0) {
+                filesList.classList.add('hidden');
+                return;
+            }
+            
+            filesCount.textContent = `${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'} selected`;
+            
+            filesContainer.innerHTML = '';
+            selectedFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.className = 'text-sm text-gray-600 flex items-center';
+                li.innerHTML = `
+                    <svg class="h-4 w-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    ${file.name}
+                `;
+                filesContainer.appendChild(li);
+            });
+            
+            filesList.classList.remove('hidden');
+        }
+
+        function handleUpload() {
+            if (selectedFiles.length === 0) {
+                showError('Please select at least one file');
+                return;
+            }
+            
+            // Simulate file upload - in a real app, you would upload to a server
+            const uploadedFiles = selectedFiles.map((file, index) => ({
+                id: Date.now() + index,
+                name: file.name,
+                status: 'processing',
+                size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+                date: new Date().toLocaleDateString(),
+                recognizedFile: ''
+            }));
+            
+            localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
+            
+            // In a real app, you would redirect to the files page
+            alert('Files uploaded successfully! In a real application, you would be redirected to the files processing page.');
+        }
+
+        function handleUseSampleFiles() {
+            // In a real app, you would redirect to the files page with sample data
+            alert('Sample files loaded! In a real application, you would be redirected to the files page with sample data.');
+        }
+
+        function showError(message) {
+            error = message;
+            errorMessage.textContent = message;
+            errorAlert.classList.remove('hidden');
+        }
+
+        function hideError() {
+            error = null;
+            errorAlert.classList.add('hidden');
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Any initialization code can go here
+            console.log('Ctrl+Filing page loaded');
+        });
+    </script>
 </body>
 </html>
