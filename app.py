@@ -254,14 +254,8 @@ def check_access():
 
 @app.route('/')
 def home():
-    # If user is fully logged in, redirect to dashboard
-    if 'firm_id' in session and 'user_id' in session:
-        return redirect(url_for('dashboard'))
-    # If user has partial session (firm selected but no user), redirect to user selection
-    elif 'firm_id' in session and 'user_id' not in session:
-        return redirect(url_for('select_user'))
-    # Show landing page for completely new visitors
-    return render_template('landing.html')
+    # Show CtrlFiling as the main landing page
+    return send_file('CtrlFiling/index.html')
 
 @app.route('/landing')
 def landing():
@@ -312,7 +306,7 @@ def set_user():
         session['user_name'] = user.name
         session['user_role'] = user.role
         flash(f'Welcome, {user.name}!', 'success')
-        return redirect(url_for('ctrl_filing'))
+        return redirect(url_for('dashboard'))
     else:
         flash('Invalid user selection', 'error')
         return redirect(url_for('select_user'))
