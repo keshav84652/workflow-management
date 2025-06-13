@@ -28,11 +28,74 @@ ALLOWED_EXTENSIONS = {
 os.makedirs('instance', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem, IncomeWorksheet
 
 db.init_app(app)
 migrate = Migrate(app, db)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
+
+
+# AI Analysis Helper Functions
+def perform_checklist_ai_analysis(checklist):
+    """Perform one-time AI analysis for a checklist and all its documents"""
+    if checklist.ai_analysis_completed:
+        return
+    
+    try:
+        import json
+        from datetime import datetime
+        
+        # Analyze all uploaded documents that haven't been analyzed yet
+        total_documents = 0
+        analyzed_documents = 0
+        document_types = {}
+        confidence_scores = []
+        
+        for item in checklist.items:
+            for document in item.client_documents:
+                total_documents += 1
+                if not document.ai_analysis_completed:
+                    # Skip analysis in this function - let individual requests handle it
+                    # to avoid database locking issues
+                    pass
+                else:
+                    # Document already analyzed
+                    analyzed_documents += 1
+                    if document.ai_document_type:
+                        document_types[document.ai_document_type] = document_types.get(document.ai_document_type, 0) + 1
+                    if document.ai_confidence_score:
+                        confidence_scores.append(document.ai_confidence_score)
+        
+        # Only save checklist summary if we have some analyzed documents
+        if analyzed_documents > 0:
+            # Create checklist-level summary
+            checklist_summary = {
+                'total_documents': total_documents,
+                'analyzed_documents': analyzed_documents,
+                'document_types': document_types,
+                'average_confidence': sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0,
+                'analysis_timestamp': datetime.utcnow().isoformat(),
+                'status': 'completed' if analyzed_documents == total_documents else 'partial'
+            }
+            
+            try:
+                # Save checklist analysis with proper error handling
+                checklist.ai_analysis_completed = True
+                checklist.ai_analysis_results = json.dumps(checklist_summary)
+                checklist.ai_analysis_timestamp = datetime.utcnow()
+                
+                db.session.commit()
+                
+            except Exception as db_error:
+                print(f"Database error saving checklist analysis: {db_error}")
+                db.session.rollback()
+        
+    except Exception as e:
+        print(f"Error performing checklist AI analysis: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
 # AI Document Analysis Integration
 # Note: Requires environment setup (.env file with API keys)
 try:
@@ -3235,7 +3298,6 @@ def checklist_dashboard(checklist_id):
         Client.firm_id == firm_id
     ).first_or_404()
     
-    
     return render_template('checklist_dashboard.html', checklist=checklist)
 
 @app.route('/download-document/<int:document_id>')
@@ -3566,6 +3628,18 @@ def get_document_analysis(document_id):
     if not document:
         return jsonify({'error': 'Document not found'}), 404
     
+    # Check if AI analysis has already been completed
+    if document.ai_analysis_completed and document.ai_analysis_results:
+        try:
+            import json
+            cached_results = json.loads(document.ai_analysis_results)
+            cached_results['cached'] = True
+            cached_results['analysis_timestamp'] = document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None
+            return jsonify(cached_results)
+        except (json.JSONDecodeError, AttributeError):
+            # If cached results are corrupted, proceed with new analysis
+            pass
+    
     try:
         # Import the document processor
         from backend.services.document_processor import DocumentProcessor
@@ -3648,26 +3722,362 @@ def get_document_analysis(document_id):
                 if hasattr(processed_doc.gemini_result, 'recommendations') and processed_doc.gemini_result.recommendations:
                     gemini_result['recommendations'] = processed_doc.gemini_result.recommendations
             
-            return jsonify({
+            # Prepare results to save
+            analysis_results = {
                 'document_id': document_id,
-                'filename': document.original_filename,  # Return original filename
+                'filename': document.original_filename,
                 'status': 'completed',
                 'azure_result': azure_result,
                 'gemini_result': gemini_result,
                 'visualization_available': True,
                 'processing_notes': f'Processed with Azure: {"Yes" if processed_doc.azure_result else "No"}, Gemini: {"Yes" if processed_doc.gemini_result else "No"}'
-            })
+            }
+            
+            # Save analysis results to database with proper transaction handling
+            import json
+            from datetime import datetime
+            
+            try:
+                # Use a fresh session for the database update to avoid conflicts
+                document.ai_analysis_completed = True
+                document.ai_analysis_results = json.dumps(analysis_results)
+                document.ai_analysis_timestamp = datetime.utcnow()
+                document.ai_document_type = gemini_result.get('document_type', 'Unknown')
+                document.ai_confidence_score = azure_result.get('confidence', 0.0)
+                
+                db.session.commit()
+                
+            except Exception as db_error:
+                print(f"Database update error: {db_error}")
+                db.session.rollback()
+                # Still return results even if database save fails
+                pass
+            
+            return jsonify(analysis_results)
             
         finally:
             loop.close()
             
     except Exception as e:
-        print(f"Document processing error: {e}")  # Use print instead of logger
+        print(f"Document processing error: {e}")
+        # Ensure session is clean for future requests
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
         return jsonify({
             'error': 'Document processing failed',
             'details': str(e),
             'message': 'Unable to process document. Please ensure Azure and Gemini API keys are configured correctly.'
         }), 500
+
+@app.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
+def analyze_checklist_api(checklist_id):
+    """API endpoint to trigger checklist-level AI analysis"""
+    try:
+        firm_id = session['firm_id']
+        
+        # Get checklist and verify it belongs to this firm
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+        
+        if checklist.ai_analysis_completed:
+            return jsonify({
+                'status': 'already_completed',
+                'message': 'Checklist analysis already completed',
+                'results': checklist.get_ai_analysis_summary()
+            })
+        
+        # Perform the analysis
+        perform_checklist_ai_analysis(checklist)
+        
+        return jsonify({
+            'status': 'completed',
+            'message': 'Checklist analysis completed successfully',
+            'results': checklist.get_ai_analysis_summary()
+        })
+        
+    except Exception as e:
+        print(f"Checklist analysis API error: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        return jsonify({
+            'error': 'Checklist analysis failed',
+            'details': str(e)
+        }), 500
+
+@app.route('/api/generate-income-worksheet/<int:checklist_id>', methods=['POST'])
+def generate_income_worksheet_api(checklist_id):
+    """Generate income worksheet CSV from all documents in a checklist"""
+    try:
+        firm_id = session['firm_id']
+        
+        # Get checklist and verify it belongs to this firm
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+        
+        # Collect all uploaded documents from the checklist
+        documents_data = []
+        for item in checklist.items:
+            for document in item.client_documents:
+                if os.path.exists(document.file_path):
+                    documents_data.append({
+                        'id': document.id,
+                        'file_path': document.file_path,
+                        'filename': document.original_filename,
+                        'mime_type': document.mime_type
+                    })
+        
+        if not documents_data:
+            return jsonify({
+                'error': 'No documents found in checklist',
+                'message': 'Please upload documents before generating income worksheet'
+            }), 400
+        
+        # Import the income worksheet service
+        from backend.services.income_worksheet_service import IncomeWorksheetService
+        from backend.models.document import FileUpload
+        from pathlib import Path
+        import asyncio
+        
+        # Convert documents to FileUpload objects
+        file_uploads = []
+        for doc_data in documents_data:
+            file_upload = FileUpload(
+                filename=doc_data['filename'],
+                content_type=doc_data['mime_type'] or 'application/pdf',
+                size=os.path.getsize(doc_data['file_path']),
+                file_path=Path(doc_data['file_path'])
+            )
+            file_uploads.append(file_upload)
+        
+        # Generate income worksheet
+        worksheet_service = IncomeWorksheetService()
+        client_name = checklist.client.name
+        
+        # Run the async worksheet generation
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            result = loop.run_until_complete(
+                worksheet_service.generate_income_worksheet(file_uploads, client_name)
+            )
+            
+            if not result['success']:
+                return jsonify({
+                    'error': 'Income worksheet generation failed',
+                    'details': result.get('error', 'Unknown error'),
+                    'message': 'Unable to extract tax data from documents'
+                }), 500
+            
+            # Save worksheet to database (replace existing if any)
+            try:
+                import json
+                
+                # Check if worksheet already exists for this checklist
+                existing_worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
+                
+                if existing_worksheet:
+                    # Update existing worksheet
+                    existing_worksheet.filename = result['filename']
+                    existing_worksheet.csv_content = result['csv_content']
+                    existing_worksheet.document_count = result['document_count']
+                    existing_worksheet.generated_at = datetime.utcnow()
+                    existing_worksheet.generated_by = session['user_id']
+                    existing_worksheet.validation_results = json.dumps(result['validation'])
+                    existing_worksheet.ai_analysis_version = '1.0'
+                    
+                    worksheet = existing_worksheet
+                    action = 'updated'
+                else:
+                    # Create new worksheet
+                    worksheet = IncomeWorksheet(
+                        checklist_id=checklist_id,
+                        filename=result['filename'],
+                        csv_content=result['csv_content'],
+                        document_count=result['document_count'],
+                        generated_by=session['user_id'],
+                        validation_results=json.dumps(result['validation']),
+                        ai_analysis_version='1.0'
+                    )
+                    db.session.add(worksheet)
+                    action = 'created'
+                
+                db.session.commit()
+                
+                # Return the CSV content and metadata with save info
+                return jsonify({
+                    'success': True,
+                    'csv_content': result['csv_content'],
+                    'filename': result['filename'],
+                    'document_count': result['document_count'],
+                    'validation': result['validation'],
+                    'generated_at': result['generated_at'],
+                    'client_name': client_name,
+                    'checklist_name': checklist.name,
+                    'saved': True,
+                    'worksheet_id': worksheet.id,
+                    'action': action,
+                    'file_size': worksheet.file_size_formatted
+                })
+                
+            except Exception as save_error:
+                print(f"Error saving worksheet to database: {save_error}")
+                # Still return the CSV content even if save fails
+                return jsonify({
+                    'success': True,
+                    'csv_content': result['csv_content'],
+                    'filename': result['filename'],
+                    'document_count': result['document_count'],
+                    'validation': result['validation'],
+                    'generated_at': result['generated_at'],
+                    'client_name': client_name,
+                    'checklist_name': checklist.name,
+                    'saved': False,
+                    'save_error': str(save_error)
+                })
+            
+        finally:
+            loop.close()
+            
+    except Exception as e:
+        print(f"Income worksheet generation error: {e}")
+        try:
+            db.session.rollback()
+        except:
+            pass
+        
+        return jsonify({
+            'error': 'Income worksheet generation failed',
+            'details': str(e),
+            'message': 'Unable to process documents. Please ensure all documents are valid tax forms.'
+        }), 500
+
+@app.route('/download-income-worksheet/<int:checklist_id>')
+def download_income_worksheet(checklist_id):
+    """Download income worksheet CSV file"""
+    try:
+        # Generate the worksheet using the API endpoint logic
+        from flask import Response
+        
+        # Call the generation API internally
+        with app.test_request_context():
+            session['firm_id'] = session.get('firm_id')
+            session['user_id'] = session.get('user_id')
+            
+            api_response = generate_income_worksheet_api(checklist_id)
+            
+            if api_response[1] != 200:  # Check status code
+                flash('Failed to generate income worksheet', 'error')
+                return redirect(url_for('checklist_dashboard', checklist_id=checklist_id))
+            
+            result = api_response[0].get_json()
+            
+            if not result['success']:
+                flash(f'Income worksheet generation failed: {result.get("error", "Unknown error")}', 'error')
+                return redirect(url_for('checklist_dashboard', checklist_id=checklist_id))
+            
+            # Create CSV response
+            csv_content = result['csv_content']
+            filename = result['filename']
+            
+            return Response(
+                csv_content,
+                mimetype='text/csv',
+                headers={
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'Content-Type': 'text/csv; charset=utf-8'
+                }
+            )
+            
+    except Exception as e:
+        print(f"Error downloading income worksheet: {e}")
+        flash('Failed to download income worksheet', 'error')
+        return redirect(url_for('checklist_dashboard', checklist_id=checklist_id))
+
+@app.route('/api/saved-income-worksheet/<int:checklist_id>')
+def get_saved_income_worksheet(checklist_id):
+    """Get saved income worksheet for a checklist"""
+    try:
+        firm_id = session['firm_id']
+        
+        # Get checklist and verify it belongs to this firm
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            return jsonify({'error': 'Checklist not found'}), 404
+        
+        # Get saved worksheet
+        worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
+        
+        if not worksheet:
+            return jsonify({'saved': False, 'message': 'No saved worksheet found'})
+        
+        return jsonify({
+            'saved': True,
+            'worksheet_id': worksheet.id,
+            'filename': worksheet.filename,
+            'document_count': worksheet.document_count,
+            'generated_at': worksheet.generated_at.isoformat() if worksheet.generated_at else None,
+            'file_size': worksheet.file_size_formatted,
+            'is_recent': worksheet.is_recent,
+            'generator_name': worksheet.generator.name if worksheet.generator else 'Unknown',
+            'validation': worksheet.get_validation_data()
+        })
+        
+    except Exception as e:
+        print(f"Error retrieving saved worksheet: {e}")
+        return jsonify({'error': 'Failed to retrieve saved worksheet'}), 500
+
+@app.route('/download-saved-worksheet/<int:worksheet_id>')
+def download_saved_worksheet(worksheet_id):
+    """Download a saved income worksheet by ID"""
+    try:
+        firm_id = session['firm_id']
+        
+        # Get worksheet and verify access through checklist
+        worksheet = IncomeWorksheet.query.join(DocumentChecklist).join(Client).filter(
+            IncomeWorksheet.id == worksheet_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not worksheet:
+            flash('Saved worksheet not found', 'error')
+            return redirect(url_for('document_checklists'))
+        
+        from flask import Response
+        
+        return Response(
+            worksheet.csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': f'attachment; filename="{worksheet.filename}"',
+                'Content-Type': 'text/csv; charset=utf-8'
+            }
+        )
+        
+    except Exception as e:
+        print(f"Error downloading saved worksheet: {e}")
+        flash('Failed to download saved worksheet', 'error')
+        return redirect(url_for('document_checklists'))
 
 @app.route('/create-document-visualization/<int:document_id>', methods=['POST'])
 def create_document_visualization(document_id):

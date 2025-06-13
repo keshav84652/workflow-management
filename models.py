@@ -724,6 +724,12 @@ class DocumentChecklist(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # AI Analysis fields
+    ai_analysis_completed = db.Column(db.Boolean, default=False, nullable=False)
+    ai_analysis_results = db.Column(db.Text)  # JSON string of AI analysis results
+    ai_analysis_timestamp = db.Column(db.DateTime)
+    ai_analysis_version = db.Column(db.String(50), default='1.0')  # Track AI model version
+    
     # Relationships
     client = db.relationship('Client', backref='document_checklists')
     creator = db.relationship('User', backref='created_checklists')
@@ -755,6 +761,26 @@ class DocumentChecklist(db.Model):
     def uploaded_items_count(self):
         """Count of uploaded items"""
         return len([item for item in self.items if item.status == 'uploaded'])
+    
+    def needs_ai_analysis(self):
+        """Check if checklist needs AI analysis"""
+        if self.ai_analysis_completed:
+            return False
+        # Check if any documents have been uploaded since last analysis
+        for item in self.items:
+            if item.client_documents and any(not doc.ai_analysis_completed for doc in item.client_documents):
+                return True
+        return False
+    
+    def get_ai_analysis_summary(self):
+        """Get summary of AI analysis results for this checklist"""
+        if not self.ai_analysis_completed or not self.ai_analysis_results:
+            return None
+        try:
+            import json
+            return json.loads(self.ai_analysis_results)
+        except (json.JSONDecodeError, AttributeError):
+            return None
 
 
 class ChecklistItem(db.Model):
@@ -817,6 +843,13 @@ class ClientDocument(db.Model):
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     uploaded_by_client = db.Column(db.Boolean, default=True, nullable=False)
     
+    # AI Analysis fields
+    ai_analysis_completed = db.Column(db.Boolean, default=False, nullable=False)
+    ai_analysis_results = db.Column(db.Text)  # JSON string of AI analysis results
+    ai_analysis_timestamp = db.Column(db.DateTime)
+    ai_document_type = db.Column(db.String(100))  # Detected document type (W-2, 1099, etc.)
+    ai_confidence_score = db.Column(db.Float)  # AI confidence level (0.0 to 1.0)
+    
     # Relationships
     client = db.relationship('Client', backref='uploaded_documents')
     checklist_item = db.relationship('ChecklistItem', backref='client_documents')
@@ -873,5 +906,55 @@ class DocumentTemplateItem(db.Model):
     
     # Relationships
     template = db.relationship('DocumentTemplate', backref='template_items')
+
+
+class IncomeWorksheet(db.Model):
+    """Saved income worksheets generated from checklist documents"""
+    __tablename__ = 'income_worksheet'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('document_checklist.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    csv_content = db.Column(db.Text, nullable=False)
+    document_count = db.Column(db.Integer, nullable=False, default=0)
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    generated_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Validation and metadata
+    validation_results = db.Column(db.Text)  # JSON string of validation data
+    ai_analysis_version = db.Column(db.String(50), default='1.0')
+    
+    # Relationships
+    checklist = db.relationship('DocumentChecklist', backref='income_worksheets')
+    generator = db.relationship('User', backref='generated_worksheets')
+    
+    @property
+    def file_size_formatted(self):
+        """Human-readable file size"""
+        size = len(self.csv_content.encode('utf-8'))
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.1f} KB"
+        else:
+            return f"{size / (1024 * 1024):.1f} MB"
+    
+    @property
+    def is_recent(self):
+        """Check if worksheet was generated recently (within 1 hour)"""
+        if not self.generated_at:
+            return False
+        time_diff = datetime.utcnow() - self.generated_at
+        return time_diff.total_seconds() < 3600  # 1 hour
+    
+    def get_validation_data(self):
+        """Get validation results as dictionary"""
+        if not self.validation_results:
+            return {}
+        try:
+            import json
+            return json.loads(self.validation_results)
+        except:
+            return {}
 
 

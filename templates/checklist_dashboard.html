@@ -78,6 +78,21 @@
                             <i class="bi bi-file-earmark-arrow-down mr-2"></i>
                             Export Analysis
                         </button>
+                        <div class="flex items-center space-x-2">
+                            <button id="incomeWorksheetBtn" onclick="generateIncomeWorksheet()" 
+                                    class="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors">
+                                <i class="bi bi-file-earmark-spreadsheet mr-2"></i>
+                                <span id="incomeWorksheetBtnText">Income Worksheet</span>
+                            </button>
+                            <div id="worksheetStatus" class="hidden">
+                                <button onclick="downloadSavedWorksheet()" 
+                                        class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors cursor-pointer"
+                                        title="Click to download saved worksheet">
+                                    <i class="bi bi-check-circle mr-1"></i>
+                                    <span id="worksheetStatusText">Saved</span>
+                                </button>
+                            </div>
+                        </div>
                         <button onclick="generateWorkpaper()" 
                                 class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
                             <i class="bi bi-file-earmark-pdf mr-2"></i>
@@ -115,9 +130,21 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center space-x-2">
+                                        {% if document.ai_analysis_completed %}
+                                        <span id="analysis-status-{{ document.id }}" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                            <i class="bi bi-check-circle mr-1"></i>
+                                            Analyzed
+                                        </span>
+                                        {% if document.ai_document_type %}
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                                            {{ document.ai_document_type }}
+                                        </span>
+                                        {% endif %}
+                                        {% else %}
                                         <span id="analysis-status-{{ document.id }}" class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                                             Not Analyzed
                                         </span>
+                                        {% endif %}
                                         {% if item.is_required %}
                                         <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
                                             Required
@@ -140,10 +167,58 @@
                         <div id="document-content-{{ document.id }}" class="hidden border-t border-gray-200 bg-gray-50">
                             <div class="p-4">
                                 <div id="document-analysis-{{ document.id }}">
+                                    {% if document.ai_analysis_completed and document.ai_analysis_results %}
+                                    <!-- Show cached analysis results -->
+                                    <div class="bg-white rounded-lg p-4 border">
+                                        <div class="flex items-center justify-between mb-3">
+                                            <h5 class="font-medium text-gray-900">AI Analysis Results</h5>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                                    <i class="bi bi-check-circle mr-1"></i>
+                                                    Cached
+                                                </span>
+                                                <span class="text-xs text-gray-500">
+                                                    {{ document.ai_analysis_timestamp.strftime('%m/%d/%Y %I:%M %p') if document.ai_analysis_timestamp else 'Unknown' }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {% if document.ai_document_type %}
+                                            <div>
+                                                <h6 class="text-sm font-medium text-gray-700 mb-2">Document Type</h6>
+                                                <p class="text-sm text-gray-600">{{ document.ai_document_type }}</p>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if document.ai_confidence_score %}
+                                            <div>
+                                                <h6 class="text-sm font-medium text-gray-700 mb-2">Confidence Score</h6>
+                                                <div class="flex items-center space-x-2">
+                                                    <div class="w-16 bg-gray-200 rounded-full h-2">
+                                                        <div class="bg-green-600 h-2 rounded-full" style="width: {{ (document.ai_confidence_score * 100)|round }}%"></div>
+                                                    </div>
+                                                    <span class="text-sm text-gray-600">{{ (document.ai_confidence_score * 100)|round }}%</span>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <div class="mt-4">
+                                            <button onclick="viewFullAnalysis({{ document.id }})" 
+                                                    class="inline-flex items-center px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors">
+                                                <i class="bi bi-eye mr-1"></i>
+                                                View Full Analysis
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <!-- Show placeholder for unanalyzed documents -->
                                     <div class="text-center py-8 text-gray-500">
                                         <i class="bi bi-file-earmark-text text-2xl mb-2"></i>
                                         <p>Click "Analyze All Documents" to process this document</p>
                                     </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -286,7 +361,111 @@ document.addEventListener('DOMContentLoaded', function() {
         const filename = document.querySelector(`#expand-icon-${documentId}`).parentElement.parentElement.querySelector('h4').textContent;
         return { id: parseInt(documentId), filename: filename };
     });
+    
+    // Load saved worksheet status
+    loadSavedWorksheetStatus();
 });
+
+// Load saved worksheet status on page load
+async function loadSavedWorksheetStatus() {
+    const checklistId = {{ checklist.id }};
+    
+    try {
+        const response = await fetch(`/api/saved-income-worksheet/${checklistId}`);
+        const data = await response.json();
+        
+        if (data.saved) {
+            updateWorksheetStatus({
+                saved: true,
+                worksheet_id: data.worksheet_id,
+                filename: data.filename,
+                generated_at: data.generated_at,
+                file_size: data.file_size,
+                is_recent: data.is_recent,
+                action: 'loaded'
+            });
+        }
+    } catch (error) {
+        console.log('No saved worksheet found or error loading status:', error);
+    }
+}
+
+// Store current worksheet ID for downloading
+let currentWorksheetId = null;
+
+// Update worksheet status UI
+function updateWorksheetStatus(data) {
+    const statusDiv = document.getElementById('worksheetStatus');
+    const statusText = document.getElementById('worksheetStatusText');
+    const btnText = document.getElementById('incomeWorksheetBtnText');
+    
+    if (data.saved) {
+        const date = new Date(data.generated_at);
+        const timeAgo = getTimeAgo(date);
+        
+        // Store worksheet ID for downloading
+        currentWorksheetId = data.worksheet_id;
+        
+        statusDiv.classList.remove('hidden');
+        
+        if (data.action === 'created') {
+            statusText.textContent = `Saved (${data.file_size})`;
+            btnText.textContent = 'Income Worksheet';
+        } else if (data.action === 'updated') {
+            statusText.textContent = `Updated (${data.file_size})`;
+            btnText.textContent = 'Income Worksheet';
+        } else {
+            statusText.textContent = `Saved ${timeAgo} (${data.file_size})`;
+            btnText.textContent = 'Re-generate';
+        }
+        
+        // Add tooltip with more info
+        const statusButton = statusDiv.querySelector('button');
+        statusButton.title = `Generated: ${date.toLocaleString()}\\nFilename: ${data.filename}\\nClick to download saved version`;
+    } else {
+        statusDiv.classList.add('hidden');
+        btnText.textContent = 'Income Worksheet';
+        currentWorksheetId = null;
+    }
+}
+
+// Download saved worksheet function
+async function downloadSavedWorksheet() {
+    if (!currentWorksheetId) {
+        alert('No saved worksheet available');
+        return;
+    }
+    
+    try {
+        // Create a temporary link to download the saved worksheet
+        const downloadUrl = `/download-saved-worksheet/${currentWorksheetId}`;
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = ''; // Let server determine filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+    } catch (error) {
+        console.error('Error downloading saved worksheet:', error);
+        alert('Failed to download saved worksheet: ' + error.message);
+    }
+}
+
+// Helper function to get human-readable time ago
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+}
 
 // Toggle document expansion
 function toggleDocumentExpansion(documentId) {
@@ -300,6 +479,150 @@ function toggleDocumentExpansion(documentId) {
         content.classList.add('hidden');
         icon.classList.remove('rotate-90');
     }
+}
+
+// View full cached analysis results
+async function viewFullAnalysis(documentId) {
+    try {
+        const response = await fetch(`/api/document-analysis/${documentId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Show full analysis in modal
+        showAnalysisModal(data);
+        
+    } catch (error) {
+        console.error('Error loading full analysis:', error);
+        alert('Failed to load full analysis: ' + error.message);
+    }
+}
+
+// Show analysis results in a modal
+function showAnalysisModal(data) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">AI Analysis Results</h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                            <h4 class="font-medium text-gray-900">${data.filename}</h4>
+                            <p class="text-sm text-gray-600">Status: ${data.status}</p>
+                        </div>
+                        ${data.cached ? `
+                        <span class="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            <i class="bi bi-check-circle mr-1"></i>
+                            Cached Result
+                        </span>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Azure Results -->
+                    ${data.azure_result && Object.keys(data.azure_result).length > 0 ? `
+                    <div class="border rounded-lg p-4">
+                        <h5 class="font-medium text-gray-900 mb-3">Azure Document Intelligence</h5>
+                        <div class="space-y-3">
+                            ${data.azure_result.key_value_pairs && data.azure_result.key_value_pairs.length > 0 ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Extracted Fields</h6>
+                                <div class="grid grid-cols-2 gap-2">
+                                    ${data.azure_result.key_value_pairs.map(pair => `
+                                        <div class="text-sm">
+                                            <span class="font-medium text-gray-600">${pair.key}:</span>
+                                            <span class="text-gray-800">${pair.value}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.azure_result.confidence ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Confidence Score</h6>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-32 bg-gray-200 rounded-full h-2">
+                                        <div class="bg-blue-600 h-2 rounded-full" style="width: ${(data.azure_result.confidence * 100).toFixed(0)}%"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-600">${(data.azure_result.confidence * 100).toFixed(1)}%</span>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    <!-- Gemini Results -->
+                    ${data.gemini_result && Object.keys(data.gemini_result).length > 0 ? `
+                    <div class="border rounded-lg p-4">
+                        <h5 class="font-medium text-gray-900 mb-3">Google Gemini Analysis</h5>
+                        <div class="space-y-3">
+                            ${data.gemini_result.document_type ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-1">Document Type</h6>
+                                <p class="text-sm text-gray-800">${data.gemini_result.document_type}</p>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.gemini_result.summary ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-1">Summary</h6>
+                                <p class="text-sm text-gray-800">${data.gemini_result.summary}</p>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.gemini_result.key_findings && data.gemini_result.key_findings.length > 0 ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Key Findings</h6>
+                                <ul class="list-disc list-inside space-y-1">
+                                    ${data.gemini_result.key_findings.map(finding => `<li class="text-sm text-gray-800">${finding}</li>`).join('')}
+                                </ul>
+                            </div>
+                            ` : ''}
+                            
+                            ${data.gemini_result.recommendations && data.gemini_result.recommendations.length > 0 ? `
+                            <div>
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Recommendations</h6>
+                                <ul class="list-disc list-inside space-y-1">
+                                    ${data.gemini_result.recommendations.map(rec => `<li class="text-sm text-gray-800">${rec}</li>`).join('')}
+                                </ul>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    ` : ''}
+                    
+                    ${data.processing_notes ? `
+                    <div class="text-xs text-gray-500 p-3 bg-gray-50 rounded">
+                        ${data.processing_notes}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
 }
 
 // Analyze all documents
@@ -678,6 +1001,95 @@ async function generateWorkpaper() {
         
     } catch (error) {
         alert('Workpaper generation failed: ' + error.message);
+    }
+}
+
+// Generate income worksheet CSV
+async function generateIncomeWorksheet() {
+    const checklistId = {{ checklist.id }};
+    
+    try {
+        // Show loading state
+        const button = document.getElementById('incomeWorksheetBtn');
+        const btnText = document.getElementById('incomeWorksheetBtnText');
+        const originalText = btnText.textContent;
+        
+        button.disabled = true;
+        btnText.textContent = 'Generating...';
+        button.querySelector('i').className = 'bi bi-hourglass-split mr-2';
+        
+        const response = await fetch(`/api/generate-income-worksheet/${checklistId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || errorData.error || 'Failed to generate income worksheet');
+        }
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to generate income worksheet');
+        }
+        
+        // Create and download CSV file
+        const csvContent = result.csv_content;
+        const filename = result.filename;
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Update status UI
+        if (result.saved) {
+            updateWorksheetStatus({
+                saved: true,
+                filename: result.filename,
+                generated_at: result.generated_at,
+                file_size: result.file_size,
+                action: result.action
+            });
+        }
+        
+        // Show success message with save status
+        let message = `Income worksheet generated successfully!\n\nDocuments processed: ${result.document_count}\nClient: ${result.client_name}\nFilename: ${filename}`;
+        
+        if (result.saved) {
+            message += `\n\n✅ Worksheet ${result.action} and saved to database`;
+            if (result.action === 'updated') {
+                message += '\n(Previous version was replaced)';
+            }
+        } else if (result.save_error) {
+            message += '\n\n⚠️ Generated but not saved to database';
+        }
+        
+        alert(message);
+        
+    } catch (error) {
+        console.error('Income worksheet generation error:', error);
+        alert('Income worksheet generation failed: ' + error.message);
+    } finally {
+        // Restore button state
+        const button = document.getElementById('incomeWorksheetBtn');
+        const btnText = document.getElementById('incomeWorksheetBtnText');
+        
+        button.disabled = false;
+        button.querySelector('i').className = 'bi bi-file-earmark-spreadsheet mr-2';
+        
+        // Restore appropriate text (will be overridden by updateWorksheetStatus if successful)
+        if (btnText.textContent === 'Generating...') {
+            btnText.textContent = 'Income Worksheet';
+        }
     }
 }
 

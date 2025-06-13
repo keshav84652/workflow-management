@@ -103,7 +103,8 @@ class GeminiDocumentService:
         self,
         document_content: bytes,
         document_name: str,
-        content_type: str = "application/pdf"
+        content_type: str = "application/pdf",
+        custom_prompt: str = None
     ) -> GeminiAnalysisResult:
         """
         Analyze a document using Gemini for understanding and structured output.
@@ -151,23 +152,40 @@ class GeminiDocumentService:
                     mime_type=content_type
                 ))
             
-            # Add the prompt
-            prompt = self._create_analysis_prompt(document_name)
-            parts.append(prompt)
+            # Add the prompt (custom or default)
+            if custom_prompt:
+                parts.append(custom_prompt)
+            else:
+                prompt = self._create_analysis_prompt(document_name)
+                parts.append(prompt)
             
             # Generate content with structured output - simplified for stability
-            response = self.client.models.generate_content(
-                model=self.model_name,
-                contents=parts,
-                config=types.GenerateContentConfig(
-                    temperature=0.1,
-                    top_p=0.95,
-                    top_k=32,
-                    max_output_tokens=4096,  # Reduced to ensure complete response
-                    response_mime_type="application/json",
-                    response_schema=self.output_schema
+            if custom_prompt:
+                # For custom prompts, don't enforce JSON schema
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=parts,
+                    config=types.GenerateContentConfig(
+                        temperature=0.1,
+                        top_p=0.95,
+                        top_k=32,
+                        max_output_tokens=4096
+                    )
                 )
-            )
+            else:
+                # For default analysis, use structured JSON output
+                response = self.client.models.generate_content(
+                    model=self.model_name,
+                    contents=parts,
+                    config=types.GenerateContentConfig(
+                        temperature=0.1,
+                        top_p=0.95,
+                        top_k=32,
+                        max_output_tokens=4096,  # Reduced to ensure complete response
+                        response_mime_type="application/json",
+                        response_schema=self.output_schema
+                    )
+                )
             
             # Calculate response time
             response_time_ms = (time.time() - start_time) * 1000
@@ -175,6 +193,26 @@ class GeminiDocumentService:
             # Parse the response with enhanced error handling
             if not response.text:
                 raise ValueError("Empty response from Gemini API")
+            
+            # Handle custom prompt responses (non-JSON)
+            if custom_prompt:
+                # For custom prompts, return raw response in a simple structure
+                from ..models.document import BookmarkStructure
+                
+                analysis_result = GeminiAnalysisResult(
+                    document_category="Custom Analysis",
+                    document_analysis_summary="Custom prompt analysis completed",
+                    extracted_key_info={},
+                    suggested_bookmark_structure=BookmarkStructure(
+                        level1="Custom Analysis",
+                        level2="CSV Output", 
+                        level3=f"Custom - {document_name}"
+                    ),
+                    raw_response={"csv_output": response.text, "type": "custom_prompt"}
+                )
+                
+                logger.info(f"Custom prompt analysis completed for document: {document_name}")
+                return analysis_result
             
             try:
                 # Log the response for debugging (first 500 chars)
