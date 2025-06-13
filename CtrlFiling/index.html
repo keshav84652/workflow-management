@@ -3,500 +3,823 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ctrl+Filing - AI-Powered Tax Preparation</title>
+    <title>CtrlFiling & CPA WorkflowPilot - Complete Tax & Workflow Solution</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        blue: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a'
-                        }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.7s ease-in-out',
-                        'slide-in-from-bottom': 'slideInFromBottom 0.7s ease-in-out',
-                        'slide-in-from-left': 'slideInFromLeft 0.7s ease-in-out',
-                        'slide-in-from-right': 'slideInFromRight 0.7s ease-in-out',
-                        'scale-up': 'scaleUp 0.3s ease-in-out'
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' }
-                        },
-                        slideInFromBottom: {
-                            '0%': { opacity: '0', transform: 'translateY(20px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' }
-                        },
-                        slideInFromLeft: {
-                            '0%': { opacity: '0', transform: 'translateX(-20px)' },
-                            '100%': { opacity: '1', transform: 'translateX(0)' }
-                        },
-                        slideInFromRight: {
-                            '0%': { opacity: '0', transform: 'translateX(20px)' },
-                            '100%': { opacity: '1', transform: 'translateX(0)' }
-                        },
-                        scaleUp: {
-                            '0%': { transform: 'scale(0.95)' },
-                            '100%': { transform: 'scale(1)' }
-                        }
-                    }
-                }
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-navy: #1e3a8a;
+            --primary-blue: #3b82f6;
+            --secondary-gray: #64748b;
+            --light-gray: #f8fafc;
+            --success-green: #10b981;
+            --warning-amber: #f59e0b;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-light: #e2e8f0;
+        }
+
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        body {
+            overflow-x: hidden;
+        }
+
+        /* Header Styles */
+        .navbar-brand img {
+            transition: all 0.3s ease;
+        }
+
+        .navbar-scrolled {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* File Upload Section */
+        .upload-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-button {
+            transition: all 0.3s ease;
+        }
+
+        .toggle-button.active {
+            background: var(--primary-blue);
+            color: white;
+        }
+
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-active {
+            border-color: var(--primary-blue);
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        /* Feature Cards */
+        .feature-card {
+            transition: all 0.3s ease;
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--primary-blue), var(--primary-navy));
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+
+        /* AI Tools Section */
+        .ai-tool-card {
+            background: white;
+            border-radius: 20px;
+            padding: 3rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .ai-tool-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .ai-tool-image {
+            transition: transform 0.3s ease;
+        }
+
+        .ai-tool-image:hover {
+            transform: scale(1.05);
+        }
+
+        /* Roadmap Timeline */
+        .timeline-item {
+            position: relative;
+            padding-left: 3rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary-blue), transparent);
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: -8px;
+            top: 8px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px var(--primary-blue);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
         }
-    </script>
-    <style>
-        .animate-in {
-            animation-fill-mode: both;
+
+        @keyframes slideInFromLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
-        .fade-in-50 {
-            animation: fadeIn 0.7s ease-in-out;
+
+        @keyframes slideInFromRight {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
-        .slide-in-from-bottom-5 {
-            animation: slideInFromBottom 0.7s ease-in-out;
+
+        .animate-fade-in-up {
+            animation: fadeInUp 0.8s ease-out;
         }
-        .slide-in-from-left-5 {
-            animation: slideInFromLeft 0.7s ease-in-out;
+
+        .animate-slide-in-left {
+            animation: slideInFromLeft 0.8s ease-out;
         }
-        .slide-in-from-right-5 {
-            animation: slideInFromRight 0.7s ease-in-out;
+
+        .animate-slide-in-right {
+            animation: slideInFromRight 0.8s ease-out;
         }
-        .delay-100 { animation-delay: 100ms; }
-        .delay-200 { animation-delay: 200ms; }
-        .delay-300 { animation-delay: 300ms; }
-        .delay-400 { animation-delay: 400ms; }
-        .duration-700 { animation-duration: 700ms; }
-        .duration-1000 { animation-duration: 1000ms; }
-        
-        /* Custom button styles */
-        .btn-primary {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+
+        /* Buttons */
+        .btn-primary-gradient {
+            background: linear-gradient(135deg, var(--success-green) 0%, #059669 100%);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
         }
-        
-        .btn-outline {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium border border-white bg-transparent text-white hover:bg-blue-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+
+        .btn-primary-gradient:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.4);
         }
-        
-        .btn-secondary {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-white text-blue-600 hover:bg-blue-50 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+
+        .btn-outline-glass {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
         }
-        
-        .btn-green {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-green-600 text-white hover:bg-green-700 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
+
+        .btn-outline-glass:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            color: white;
         }
-        
-        .btn-red {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-red-500 text-white hover:bg-red-600 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
-        }
-        
-        .btn-amber {
-            @apply inline-flex items-center justify-center whitespace-nowrap rounded-full text-sm font-medium bg-amber-500 text-white hover:bg-amber-600 h-10 px-6 py-2 transition-all duration-200 ease-in-out hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.97];
-        }
-        
-        /* Custom toggle styles */
-        .toggle-btn {
-            @apply inline-flex items-center justify-center text-sm font-medium transition-all duration-200 ease-in-out h-10 px-3 min-w-10 bg-gray-100 text-gray-700 hover:bg-gray-200;
-        }
-        
-        .toggle-btn.active {
-            @apply bg-blue-600 text-white;
-        }
-        
-        /* File upload area */
-        .file-upload-area {
-            @apply transition-all duration-250 ease-in-out;
-        }
-        
-        .file-upload-area.drag-active {
-            @apply scale-[1.02] border-blue-500 bg-blue-50;
-        }
-        
-        /* Progress bars */
+
+        /* Progress bars animation */
         .progress-bar {
-            animation: progressSlide 1s ease-in-out forwards;
+            background: linear-gradient(45deg, #10b981, #059669);
+            animation: progressLoad 2s ease-in-out;
         }
-        
-        @keyframes progressSlide {
+
+        @keyframes progressLoad {
             from { width: 0%; }
+            to { width: var(--progress-width); }
         }
-        
-        /* Alert styles */
-        .alert {
-            @apply relative w-full rounded-lg border p-4;
-        }
-        
-        .alert.destructive {
-            @apply border-red-200 bg-red-50 text-red-700;
-        }
-        
-        /* Hover effects */
-        .hover-lift {
-            @apply transition-all duration-300 hover:shadow-xl hover:translate-y-[-4px];
-        }
-        
-        .hover-scale {
-            @apply transition-transform duration-500 ease-in-out hover:scale-105;
-        }
-        
-        .icon-hover {
-            @apply transition-transform duration-300 hover:scale-110;
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem !important;
+            }
+            
+            .upload-section {
+                margin: 1rem;
+            }
+
+            .ai-tool-card {
+                padding: 2rem;
+            }
         }
     </style>
 </head>
-<body class="bg-white">
-    <!-- Hero Section -->
-    <div class="bg-blue-600 text-white">
-        <div class="container mx-auto px-4 py-12">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <!-- File Upload Section -->
-                <div class="order-2 md:order-1">
-                    <div class="bg-blue-50 rounded-xl p-6 shadow-sm">
-                        <div class="flex space-x-2 mb-6">
-                            <button id="batchToggle" class="toggle-btn rounded-l-full rounded-r-none flex-1 justify-center active">
+<body>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <img src="/ctrl-filing/logo.png" alt="CtrlFiling Logo" height="40" class="me-2">
+                <span class="fw-bold text-primary d-none d-md-inline">& CPA WorkflowPilot</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="navbar-nav me-auto">
+                    <a class="nav-link" href="#features">Features</a>
+                    <a class="nav-link" href="#ai-tools">AI Tools</a>
+                    <a class="nav-link" href="#workflow">Workflow</a>
+                    <a class="nav-link" href="#pricing">Pricing</a>
+                </div>
+                <div class="navbar-nav">
+                    <a class="btn btn-outline-primary me-2" href="/login">Login to Workflow</a>
+                    <button class="btn btn-primary">Request Demo</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section with File Upload -->
+    <section class="hero-section d-flex align-items-center">
+        <div class="container">
+            <div class="row align-items-center">
+                <!-- Upload Interface -->
+                <div class="col-lg-6 order-2 order-lg-1">
+                    <div class="upload-section p-4 p-lg-5">
+                        <h3 class="text-center mb-4 fw-bold text-primary">Start Your Tax Preparation</h3>
+                        
+                        <!-- Toggle Buttons -->
+                        <div class="d-flex mb-4">
+                            <button class="btn toggle-button active flex-fill me-2" id="batchBtn" onclick="toggleUploadMethod('batch')">
                                 Batch Upload
                             </button>
-                            <button id="sampleToggle" class="toggle-btn rounded-r-full rounded-l-none flex-1 justify-center">
+                            <button class="btn toggle-button flex-fill" id="sampleBtn" onclick="toggleUploadMethod('sample')">
                                 Use Sample Files
                             </button>
                         </div>
 
-                        <div id="batchUploadArea" class="file-upload-area border-2 border-dashed border-blue-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50">
-                            <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.csv" class="hidden">
-                            <div class="flex flex-col items-center">
-                                <svg class="h-12 w-12 text-blue-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                                </svg>
-                                <p class="text-gray-700 mb-2">Click to browse or drag and drop your files</p>
-                                <p class="text-sm text-gray-500">Max 10 files (.pdf, .xlsx, .xls, .csv)</p>
-                            </div>
+                        <!-- Upload Zone -->
+                        <div id="uploadZone" class="upload-zone p-5 text-center rounded-3 mb-3">
+                            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+                            <h5>Click to browse or drag and drop your files</h5>
+                            <p class="text-muted mb-0">Max 10 files (.pdf, .xlsx, .xls, .csv)</p>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.xlsx,.xls,.csv" style="display: none;">
                         </div>
 
-                        <div id="sampleUploadArea" class="border-2 border-dashed border-blue-300 rounded-lg p-8 text-center hidden">
-                            <svg class="h-12 w-12 text-blue-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <p class="text-gray-700 mb-2">Use our sample tax files for demonstration</p>
-                            <button class="btn-primary mt-4" onclick="handleUseSampleFiles()">
-                                Load Sample Files
-                            </button>
+                        <!-- Sample Files Zone -->
+                        <div id="sampleZone" class="upload-zone p-5 text-center rounded-3 mb-3" style="display: none;">
+                            <i class="fas fa-file-alt fa-3x text-primary mb-3"></i>
+                            <h5>Use our sample tax files for demonstration</h5>
+                            <p class="text-muted mb-3">Experience CtrlFiling with pre-loaded tax documents</p>
+                            <button class="btn btn-primary">Load Sample Files</button>
                         </div>
 
-                        <div id="errorAlert" class="alert destructive mt-4 hidden">
-                            <svg class="h-4 w-4 absolute left-4 top-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <div class="pl-7">
-                                <p id="errorMessage"></p>
-                            </div>
-                        </div>
-
-                        <div id="filesList" class="mt-6 hidden">
-                            <p id="filesCount" class="text-sm font-medium text-gray-700 mb-2"></p>
-                            <ul id="filesContainer" class="space-y-2 max-h-32 overflow-y-auto"></ul>
-                            <button class="btn-primary w-full mt-4" onclick="handleUpload()">
-                                Upload Files
+                        <!-- Selected Files -->
+                        <div id="selectedFiles" class="mt-3" style="display: none;">
+                            <h6 class="fw-bold">Selected Files:</h6>
+                            <ul id="fileList" class="list-unstyled"></ul>
+                            <button class="btn btn-success w-100 mt-3" onclick="uploadFiles()">
+                                <i class="fas fa-upload me-2"></i>Upload Files
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Display Section -->
-                <div class="order-1 md:order-2">
-                    <div class="text-center md:text-left mb-8 md:mb-0">
-                        <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 animate-in fade-in slide-in-from-bottom-5 duration-700">
+                <!-- Hero Content -->
+                <div class="col-lg-6 order-1 order-lg-2">
+                    <div class="hero-content text-white text-center text-lg-start">
+                        <h1 class="hero-title display-3 fw-bold mb-4 animate-fade-in-up">
                             Supercharge Tax Preparation with AI
                         </h1>
-                        <p class="text-xl md:text-2xl mb-6 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-200">
-                            Unsh*t Your Tax Season with Ctrl+Filing
+                        <p class="lead mb-4 animate-fade-in-up" style="animation-delay: 0.2s;">
+                            Unsh*t Your Tax Season with CtrlFiling + CPA WorkflowPilot
                         </p>
-                        <img src="/ctrl-filing/illustration.png" alt="Tax Preparation Illustration" class="mx-auto md:mx-0 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-300 max-w-full h-auto">
+                        <p class="mb-4 animate-fade-in-up" style="animation-delay: 0.4s;">
+                            Complete tax preparation and workflow management solution. AI-powered document processing meets intelligent workflow automation.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3 justify-content-center justify-content-lg-start animate-fade-in-up" style="animation-delay: 0.6s;">
+                            <a href="/login" class="btn btn-primary-gradient text-white btn-lg px-4">
+                                <i class="bi bi-rocket-takeoff me-2"></i>Start Free Trial
+                            </a>
+                            <button class="btn btn-outline-glass btn-lg px-4" data-bs-toggle="modal" data-bs-target="#demoModal">
+                                <i class="bi bi-play-circle me-2"></i>Watch Demo
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Features Section -->
-    <div class="py-16">
-        <div class="container mx-auto px-4">
-            <div class="text-center mb-16">
-                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-                    Ctrl+Filing – Tax Tech With Actual Intelligence
-                </h2>
-                <p class="text-xl text-gray-600 max-w-3xl mx-auto">
-                    Empowering you to handle tax season with greater speed, accuracy, and confidence - with our suite of AI Agents.
-                </p>
+    <!-- Stats Section -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <div class="row text-center">
+                <div class="col-md-3 col-6 mb-4">
+                    <div class="h2 fw-bold text-primary">80%</div>
+                    <div class="text-muted">Time Saved</div>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <div class="h2 fw-bold text-primary">5,000+</div>
+                    <div class="text-muted">Tax Professionals</div>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <div class="h2 fw-bold text-primary">500+</div>
+                    <div class="text-muted">CPA Firms</div>
+                </div>
+                <div class="col-md-3 col-6 mb-4">
+                    <div class="h2 fw-bold text-primary">99.9%</div>
+                    <div class="text-muted">Uptime</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Tools Section -->
+    <section id="ai-tools" class="py-5">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-4 fw-bold mb-3">Ctrl+Filing – Tax Tech With Actual Intelligence</h2>
+                <p class="lead text-muted">Empowering you to handle tax season with greater speed, accuracy, and confidence</p>
             </div>
 
-            <!-- TaxPrep Bot Feature -->
-            <div class="max-w-6xl mx-auto mb-24">
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <div class="group">
-                        <img src="/ctrl-filing/taxprep-bot.png" alt="TaxPrep Bot Illustration" class="mx-auto hover-scale max-w-full h-auto">
+            <!-- TaxPrep Bot -->
+            <div class="ai-tool-card mb-5">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <img src="/ctrl-filing/taxprep-bot.png" alt="TaxPrep Bot" class="img-fluid ai-tool-image">
                     </div>
-                    <div>
-                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">TaxPrep Bot</h3>
-                        <p class="text-xl text-gray-600 mb-4">"AI that prepares in CCH Axcess & Lacerte"</p>
-                        <p class="text-gray-600 mb-4">
+                    <div class="col-md-6">
+                        <h3 class="h2 fw-bold text-primary mb-3">TaxPrep Bot</h3>
+                        <p class="h5 text-success mb-3">"AI that prepares in CCH Axcess & Lacerte"</p>
+                        <p class="mb-4">
                             Export directly to tax software like <strong>CCH Axcess & Lacerte</strong>, extract data with AI,
                             validate inputs with smart checks, and get client-ready returns in minutes
                             <strong>—cutting prep time by up to 80%</strong>.
                         </p>
-                        <button class="btn-green group">
-                            Learn More
-                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-                            </svg>
+                        <button class="btn btn-success btn-lg">
+                            Learn More <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Reconciliation Wizard Feature -->
-            <div class="max-w-6xl mx-auto mb-24">
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <div class="order-2 md:order-1">
-                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Reconciliation Wizard</h3>
-                        <p class="text-xl text-gray-600 mb-4">"Magically matches. No wand required."</p>
-                        <p class="text-gray-600 mb-4">
+            <!-- Reconciliation Wizard -->
+            <div class="ai-tool-card mb-5">
+                <div class="row align-items-center">
+                    <div class="col-md-6 order-md-2">
+                        <img src="/ctrl-filing/reconciliation-wizard.png" alt="Reconciliation Wizard" class="img-fluid ai-tool-image">
+                    </div>
+                    <div class="col-md-6 order-md-1">
+                        <h3 class="h2 fw-bold text-primary mb-3">Reconciliation Wizard</h3>
+                        <p class="h5 text-danger mb-3">"Magically matches. No wand required."</p>
+                        <p class="mb-4">
                             Automatically generate formatted <strong>reconciliation sheets</strong>, spot key year-over-year
                             changes, tie schedules to returns with precision, and request custom templates
                             <strong>tailored to your firm's workflows</strong>—all in one place.
                         </p>
-                        <button class="btn-red group">
-                            Learn More
-                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-                            </svg>
+                        <button class="btn btn-danger btn-lg">
+                            Learn More <i class="fas fa-arrow-right ms-2"></i>
                         </button>
-                    </div>
-                    <div class="order-1 md:order-2 group">
-                        <img src="/ctrl-filing/reconciliation-wizard.png" alt="Reconciliation Wizard Illustration" class="mx-auto hover-scale max-w-full h-auto">
                     </div>
                 </div>
             </div>
 
-            <!-- Tic Tie Slayer Feature -->
-            <div class="max-w-6xl mx-auto">
-                <div class="grid md:grid-cols-2 gap-12 items-center">
-                    <div class="group">
-                        <img src="/ctrl-filing/tic-tie-slayer.png" alt="Tic Tie Slayer Illustration" class="mx-auto hover-scale max-w-full h-auto">
+            <!-- Tic Tie Slayer -->
+            <div class="ai-tool-card">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <img src="/ctrl-filing/tic-tie-slayer.png" alt="Tic Tie Slayer" class="img-fluid ai-tool-image">
                     </div>
-                    <div>
-                        <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Tic Tie Slayer</h3>
-                        <p class="text-xl text-gray-600 mb-4">"Destroying busywork, one tie at a time."</p>
-                        <p class="text-gray-600 mb-4">
+                    <div class="col-md-6">
+                        <h3 class="h2 fw-bold text-primary mb-3">Tic Tie Slayer</h3>
+                        <p class="h5 text-warning mb-3">"Destroying busywork, one tie at a time."</p>
+                        <p class="mb-4">
                             Easily navigate tax files with <strong>auto-generated bookmarks</strong>, verify all calculations
                             instantly, generate <strong>compliant audit-ready workpapers</strong>, & link source documents to
                             final returns with <strong>audit trails — all fully automated</strong>.
                         </p>
-                        <button class="btn-amber group">
-                            Learn More
-                            <svg class="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-                            </svg>
+                        <button class="btn btn-warning btn-lg">
+                            Learn More <i class="fas fa-arrow-right ms-2"></i>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Roadmap Section -->
-    <div class="bg-gray-900 text-white py-16">
-        <div class="container mx-auto px-4">
-            <div class="max-w-4xl mx-auto">
-                <h2 class="text-4xl font-bold mb-4 text-center animate-in fade-in-50 duration-700">Roadmap</h2>
-                <p class="text-xl text-gray-400 mb-16 text-center animate-in fade-in-50 duration-700 delay-100">
-                    This roadmap outlines our goals and where we want to take Ctrl+Filing.
-                </p>
+    <!-- CPA Workflow Features -->
+    <section id="workflow" class="py-5 bg-light">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-4 fw-bold mb-3">Complete CPA Practice Management</h2>
+                <p class="lead text-muted">Everything your accounting firm needs for streamlined operations</p>
+            </div>
 
-                <div class="relative">
-                    <!-- Vertical line -->
-                    <div class="absolute left-4 md:left-8 top-0 bottom-0 w-0.5 bg-gray-700"></div>
-
-                    <!-- Roadmap items -->
-                    <div class="space-y-16">
-                        <!-- Item 1 -->
-                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700">
-                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
-                                <div class="h-2 w-2 rounded-full bg-white"></div>
-                            </div>
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div>
-                                    <h3 class="text-2xl font-bold mb-2">Planning & Pre-Production</h3>
-                                    <p class="text-gray-400 mb-4">
-                                        Quality comes first. We took our time to plan out everything and build our production pipeline.
-                                    </p>
-                                </div>
-                                <div class="text-gray-500 md:ml-8">1. Sept</div>
-                            </div>
+            <div class="row g-4">
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-diagram-3 text-white fs-2"></i>
                         </div>
-
-                        <!-- Item 2 -->
-                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-100">
-                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
-                                <div class="h-2 w-2 rounded-full bg-white"></div>
-                            </div>
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div>
-                                    <h3 class="text-2xl font-bold mb-2">Production</h3>
-                                    <p class="text-gray-400 mb-4">
-                                        Starting the production on the AI models and integrations with tax software platforms.
-                                    </p>
-                                </div>
-                                <div class="text-gray-500 md:ml-8">1. Oct</div>
-                            </div>
+                        <h4 class="fw-bold mb-3">Smart Workflow Templates</h4>
+                        <p class="text-muted">Pre-built templates for tax returns, audits, bookkeeping, and compliance tasks. Customize and automate your firm's standard processes.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-people text-white fs-2"></i>
                         </div>
-
-                        <!-- Item 3 -->
-                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-200">
-                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-blue-500 border-4 border-gray-800 z-10 flex items-center justify-center">
-                                <div class="h-2 w-2 rounded-full bg-white"></div>
-                            </div>
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div>
-                                    <h3 class="text-2xl font-bold mb-2">Beta Launch</h3>
-                                    <p class="text-gray-400 mb-4">
-                                        Our most active community members will be able to join the beta testing program.
-                                    </p>
-                                </div>
-                                <div class="text-gray-500 md:ml-8">End of Nov</div>
-                            </div>
+                        <h4 class="fw-bold mb-3">Client Collaboration</h4>
+                        <p class="text-muted">Secure client portals, document sharing, and real-time communication. Keep clients informed and engaged throughout the process.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-calendar-check text-white fs-2"></i>
                         </div>
-
-                        <!-- Item 4 -->
-                        <div class="relative pl-12 md:pl-20 animate-in fade-in-50 slide-in-from-left-5 duration-700 delay-300">
-                            <div class="absolute left-0 top-1 h-8 w-8 rounded-full bg-gray-700 border-4 border-gray-800 z-10 flex items-center justify-center">
-                                <div class="h-2 w-2 rounded-full bg-white"></div>
-                            </div>
-                            <div class="flex flex-col md:flex-row md:items-center justify-between">
-                                <div>
-                                    <h3 class="text-2xl font-bold mb-2">Public Launch</h3>
-                                    <p class="text-gray-400 mb-4">
-                                        Full public launch with all features available to subscribers. Special pricing for early adopters.
-                                    </p>
-                                </div>
-                                <div class="text-gray-500 md:ml-8">TBA</div>
-                            </div>
+                        <h4 class="fw-bold mb-3">Smart Scheduling</h4>
+                        <p class="text-muted">Intelligent calendar management with deadline tracking, recurring tasks, and automated reminders for critical tax dates.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-graph-up text-white fs-2"></i>
                         </div>
+                        <h4 class="fw-bold mb-3">Performance Analytics</h4>
+                        <p class="text-muted">Real-time dashboards showing team productivity, client progress, and firm KPIs. Make data-driven decisions with confidence.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-shield-check text-white fs-2"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Bank-Grade Security</h4>
+                        <p class="text-muted">SOC 2 compliant with end-to-end encryption, multi-factor authentication, and comprehensive audit trails for compliance.</p>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="feature-card bg-white p-4 rounded-4 h-100">
+                        <div class="feature-icon">
+                            <i class="bi bi-puzzle text-white fs-2"></i>
+                        </div>
+                        <h4 class="fw-bold mb-3">Seamless Integrations</h4>
+                        <p class="text-muted">Connect with QuickBooks, Xero, DocuSign, and 50+ other tools your firm already uses. No disruption to your workflow.</p>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Hero Feature Section -->
-    <div class="bg-gray-100 py-16">
-        <div class="container mx-auto px-4">
-            <div class="grid md:grid-cols-2 gap-12 items-center">
-                <div class="animate-in fade-in-50 slide-in-from-left-5 duration-700">
-                    <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Simplify your tax filing process</h2>
-                    <p class="text-lg text-gray-600 mb-6">
+    <!-- Tax Savings Dashboard -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 animate-slide-in-left">
+                    <h2 class="display-5 fw-bold mb-4">Simplify your tax filing process</h2>
+                    <p class="lead mb-4">
                         Our AI-powered platform automatically identifies and categorizes tax documents, extracts relevant
                         information, and helps you maximize deductions.
                     </p>
-                    <div class="flex flex-col space-y-4">
-                        <div class="flex items-start group">
-                            <div class="flex-shrink-0 mt-1 icon-hover">
-                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-lg font-medium text-gray-900">Automatic Document Recognition</h3>
-                                <p class="text-gray-600">Our AI identifies W-2s, 1099s, and other tax forms automatically</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start group">
-                            <div class="flex-shrink-0 mt-1 icon-hover">
-                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-lg font-medium text-gray-900">Save Hours of Manual Work</h3>
-                                <p class="text-gray-600">Reduce tax preparation time by up to 80% with our automated system</p>
-                            </div>
-                        </div>
-                        <div class="flex items-start group">
-                            <div class="flex-shrink-0 mt-1 icon-hover">
-                                <svg class="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                                </svg>
-                            </div>
-                            <div class="ml-3">
-                                <h3 class="text-lg font-medium text-gray-900">Secure and Compliant</h3>
-                                <p class="text-gray-600">Bank-level encryption and compliance with tax regulations</p>
-                            </div>
+                    <div class="d-flex align-items-center mb-4">
+                        <i class="bi bi-check-circle-fill text-success me-3 fs-4"></i>
+                        <div>
+                            <h5 class="mb-1">Automatic Document Recognition</h5>
+                            <p class="text-muted mb-0">Our AI identifies W-2s, 1099s, and other tax forms automatically</p>
                         </div>
                     </div>
-                    <div class="mt-8 flex items-center">
-                        <div class="flex -space-x-2 mr-4">
-                            <div class="w-8 h-8 rounded-full bg-blue-200 flex items-center justify-center text-xs text-blue-600 border-2 border-white">
-                                JD
-                            </div>
-                            <div class="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-xs text-green-600 border-2 border-white">
-                                KL
-                            </div>
-                            <div class="w-8 h-8 rounded-full bg-purple-200 flex items-center justify-center text-xs text-purple-600 border-2 border-white">
-                                MN
-                            </div>
+                    <div class="d-flex align-items-center mb-4">
+                        <i class="bi bi-clock-fill text-success me-3 fs-4"></i>
+                        <div>
+                            <h5 class="mb-1">Save Hours of Manual Work</h5>
+                            <p class="text-muted mb-0">Reduce tax preparation time by up to 80% with our automated system</p>
                         </div>
-                        <span class="text-sm text-gray-600">5,000+ tax professionals trust Ctrl+Filing</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-shield-fill text-success me-3 fs-4"></i>
+                        <div>
+                            <h5 class="mb-1">Secure and Compliant</h5>
+                            <p class="text-muted mb-0">Bank-level encryption and compliance with tax regulations</p>
+                        </div>
                     </div>
                 </div>
-                <div class="bg-white p-6 rounded-xl shadow-lg hover-lift animate-in fade-in-50 slide-in-from-right-5 duration-700">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-bold text-gray-900">Tax Savings Dashboard</h3>
-                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
+                <div class="col-lg-6 animate-slide-in-right">
+                    <div class="bg-white p-4 rounded-4 shadow-lg">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="fw-bold">Tax Savings Dashboard</h4>
+                            <i class="bi bi-bar-chart-fill text-primary fs-3"></i>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-medium">Business Expenses</span>
+                                <span class="text-success fw-bold">$4,250</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" style="--progress-width: 75%; width: 75%;"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-medium">Charitable Donations</span>
+                                <span class="text-success fw-bold">$1,800</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" style="--progress-width: 40%; width: 40%;"></div>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="fw-medium">Home Office Deduction</span>
+                                <span class="text-success fw-bold">$2,100</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar" style="--progress-width: 55%; width: 55%;"></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="h5 fw-bold">Potential Tax Savings</span>
+                            <span class="h4 fw-bold text-success">$2,430</span>
+                        </div>
                     </div>
-                    <div class="space-y-4">
-                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-medium">Business Expenses</span>
-                                <span class="text-green-600 font-medium">$4,250</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section class="py-5 bg-dark text-white">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-4 fw-bold mb-3">Development Roadmap</h2>
+                <p class="lead text-light opacity-75">This roadmap outlines our goals and where we want to take CtrlFiling + CPA WorkflowPilot</p>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8 mx-auto">
+                    <div class="timeline-item mb-4">
+                        <div class="timeline-dot"></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold">Planning & Pre-Production</h4>
+                                <p class="text-light opacity-75 mb-0">
+                                    Quality comes first. We took our time to plan out everything and build our production pipeline.
+                                </p>
                             </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full progress-bar" style="width: 75%"></div>
-                            </div>
-                        </div>
-                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-medium">Charitable Donations</span>
-                                <span class="text-green-600 font-medium">$1,800</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full progress-bar delay-200" style="width: 40%"></div>
-                            </div>
-                        </div>
-                        <div class="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors duration-200">
-                            <div class="flex justify-between items-center mb-2">
-                                <span class="font-medium">Home Office Deduction</span>
-                                <span class="text-green-600 font-medium">$2,100</span>
-                            </div>
-                            <div class="w-full bg-gray-200 rounded-full h-2">
-                                <div class="bg-green-500 h-2 rounded-full progress-bar delay-400" style="width: 55%"></div>
-                            </div>
+                            <span class="text-light opacity-75 ms-4">Sept 2024</span>
                         </div>
                     </div>
-                    <div class="mt-6 pt-4 border-t border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <span class="text-lg font-bold">Potential Tax Savings</span>
-                            <span class="text-xl font-bold text-green-600">$2,430</span>
+
+                    <div class="timeline-item mb-4">
+                        <div class="timeline-dot"></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold">Production Phase</h4>
+                                <p class="text-light opacity-75 mb-0">
+                                    Starting production on AI models and integrations with tax software platforms.
+                                </p>
+                            </div>
+                            <span class="text-light opacity-75 ms-4">Oct 2024</span>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item mb-4">
+                        <div class="timeline-dot"></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold">Beta Launch</h4>
+                                <p class="text-light opacity-75 mb-0">
+                                    Our most active community members will be able to join the beta testing program.
+                                </p>
+                            </div>
+                            <span class="text-light opacity-75 ms-4">End of Nov</span>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot bg-secondary"></div>
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h4 class="fw-bold">Public Launch</h4>
+                                <p class="text-light opacity-75 mb-0">
+                                    Full public launch with all features available. Special pricing for early adopters.
+                                </p>
+                            </div>
+                            <span class="text-light opacity-75 ms-4">TBA</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="py-5" style="background: linear-gradient(135deg, var(--primary-navy) 0%, var(--primary-blue) 100%);">
+        <div class="container text-center text-white">
+            <h2 class="display-4 fw-bold mb-4">Ready to Transform Your Practice?</h2>
+            <p class="lead mb-5">Join thousands of tax professionals and CPA firms already using our integrated solution</p>
+            
+            <div class="row mb-5">
+                <div class="col-md-4 mb-4">
+                    <div class="h-100 p-4 rounded-4 bg-white bg-opacity-10 backdrop-blur">
+                        <h4 class="fw-bold">Starter</h4>
+                        <div class="display-5 fw-bold">$49</div>
+                        <small class="opacity-75">per user/month</small>
+                        <ul class="list-unstyled mt-4 small">
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Up to 5 team members</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Basic AI processing</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Client portal</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Email support</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="h-100 p-4 rounded-4 bg-white bg-opacity-20 backdrop-blur position-relative">
+                        <div class="badge bg-warning text-dark position-absolute top-0 start-50 translate-middle">Most Popular</div>
+                        <h4 class="fw-bold mt-3">Professional</h4>
+                        <div class="display-5 fw-bold">$89</div>
+                        <small class="opacity-75">per user/month</small>
+                        <ul class="list-unstyled mt-4 small">
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Unlimited team members</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Full AI suite</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>API integrations</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Priority support</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="h-100 p-4 rounded-4 bg-white bg-opacity-10 backdrop-blur">
+                        <h4 class="fw-bold">Enterprise</h4>
+                        <div class="display-5 fw-bold">Custom</div>
+                        <small class="opacity-75">contact us</small>
+                        <ul class="list-unstyled mt-4 small">
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Custom workflows</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>White labeling</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>Dedicated success manager</li>
+                            <li class="mb-2"><i class="bi bi-check-circle me-2"></i>24/7 phone support</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <a href="/login" class="btn btn-primary-gradient btn-lg text-white px-5">
+                    <i class="bi bi-rocket-takeoff me-2"></i>Start Your Free Trial
+                </a>
+                <button class="btn btn-outline-glass btn-lg px-5" data-bs-toggle="modal" data-bs-target="#contactModal">
+                    <i class="bi bi-person-lines-fill me-2"></i>Talk to Sales
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 mb-4">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="/ctrl-filing/logo.png" alt="CtrlFiling Logo" height="30" class="me-2">
+                        <span class="fw-bold">& CPA WorkflowPilot</span>
+                    </div>
+                    <p class="text-light opacity-75">Complete tax preparation and workflow management solution for modern CPA firms.</p>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-light opacity-75 fs-5"><i class="bi bi-linkedin"></i></a>
+                        <a href="#" class="text-light opacity-75 fs-5"><i class="bi bi-twitter"></i></a>
+                        <a href="#" class="text-light opacity-75 fs-5"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="text-light opacity-75 fs-5"><i class="bi bi-instagram"></i></a>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-3 col-6 mb-4">
+                    <h6 class="fw-bold">Product</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#features" class="text-light opacity-75 text-decoration-none">Features</a></li>
+                        <li><a href="#pricing" class="text-light opacity-75 text-decoration-none">Pricing</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Integrations</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Security</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-md-3 col-6 mb-4">
+                    <h6 class="fw-bold">Resources</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Blog</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Help Center</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Guides</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Webinars</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-md-3 col-6 mb-4">
+                    <h6 class="fw-bold">Company</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">About Us</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Careers</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Contact</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Privacy</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2 col-md-3 col-6 mb-4">
+                    <h6 class="fw-bold">Legal</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Privacy Policy</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Terms of Service</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">Cookie Policy</a></li>
+                        <li><a href="#" class="text-light opacity-75 text-decoration-none">GDPR</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4 opacity-25">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0 text-light opacity-75">&copy; 2025 CtrlFiling & CPA WorkflowPilot. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small class="text-light opacity-75">Built with ❤️ for tax professionals</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Demo Modal -->
+    <div class="modal fade" id="demoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">CtrlFiling + WorkflowPilot Demo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="ratio ratio-16x9">
+                        <div class="d-flex align-items-center justify-content-center bg-light">
+                            <div>
+                                <i class="bi bi-play-circle display-1 text-primary mb-3"></i>
+                                <h5>Interactive Demo Coming Soon</h5>
+                                <p class="text-muted">Experience how our integrated solution transforms tax preparation and workflow management</p>
+                                <a href="/login" class="btn btn-primary">Try Live Demo Instead</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -504,188 +827,201 @@
         </div>
     </div>
 
-    <!-- CTA Section -->
-    <div class="bg-blue-600 text-white py-16">
-        <div class="container mx-auto px-4 text-center">
-            <h2 class="text-3xl md:text-4xl font-bold mb-4 animate-in fade-in-50 duration-700">Ready to transform your tax preparation?</h2>
-            <p class="text-xl text-blue-100 mb-8 max-w-2xl mx-auto animate-in fade-in-50 duration-700 delay-100">
-                Join thousands of tax professionals who are saving time and reducing errors with Ctrl+Filing.
-            </p>
-            <div class="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in-50 duration-700 delay-200">
-                <button class="btn-secondary">Get Started</button>
-                <button class="btn-outline">Schedule a Demo</button>
+    <!-- Contact Modal -->
+    <div class="modal fade" id="contactModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Contact Sales</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form>
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Firm Name</label>
+                            <input type="text" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Team Size</label>
+                            <select class="form-select">
+                                <option>1-5 people</option>
+                                <option>6-20 people</option>
+                                <option>21-50 people</option>
+                                <option>50+ people</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">How can we help?</label>
+                            <textarea class="form-control" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary">Send Message</button>
+                </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Application state
-        let uploadMethod = 'batch';
+        // File Upload Functionality
         let selectedFiles = [];
-        let error = null;
+        let uploadMethod = 'batch';
 
-        // DOM elements
-        const batchToggle = document.getElementById('batchToggle');
-        const sampleToggle = document.getElementById('sampleToggle');
-        const batchUploadArea = document.getElementById('batchUploadArea');
-        const sampleUploadArea = document.getElementById('sampleUploadArea');
-        const fileInput = document.getElementById('fileInput');
-        const errorAlert = document.getElementById('errorAlert');
-        const errorMessage = document.getElementById('errorMessage');
-        const filesList = document.getElementById('filesList');
-        const filesCount = document.getElementById('filesCount');
-        const filesContainer = document.getElementById('filesContainer');
-
-        // Event listeners
-        batchToggle.addEventListener('click', () => handleToggleChange('batch'));
-        sampleToggle.addEventListener('click', () => handleToggleChange('sample'));
-        
-        // File input handling
-        fileInput.addEventListener('change', handleFileSelect);
-        
-        // Drag and drop
-        batchUploadArea.addEventListener('click', () => fileInput.click());
-        batchUploadArea.addEventListener('dragover', handleDragOver);
-        batchUploadArea.addEventListener('dragleave', handleDragLeave);
-        batchUploadArea.addEventListener('drop', handleDrop);
-
-        function handleToggleChange(method) {
+        function toggleUploadMethod(method) {
             uploadMethod = method;
-            selectedFiles = [];
-            hideError();
-            
-            // Update toggle buttons
-            batchToggle.classList.toggle('active', method === 'batch');
-            sampleToggle.classList.toggle('active', method === 'sample');
-            
-            // Show/hide upload areas
+            const batchBtn = document.getElementById('batchBtn');
+            const sampleBtn = document.getElementById('sampleBtn');
+            const uploadZone = document.getElementById('uploadZone');
+            const sampleZone = document.getElementById('sampleZone');
+
             if (method === 'batch') {
-                batchUploadArea.classList.remove('hidden');
-                sampleUploadArea.classList.add('hidden');
+                batchBtn.classList.add('active');
+                sampleBtn.classList.remove('active');
+                uploadZone.style.display = 'block';
+                sampleZone.style.display = 'none';
             } else {
-                batchUploadArea.classList.add('hidden');
-                sampleUploadArea.classList.remove('hidden');
+                sampleBtn.classList.add('active');
+                batchBtn.classList.remove('active');
+                uploadZone.style.display = 'none';
+                sampleZone.style.display = 'block';
             }
             
-            // Hide files list
-            filesList.classList.add('hidden');
+            // Reset selected files
+            selectedFiles = [];
+            updateFileDisplay();
         }
 
-        function handleFileSelect(event) {
-            const files = Array.from(event.target.files);
-            validateAndSetFiles(files);
-        }
+        // File input and drag & drop
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
 
-        function handleDragOver(event) {
-            event.preventDefault();
-            batchUploadArea.classList.add('drag-active');
-        }
-
-        function handleDragLeave(event) {
-            event.preventDefault();
-            batchUploadArea.classList.remove('drag-active');
-        }
-
-        function handleDrop(event) {
-            event.preventDefault();
-            batchUploadArea.classList.remove('drag-active');
-            
-            const files = Array.from(event.dataTransfer.files);
-            validateAndSetFiles(files);
-        }
-
-        function validateAndSetFiles(files) {
-            hideError();
-            
-            if (files.length > 10) {
-                showError('Maximum 10 files allowed');
-                return;
+        uploadZone.addEventListener('click', () => {
+            if (uploadMethod === 'batch') {
+                fileInput.click();
             }
+        });
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-active');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('drag-active');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-active');
             
+            if (uploadMethod === 'batch') {
+                const files = Array.from(e.dataTransfer.files);
+                handleFileSelection(files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleFileSelection(files);
+        });
+
+        function handleFileSelection(files) {
             // Validate file types
-            const allowedTypes = [
-                'application/pdf',
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'application/vnd.ms-excel',
-                'text/csv'
-            ];
-            
-            const invalidFiles = files.filter(file => !allowedTypes.includes(file.type));
-            if (invalidFiles.length > 0) {
-                showError('Only PDF, Excel (.xlsx, .xls), and CSV files are allowed');
-                return;
-            }
-            
-            selectedFiles = files;
-            displayFiles();
-        }
-
-        function displayFiles() {
-            if (selectedFiles.length === 0) {
-                filesList.classList.add('hidden');
-                return;
-            }
-            
-            filesCount.textContent = `${selectedFiles.length} ${selectedFiles.length === 1 ? 'file' : 'files'} selected`;
-            
-            filesContainer.innerHTML = '';
-            selectedFiles.forEach(file => {
-                const li = document.createElement('li');
-                li.className = 'text-sm text-gray-600 flex items-center';
-                li.innerHTML = `
-                    <svg class="h-4 w-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    ${file.name}
-                `;
-                filesContainer.appendChild(li);
+            const allowedTypes = ['.pdf', '.xlsx', '.xls', '.csv'];
+            const validFiles = files.filter(file => {
+                const extension = '.' + file.name.split('.').pop().toLowerCase();
+                return allowedTypes.includes(extension);
             });
-            
-            filesList.classList.remove('hidden');
-        }
 
-        function handleUpload() {
-            if (selectedFiles.length === 0) {
-                showError('Please select at least one file');
+            if (validFiles.length !== files.length) {
+                alert('Some files were rejected. Only PDF, Excel, and CSV files are allowed.');
+            }
+
+            if (selectedFiles.length + validFiles.length > 10) {
+                alert('Maximum 10 files allowed');
                 return;
             }
+
+            selectedFiles = [...selectedFiles, ...validFiles];
+            updateFileDisplay();
+        }
+
+        function updateFileDisplay() {
+            const fileList = document.getElementById('fileList');
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+
+            if (selectedFiles.length === 0) {
+                selectedFilesDiv.style.display = 'none';
+                return;
+            }
+
+            selectedFilesDiv.style.display = 'block';
+            fileList.innerHTML = selectedFiles.map((file, index) => `
+                <li class="d-flex align-items-center justify-content-between p-2 border rounded mb-2">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-file me-2 text-primary"></i>
+                        <span>${file.name}</span>
+                        <small class="text-muted ms-2">(${(file.size / (1024 * 1024)).toFixed(1)} MB)</small>
+                    </div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removeFile(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileDisplay();
+        }
+
+        function uploadFiles() {
+            if (selectedFiles.length === 0) {
+                alert('Please select at least one file');
+                return;
+            }
+
+            // Simulate upload process
+            alert(`Uploading ${selectedFiles.length} files for AI processing...`);
             
-            // Simulate file upload - in a real app, you would upload to a server
-            const uploadedFiles = selectedFiles.map((file, index) => ({
-                id: Date.now() + index,
-                name: file.name,
-                status: 'processing',
-                size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-                date: new Date().toLocaleDateString(),
-                recognizedFile: ''
-            }));
-            
-            localStorage.setItem('uploadedFiles', JSON.stringify(uploadedFiles));
-            
-            // In a real app, you would redirect to the files page
-            alert('Files uploaded successfully! In a real application, you would be redirected to the files processing page.');
+            // In a real application, you would send files to server
+            // For demo, we'll redirect to a files page
+            // window.location.href = '/files';
         }
 
-        function handleUseSampleFiles() {
-            // In a real app, you would redirect to the files page with sample data
-            alert('Sample files loaded! In a real application, you would be redirected to the files page with sample data.');
-        }
+        // Navbar scroll effect
+        window.addEventListener('scroll', function() {
+            const navbar = document.querySelector('.navbar');
+            if (window.scrollY > 100) {
+                navbar.classList.add('navbar-scrolled');
+            } else {
+                navbar.classList.remove('navbar-scrolled');
+            }
+        });
 
-        function showError(message) {
-            error = message;
-            errorMessage.textContent = message;
-            errorAlert.classList.remove('hidden');
-        }
-
-        function hideError() {
-            error = null;
-            errorAlert.classList.add('hidden');
-        }
-
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Any initialization code can go here
-            console.log('Ctrl+Filing page loaded');
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
         });
     </script>
 </body>
