@@ -3838,48 +3838,40 @@ def export_checklist_analysis_api(checklist_id):
         for item in checklist.items:
             for document in item.client_documents:
                 if document.ai_analysis_completed and document.ai_analysis_results:
-                    # Extract the actual analysis data from saved results
-                    saved_results = document.ai_analysis_results
-                    
-                    doc_data = {
-                        'filename': document.original_filename,
-                        'processing_status': 'completed',
-                        'processing_time': 0,
-                        'document_id': document.id,
-                        'created_at': document.uploaded_at.isoformat() if document.uploaded_at else None,
-                        'processing_notes': f"Cached analysis from {document.ai_analysis_timestamp.strftime('%m/%d/%Y %I:%M %p') if document.ai_analysis_timestamp else 'unknown time'}",
+                    try:
+                        # Parse the saved analysis results (they're stored as JSON string)
+                        import json
+                        if isinstance(document.ai_analysis_results, str):
+                            saved_results = json.loads(document.ai_analysis_results)
+                        else:
+                            saved_results = document.ai_analysis_results
                         
-                        # Include the actual Azure and Gemini results
-                        'azure_result': saved_results.get('azure_result', {}),
-                        'gemini_result': saved_results.get('gemini_result', {}),
+                        doc_data = {
+                            'filename': document.original_filename,
+                            'processing_status': 'completed',
+                            'document_id': document.id,
+                            'created_at': document.uploaded_at.isoformat() if document.uploaded_at else None,
+                            'processing_notes': f"Cached analysis from {document.ai_analysis_timestamp.strftime('%m/%d/%Y %I:%M %p') if document.ai_analysis_timestamp else 'unknown time'}",
+                            
+                            # Include just the essential Azure and Gemini results (no flattening)
+                            'azure_result': saved_results.get('azure_result', {}),
+                            'gemini_result': saved_results.get('gemini_result', {}),
+                            
+                            'validation_errors_count': 0
+                        }
                         
-                        # Flatten Azure results to top level for compatibility
-                        'doc_type': saved_results.get('azure_result', {}).get('doc_type', 'unknown'),
-                        'confidence': saved_results.get('azure_result', {}).get('confidence', 0),
+                        analyzed_documents.append(doc_data)
                         
-                        # Add Gemini categorization to top level
-                        'gemini_category': saved_results.get('gemini_result', {}).get('document_type', 'Unknown'),
-                        'gemini_summary': saved_results.get('gemini_result', {}).get('summary', ''),
-                        
-                        'validation_errors_count': 0
-                    }
-                    
-                    # Flatten Azure key-value pairs to top level
-                    azure_result = saved_results.get('azure_result', {})
-                    if azure_result.get('key_value_pairs'):
-                        for pair in azure_result['key_value_pairs']:
-                            if pair.get('key') and pair.get('value'):
-                                # Clean up key name for consistent format
-                                clean_key = "".join(c if c.isalnum() else '_' for c in pair['key'])
-                                doc_data[clean_key] = pair['value']
-                    
-                    # Add Gemini key findings with better field names
-                    gemini_result = saved_results.get('gemini_result', {})
-                    if gemini_result.get('key_findings'):
-                        for index, finding in enumerate(gemini_result['key_findings']):
-                            doc_data[f'key_finding_{index + 1}'] = finding
-                    
-                    analyzed_documents.append(doc_data)
+                    except (json.JSONDecodeError, AttributeError, KeyError) as e:
+                        print(f"Error parsing saved analysis for document {document.id}: {e}")
+                        # Include basic info even if parsing fails
+                        doc_data = {
+                            'filename': document.original_filename,
+                            'processing_status': 'error',
+                            'document_id': document.id,
+                            'error': f'Failed to parse saved analysis: {str(e)}'
+                        }
+                        analyzed_documents.append(doc_data)
         
         if not analyzed_documents:
             return jsonify({
