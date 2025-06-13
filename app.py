@@ -312,7 +312,7 @@ def set_user():
         session['user_name'] = user.name
         session['user_role'] = user.role
         flash(f'Welcome, {user.name}!', 'success')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('ctrl_filing'))
     else:
         flash('Invalid user selection', 'error')
         return redirect(url_for('select_user'))
@@ -334,6 +334,14 @@ def clear_session():
     """Clear session and redirect to landing page"""
     session.clear()
     return redirect(url_for('home'))
+
+@app.route('/ctrl-filing')
+def ctrl_filing():
+    """CtrlFiling document management system"""
+    if 'firm_id' not in session or 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    return send_file('CtrlFiling/index.html')
 
 @app.route('/dashboard')
 def dashboard():
