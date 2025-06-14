@@ -236,8 +236,8 @@ def check_and_update_project_completion(project_id):
 
 @app.before_request
 def check_access():
-    # Skip authentication for public endpoints
-    if request.endpoint in ['static', 'admin_login', 'admin_dashboard', 'generate_access_code_route', 'admin_authenticate']:
+    # Skip authentication for public endpoints and landing page
+    if request.endpoint in ['static', 'home', 'landing', 'admin_login', 'admin_dashboard', 'generate_access_code_route', 'admin_authenticate']:
         return
     
     # Skip for login flow
@@ -254,13 +254,13 @@ def check_access():
 
 @app.route('/')
 def home():
-    # Show CtrlFiling as the main landing page
-    return send_file('CtrlFiling/index.html')
+    # Show simplified landing page as main entry point
+    return render_template('landing.html')
 
 @app.route('/landing')
 def landing():
-    # Direct access to landing page (bypass session checks)
-    return render_template('landing.html')
+    # Redirect to main landing page for consistency
+    return redirect(url_for('home'))
 
 @app.route('/login')
 def login():
@@ -269,7 +269,7 @@ def login():
             return redirect(url_for('dashboard'))
         else:
             return redirect(url_for('select_user'))
-    return render_template('login_modern.html')
+    return render_template('login.html')
 
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
@@ -291,7 +291,7 @@ def select_user():
     
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('select_user_modern.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
+    return render_template('select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 @app.route('/set-user', methods=['POST'])
 def set_user():
@@ -329,22 +329,6 @@ def clear_session():
     session.clear()
     return redirect(url_for('home'))
 
-@app.route('/ctrl-filing')
-def ctrl_filing():
-    """CtrlFiling document management system - accessible without login"""
-    return send_file('CtrlFiling/index.html')
-
-@app.route('/ctrl-filing/<path:filename>')
-def ctrl_filing_assets(filename):
-    """Serve CtrlFiling static assets"""
-    try:
-        # Try public folder first (for images)
-        if os.path.exists(f'CtrlFiling/public/{filename}'):
-            return send_file(f'CtrlFiling/public/{filename}')
-        # Then try root CtrlFiling folder
-        return send_file(f'CtrlFiling/{filename}')
-    except:
-        return "File not found", 404
 
 @app.route('/dashboard')
 def dashboard():

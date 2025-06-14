@@ -1,95 +1,210 @@
-{% extends "base.html" %}
-
-{% block title %}Select User - CPA WorkflowPilot{% endblock %}
-
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-6">
-            <div class="card">
-                <div class="card-body">
-                    <h2 class="card-title text-center mb-4">
-                        <i class="bi bi-person-circle text-primary"></i>
-                        Select Your Account
-                    </h2>
-                    <p class="text-center text-muted mb-4">
-                        Firm: <strong>{{ session.firm_name }}</strong>
-                    </p>
-                    
-                    {% if users %}
-                    <form method="POST" action="{{ url_for('set_user') }}">
-                        <div class="row">
-                            {% for user in users %}
-                            <div class="col-md-6 mb-3">
-                                <label class="card user-card" for="user_{{ user.id }}">
-                                    <input type="radio" name="user_id" value="{{ user.id }}" id="user_{{ user.id }}" class="d-none" required>
-                                    <div class="card-body text-center">
-                                        <div class="user-avatar mb-2">
-                                            <i class="bi bi-person-circle" style="font-size: 3rem; color: #0d6efd;"></i>
-                                        </div>
-                                        <h5 class="card-title">{{ user.name }}</h5>
-                                        <span class="badge bg-{{ 'primary' if user.role == 'Admin' else 'secondary' }}">
-                                            {{ user.role }}
-                                        </span>
-                                    </div>
-                                </label>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Select User - CPA WorkflowPilot</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --cpa-navy: #1e3a8a;
+            --cpa-blue: #3b82f6;
+            --cpa-green: #10b981;
+        }
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            min-height: 100vh;
+        }
+        
+        .select-card {
+            background: white;
+            border: none;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .brand-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--cpa-blue) 0%, var(--cpa-navy) 100%);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            margin: 0 auto 1.5rem;
+        }
+        
+        .user-button {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            text-align: left;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        
+        .user-button:hover {
+            border-color: var(--cpa-blue);
+            background: #f8fafc;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+        }
+        
+        .user-avatar {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--cpa-blue) 0%, var(--cpa-navy) 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-right: 1rem;
+            flex-shrink: 0;
+        }
+        
+        .user-info h6 {
+            margin: 0;
+            font-weight: 600;
+            color: #1e293b;
+            font-size: 1.1rem;
+        }
+        
+        .user-info small {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+        
+        .role-badge {
+            background: #f1f5f9;
+            color: #475569;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+        
+        .admin-badge {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .back-link {
+            color: var(--cpa-blue);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link:hover {
+            color: var(--cpa-navy);
+        }
+        
+        .no-users-state {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+        
+        .no-users-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body class="d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card select-card">
+                    <div class="card-body p-4 p-sm-5">
+                        <!-- Brand -->
+                        <div class="text-center mb-4">
+                            <div class="brand-icon">
+                                <i class="bi bi-people-fill"></i>
                             </div>
-                            {% endfor %}
+                            <h1 class="h4 fw-bold text-dark mb-2">Welcome to {{ firm_name }}</h1>
+                            <p class="text-muted mb-0">Please select your user profile to continue</p>
                         </div>
                         
-                        <div class="d-grid gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-box-arrow-in-right"></i> Continue
-                            </button>
+                        <!-- User Selection -->
+                        {% if users %}
+                            <div class="user-selection">
+                                {% for user in users %}
+                                <form method="POST" action="{{ url_for('set_user') }}" class="d-inline-block w-100">
+                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                    <button type="submit" class="user-button">
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar">
+                                                {{ user.name[0].upper() }}
+                                            </div>
+                                            <div class="user-info flex-grow-1">
+                                                <h6>{{ user.name }}</h6>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="role-badge {{ 'admin-badge' if user.role == 'admin' else '' }}">
+                                                        {{ user.role }}
+                                                    </span>
+                                                    {% if user.email %}
+                                                    <small>{{ user.email }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <i class="bi bi-chevron-right text-muted"></i>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </form>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <!-- No Users State -->
+                            <div class="no-users-state">
+                                <i class="bi bi-people"></i>
+                                <h5 class="fw-bold text-dark mb-2">No Users Found</h5>
+                                <p class="mb-4">There are no active users in this firm. Please contact your administrator to set up user accounts.</p>
+                            </div>
+                        {% endif %}
+                        
+                        <!-- Back to Login -->
+                        {% if users %}
+                        <div class="text-center mt-4 pt-3 border-top">
+                            <a href="{{ url_for('login') }}" class="back-link">
+                                <i class="bi bi-arrow-left me-1"></i>Use Different Access Code
+                            </a>
                         </div>
-                    </form>
-                    {% else %}
-                    <div class="alert alert-warning text-center">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        No users found for this firm. Please contact your administrator.
-                    </div>
-                    {% endif %}
-                    
-                    <hr>
-                    <div class="text-center">
-                        <a href="{{ url_for('logout') }}" class="text-muted">
-                            <i class="bi bi-arrow-left"></i> Back to Login
-                        </a>
+                        {% else %}
+                        <div class="text-center">
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Login
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<style>
-.user-card {
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 2px solid transparent;
-}
-
-.user-card:hover {
-    border-color: #0d6efd;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-input[type="radio"]:checked + .card-body {
-    background-color: #e7f3ff;
-}
-
-input[type="radio"]:checked ~ .user-card {
-    border-color: #0d6efd;
-}
-
-.user-avatar {
-    opacity: 0.8;
-    transition: opacity 0.2s;
-}
-
-.user-card:hover .user-avatar {
-    opacity: 1;
-}
-</style>
-{% endblock %}
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
