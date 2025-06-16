@@ -28,10 +28,6 @@
         <div class="sm:flex sm:items-center">
             <div class="sm:flex-auto">
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ url_for('kanban_view') }}" 
-                       class="inline-flex items-center rounded-full {% if not request.args.get('work_type') %}bg-cpa-blue text-white{% else %}bg-gray-100 text-gray-900{% endif %} px-3 py-1.5 text-sm font-medium hover:bg-blue-600">
-                        All Work Types
-                    </a>
                     {% for work_type in work_types %}
                     <a href="{{ url_for('kanban_view', work_type=work_type.id) }}" 
                        class="inline-flex items-center rounded-full {% if request.args.get('work_type') == work_type.id|string %}bg-cpa-blue text-white{% else %}bg-gray-100 text-gray-900{% endif %} px-3 py-1.5 text-sm font-medium hover:bg-blue-600">
@@ -486,5 +482,67 @@ window.updateKanbanProgress = function(projectId) {
         refreshProjectCard(projectId);
     }
 };
+
+// Handle browser back navigation and page visibility changes
+let lastRefreshTime = Date.now();
+
+// Refresh data when page becomes visible again (browser back navigation, tab switching)
+document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+        // Only refresh if it's been more than 5 seconds since last refresh
+        const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+        if (timeSinceLastRefresh > 5000) {
+            console.log('Page became visible, refreshing Kanban data...');
+            refreshKanbanData();
+        }
+    }
+});
+
+// Handle browser back/forward navigation
+window.addEventListener('pageshow', function(event) {
+    // If page was loaded from cache (browser back/forward)
+    if (event.persisted) {
+        console.log('Page loaded from cache, refreshing Kanban data...');
+        refreshKanbanData();
+    }
+});
+
+// Handle popstate events (browser back/forward buttons)
+window.addEventListener('popstate', function(event) {
+    console.log('Popstate event detected, refreshing page...');
+    // Small delay to ensure the page has loaded
+    setTimeout(() => {
+        window.location.reload();
+    }, 100);
+});
+
+// Function to refresh the entire Kanban board data
+function refreshKanbanData() {
+    lastRefreshTime = Date.now();
+    
+    // Get current URL parameters to maintain filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+    
+    // Reload the page to get fresh data
+    window.location.href = currentUrl;
+}
+
+// Function to check for data updates periodically (optional)
+function startPeriodicRefresh() {
+    // Refresh every 2 minutes if page is visible
+    setInterval(() => {
+        if (!document.hidden) {
+            const timeSinceLastRefresh = Date.now() - lastRefreshTime;
+            if (timeSinceLastRefresh > 120000) { // 2 minutes
+                console.log('Periodic refresh of Kanban data...');
+                refreshKanbanData();
+            }
+        }
+    }, 120000); // Check every 2 minutes
+}
+
+// Start periodic refresh (optional - remove if not wanted)
+// startPeriodicRefresh();
 </script>
 {% endblock %}

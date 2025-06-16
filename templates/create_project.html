@@ -38,12 +38,27 @@
                         <label for="client_name" class="block text-sm font-medium text-gray-700 mb-2">
                             Client Name *
                         </label>
-                        <input type="text" 
-                               id="client_name" 
-                               name="client_name" 
-                               required
-                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"
-                               placeholder="Enter client name">
+                        <div class="relative">
+                            <input type="text" 
+                                   id="client_name" 
+                                   name="client_name" 
+                                   required
+                                   autocomplete="off"
+                                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"
+                                   placeholder="Type to search existing clients or enter new client name">
+                            
+                            <!-- Hidden field to store selected client ID if existing client is chosen -->
+                            <input type="hidden" id="selected_client_id" name="selected_client_id" value="">
+                            
+                            <!-- Dropdown for autocomplete results -->
+                            <div id="client_dropdown" 
+                                 class="absolute z-10 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-60 overflow-auto hidden">
+                                <!-- Results will be populated here -->
+                            </div>
+                        </div>
+                        <p class="mt-1 text-sm text-gray-500">
+                            <span id="client_help_text">Start typing to search existing clients, or enter a new client name</span>
+                        </p>
                     </div>
                     
                     <div>
@@ -123,8 +138,187 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+.client-item.active {
+    background-color: #dbeafe !important;
+}
+
+.client-item:hover {
+    background-color: #f9fafb;
+}
+
+.client-item.active:hover {
+    background-color: #dbeafe !important;
+}
+
+#client_dropdown {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+</style>
+{% endblock %}
+
 {% block scripts %}
 <script>
+// Client autocomplete functionality
+let searchTimeout;
+let selectedClientId = null;
+
+const clientNameInput = document.getElementById('client_name');
+const clientDropdown = document.getElementById('client_dropdown');
+const selectedClientIdInput = document.getElementById('selected_client_id');
+const clientHelpText = document.getElementById('client_help_text');
+
+// Search for clients as user types
+clientNameInput.addEventListener('input', function() {
+    const query = this.value.trim();
+    
+    // Clear previous timeout
+    clearTimeout(searchTimeout);
+    
+    // Reset selected client when input changes
+    selectedClientId = null;
+    selectedClientIdInput.value = '';
+    
+    if (query.length < 2) {
+        hideDropdown();
+        updateHelpText('Start typing to search existing clients, or enter a new client name');
+        return;
+    }
+    
+    // Debounce search requests
+    searchTimeout = setTimeout(() => {
+        searchClients(query);
+    }, 300);
+});
+
+// Hide dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#client_name') && !e.target.closest('#client_dropdown')) {
+        hideDropdown();
+    }
+});
+
+// Handle keyboard navigation
+clientNameInput.addEventListener('keydown', function(e) {
+    const items = clientDropdown.querySelectorAll('.client-item');
+    const activeItem = clientDropdown.querySelector('.client-item.active');
+    
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (activeItem) {
+            activeItem.classList.remove('active');
+            const next = activeItem.nextElementSibling;
+            if (next) {
+                next.classList.add('active');
+            } else {
+                items[0]?.classList.add('active');
+            }
+        } else if (items.length > 0) {
+            items[0].classList.add('active');
+        }
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (activeItem) {
+            activeItem.classList.remove('active');
+            const prev = activeItem.previousElementSibling;
+            if (prev) {
+                prev.classList.add('active');
+            } else {
+                items[items.length - 1]?.classList.add('active');
+            }
+        } else if (items.length > 0) {
+            items[items.length - 1].classList.add('active');
+        }
+    } else if (e.key === 'Enter') {
+        const activeItem = clientDropdown.querySelector('.client-item.active');
+        if (activeItem) {
+            e.preventDefault();
+            selectClient(activeItem.dataset.clientId, activeItem.dataset.clientName);
+        }
+    } else if (e.key === 'Escape') {
+        hideDropdown();
+    }
+});
+
+function searchClients(query) {
+    updateHelpText('Searching...');
+    
+    fetch(`/api/clients/search?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.clients && data.clients.length > 0) {
+                showResults(data.clients);
+                updateHelpText(`Found ${data.clients.length} existing client${data.clients.length === 1 ? '' : 's'}`);
+            } else {
+                hideDropdown();
+                updateHelpText('No existing clients found. A new client will be created.');
+            }
+        })
+        .catch(error => {
+            console.error('Error searching clients:', error);
+            hideDropdown();
+            updateHelpText('Error searching clients. You can still enter a new client name.');
+        });
+}
+
+function showResults(clients) {
+    let html = '';
+    
+    clients.forEach(client => {
+        html += `
+            <div class="client-item px-4 py-3 cursor-pointer hover:bg-gray-50 border-b border-gray-100 last:border-b-0" 
+                 data-client-id="${client.id}" 
+                 data-client-name="${client.name}"
+                 onclick="selectClient('${client.id}', '${client.name}')">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="font-medium text-gray-900">${client.name}</div>
+                        <div class="text-sm text-gray-500">
+                            ${client.entity_type ? `${client.entity_type}` : ''}
+                            ${client.contact_person ? `• ${client.contact_person}` : ''}
+                            ${client.email ? `• ${client.email}` : ''}
+                        </div>
+                    </div>
+                    <div class="text-xs text-blue-600 font-medium">
+                        Select
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    clientDropdown.innerHTML = html;
+    clientDropdown.classList.remove('hidden');
+}
+
+function selectClient(clientId, clientName) {
+    selectedClientId = clientId;
+    selectedClientIdInput.value = clientId;
+    clientNameInput.value = clientName;
+    hideDropdown();
+    updateHelpText(`Selected existing client: ${clientName}`);
+    
+    // Add visual feedback
+    clientNameInput.classList.add('border-green-300', 'bg-green-50');
+    setTimeout(() => {
+        clientNameInput.classList.remove('border-green-300', 'bg-green-50');
+    }, 2000);
+}
+
+function hideDropdown() {
+    clientDropdown.classList.add('hidden');
+    // Remove active states
+    clientDropdown.querySelectorAll('.client-item.active').forEach(item => {
+        item.classList.remove('active');
+    });
+}
+
+function updateHelpText(text) {
+    clientHelpText.textContent = text;
+}
+
+// Template preview functionality
 const templates = {
     {% for template in templates %}
     {{ template.id }}: {

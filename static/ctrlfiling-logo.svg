@@ -1,0 +1,13 @@
+<svg width="220" height="70" viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg">
+  <!-- Square Outline Only -->
+  <rect x="8" y="15" width="55" height="40" rx="5" ry="5" fill="none" stroke="white" stroke-width="2.5" />
+  
+  <!-- Ctrl Text in Square -->
+  <text x="35.5" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white" letter-spacing="0.5px">Ctrl</text>
+  
+  <!-- Plus Symbol -->
+  <text x="78" y="42" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white">+</text>
+  
+  <!-- Filing Text -->
+  <text x="125" y="42" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="white" letter-spacing="0.5px">Filing</text>
+</svg>

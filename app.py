@@ -329,6 +329,14 @@ def clear_session():
     session.clear()
     return redirect(url_for('home'))
 
+@app.route('/CtrlFiling/public/<path:filename>')
+def serve_ctrlfiling_assets(filename):
+    """Serve CtrlFiling static assets"""
+    try:
+        return send_file(f'CtrlFiling/public/{filename}')
+    except:
+        return "Asset not found", 404
+
 
 @app.route('/dashboard')
 def dashboard():
@@ -1765,6 +1773,11 @@ def kanban_view():
     
     # Get work types for filtering
     work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    # If no work type is selected and work types exist, redirect to the first one
+    if not work_type_filter and work_types:
+        return redirect(url_for('kanban_view', work_type=work_types[0].id))
+    
     current_work_type = None
     kanban_columns = []
     
@@ -1885,6 +1898,37 @@ def kanban_view():
                          work_types=work_types,
                          users=users,
                          today=date.today())
+
+@app.route('/api/clients/search')
+def search_clients():
+    """API endpoint to search for clients by name"""
+    if 'firm_id' not in session:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    firm_id = session['firm_id']
+    query = request.args.get('q', '').strip()
+    
+    if not query:
+        return jsonify({'clients': []})
+    
+    # Search for clients by name (case-insensitive)
+    clients = Client.query.filter(
+        Client.firm_id == firm_id,
+        Client.is_active == True,
+        Client.name.ilike(f'%{query}%')
+    ).order_by(Client.name.asc()).limit(10).all()
+    
+    client_data = []
+    for client in clients:
+        client_data.append({
+            'id': client.id,
+            'name': client.name,
+            'email': client.email,
+            'entity_type': client.entity_type,
+            'contact_person': client.contact_person
+        })
+    
+    return jsonify({'clients': client_data})
 
 @app.route('/projects/<int:project_id>/move-status', methods=['POST'])
 def move_project_status(project_id):
@@ -3612,16 +3656,39 @@ def analyze_document(document_id):
 @app.route('/api/document-analysis/<int:document_id>', methods=['GET', 'POST'])
 def get_document_analysis(document_id):
     """Get or trigger analysis for a document"""
-    firm_id = session['firm_id']
+    try:
+        print(f"=== STARTING DOCUMENT ANALYSIS FOR ID: {document_id} ===")
+        
+        if 'firm_id' not in session:
+            print("✗ No firm_id in session")
+            return jsonify({'error': 'No firm session found'}), 401
+            
+        firm_id = session['firm_id']
+        print(f"✓ Firm ID: {firm_id}")
+    except Exception as session_error:
+        print(f"✗ Session error: {session_error}")
+        return jsonify({'error': f'Session error: {str(session_error)}'}), 500
     
     # Get the document and verify access
-    document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-        ClientDocument.id == document_id,
-        Client.firm_id == firm_id
-    ).first()
-    
-    if not document:
-        return jsonify({'error': 'Document not found'}), 404
+    try:
+        print(f"Querying database for document {document_id}")
+        document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            ClientDocument.id == document_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not document:
+            print(f"✗ Document {document_id} not found for firm {firm_id}")
+            return jsonify({'error': 'Document not found'}), 404
+            
+        print(f"✓ Found document: {document.original_filename}")
+        print(f"✓ Document path: {document.file_path}")
+        
+    except Exception as db_error:
+        print(f"✗ Database query error: {db_error}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Database error: {str(db_error)}'}), 500
     
     # Check for force_reanalysis parameter
     force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
@@ -3639,125 +3706,199 @@ def get_document_analysis(document_id):
             pass
     
     try:
-        # Import the document processor
-        from backend.services.document_processor import DocumentProcessor
-        from backend.models.document import FileUpload
-        from pathlib import Path
+        print(f"Starting analysis for document {document_id}")
+        
+        # Import services directly (simpler approach)
+        try:
+            from backend.services.azure_service import AzureDocumentService
+            print("✓ Azure service imported")
+        except Exception as import_error:
+            print(f"✗ Failed to import Azure service: {import_error}")
+            return jsonify({'error': f'Azure service import failed: {str(import_error)}'}), 500
+            
+        try:
+            from backend.services.gemini_service import GeminiDocumentService
+            print("✓ Gemini service imported")
+        except Exception as import_error:
+            print(f"✗ Failed to import Gemini service: {import_error}")
+            # Continue without Gemini if it fails
+            GeminiDocumentService = None
+        
         import asyncio
         
-        # Create FileUpload object from ClientDocument
-        file_upload = FileUpload(
-            filename=document.original_filename,  # Use original filename for processing
-            content_type=document.mime_type or 'application/pdf',
-            size=os.path.getsize(document.file_path) if os.path.exists(document.file_path) else 0,
-            file_path=Path(document.file_path)
-        )
+        # Check if document file exists
+        print(f"Checking document file: {document.file_path}")
+        if not os.path.exists(document.file_path):
+            print(f"✗ Document file not found: {document.file_path}")
+            return jsonify({'error': 'Document file not found'}), 404
+        print(f"✓ Document file exists: {os.path.getsize(document.file_path)} bytes")
         
-        # Process the document
-        processor = DocumentProcessor()
-        
-        # Run the async processing
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        # Initialize services
         try:
-            # Process single document (similar to how Streamlit processes a batch)
-            processed_doc = loop.run_until_complete(
-                processor.process_document(
-                    file_upload,
-                    enable_azure=True,
-                    enable_gemini=True,
-                    pii_mode='mask'
-                )
-            )
-            
-            # Convert processed document results to our expected format
-            azure_result = {}
-            gemini_result = {}
-            
-            if processed_doc.azure_result:
-                # Extract key-value pairs from Azure result
-                azure_result = {
-                    'key_value_pairs': [],
-                    'tables': [],
-                    'confidence': processed_doc.azure_result.confidence or 0.0
-                }
+            azure_service = AzureDocumentService()
+            print("✓ Azure service initialized")
+        except Exception as init_error:
+            print(f"✗ Failed to initialize Azure service: {init_error}")
+            return jsonify({'error': f'Azure service initialization failed: {str(init_error)}'}), 500
+        
+        gemini_service = None
+        if GeminiDocumentService:
+            try:
+                gemini_service = GeminiDocumentService()
+                print("✓ Gemini service initialized")
+            except Exception as init_error:
+                print(f"⚠ Gemini service initialization failed: {init_error}")
+        
+        # Process with Azure directly
+        print(f"Analyzing document {document_id}: {document.original_filename}")
+        azure_result_raw = None
+        try:
+            azure_result_raw = azure_service.analyze_document_from_file(document.file_path)
+            print(f"✓ Azure analysis completed")
+            print(f"Azure analysis result keys: {list(azure_result_raw.keys()) if azure_result_raw else 'None'}")
+        except Exception as azure_error:
+            print(f"⚠ Azure analysis failed (continuing with Gemini only): {azure_error}")
+            # Continue without Azure - we'll use Gemini only
+            azure_result_raw = None
+        
+        # Process with Gemini
+        gemini_result_raw = None
+        if gemini_service:
+            try:
+                print("Starting Gemini analysis...")
+                with open(document.file_path, 'rb') as f:
+                    content = f.read()
                 
-                # Convert Azure fields to key-value pairs
-                if hasattr(processed_doc.azure_result, 'fields') and processed_doc.azure_result.fields:
-                    for field_name, field_value in processed_doc.azure_result.fields.items():
-                        azure_result['key_value_pairs'].append({
-                            'key': field_name.replace('_', ' ').title(),
-                            'value': str(field_value) if field_value is not None else 'N/A'
-                        })
-                
-                # Extract tables if available
-                if hasattr(processed_doc.azure_result, 'tables') and processed_doc.azure_result.tables:
-                    for table in processed_doc.azure_result.tables:
-                        table_data = {'cells': []}
-                        if hasattr(table, 'cells'):
-                            for cell in table.cells:
-                                table_data['cells'].append({
-                                    'content': getattr(cell, 'content', ''),
-                                    'value': getattr(cell, 'content', '')
-                                })
-                        azure_result['tables'].append(table_data)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    # Run the synchronous Gemini method in executor
+                    gemini_result_raw = loop.run_until_complete(
+                        loop.run_in_executor(
+                            None,
+                            gemini_service.analyze_document,
+                            content,
+                            document.original_filename,
+                            document.mime_type or 'application/pdf'
+                        )
+                    )
+                    print("✓ Gemini analysis completed")
+                except Exception as gemini_error:
+                    print(f"⚠ Gemini analysis error: {gemini_error}")
+                    gemini_result_raw = None
+                finally:
+                    loop.close()
+            except Exception as gemini_outer_error:
+                print(f"⚠ Gemini processing error: {gemini_outer_error}")
+                gemini_result_raw = None
+        else:
+            print("⚠ Gemini service not available, skipping Gemini analysis")
             
-            if processed_doc.gemini_result:
-                gemini_result = {
-                    'document_type': processed_doc.gemini_result.document_category or 'Unknown',
-                    'summary': processed_doc.gemini_result.document_analysis_summary or 'No summary available',
-                    'key_findings': [],
-                    'recommendations': []
-                }
-                
-                # Extract key findings from Gemini analysis
-                if hasattr(processed_doc.gemini_result, 'extracted_key_info') and processed_doc.gemini_result.extracted_key_info:
-                    for key, value in processed_doc.gemini_result.extracted_key_info.items():
-                        if value:
-                            gemini_result['key_findings'].append(f"{key.replace('_', ' ').title()}: {value}")
-                
-                # Only include recommendations if they come from actual Gemini analysis
-                if hasattr(processed_doc.gemini_result, 'recommendations') and processed_doc.gemini_result.recommendations:
-                    gemini_result['recommendations'] = processed_doc.gemini_result.recommendations
+        # Convert results to our expected format
+        azure_result = {}
+        gemini_result = {}
+        
+        # Process Azure results
+        if azure_result_raw:
+            # Save the complete Azure raw response (contains polygon coordinates for visualization)
+            azure_result = azure_result_raw.copy()
             
-            # Prepare results to save
-            analysis_results = {
-                'document_id': document_id,
-                'filename': document.original_filename,
-                'status': 'completed',
-                'azure_result': azure_result,
-                'gemini_result': gemini_result,
-                'visualization_available': True,
-                'processing_notes': f'Processed with Azure: {"Yes" if processed_doc.azure_result else "No"}, Gemini: {"Yes" if processed_doc.gemini_result else "No"}'
+            # Also add extracted key-value pairs for easy display
+            if 'key_value_pairs' not in azure_result:
+                azure_result['key_value_pairs'] = []
+            
+            # Extract key-value pairs from Azure documents for display
+            if 'documents' in azure_result and azure_result['documents']:
+                for doc in azure_result['documents']:
+                    if 'fields' in doc:
+                        for field_name, field_data in doc['fields'].items():
+                            field_value = 'N/A'
+                            if isinstance(field_data, dict):
+                                field_value = field_data.get('content') or field_data.get('value') or 'N/A'
+                            azure_result['key_value_pairs'].append({
+                                'key': field_name.replace('_', ' ').title(),
+                                'value': str(field_value)
+                            })
+            
+            # Ensure confidence score
+            if 'confidence' not in azure_result:
+                azure_result['confidence'] = 0.8  # Default confidence
+                
+            print(f"Azure result structure saved: {list(azure_result.keys())}")
+            if 'documents' in azure_result:
+                print(f"Found {len(azure_result['documents'])} documents with polygon data")
+        else:
+            # Create empty Azure result structure for compatibility
+            azure_result = {
+                'key_value_pairs': [],
+                'confidence': 0.0,
+                'documents': [],
+                'status': 'Azure analysis unavailable (using Gemini only)'
+            }
+            print("⚠ Using empty Azure result structure (Azure API unavailable)")
+                
+        # Process Gemini results  
+        if gemini_result_raw:
+            gemini_result = {
+                'document_type': getattr(gemini_result_raw, 'document_category', 'Unknown'),
+                'summary': getattr(gemini_result_raw, 'document_analysis_summary', 'No summary available'),
+                'key_findings': [],
+                'recommendations': []
             }
             
-            # Save analysis results to database with proper transaction handling
-            import json
-            from datetime import datetime
+            # Extract key findings
+            if hasattr(gemini_result_raw, 'extracted_key_info') and gemini_result_raw.extracted_key_info:
+                for key, value in gemini_result_raw.extracted_key_info.items():
+                    if value:
+                        gemini_result['key_findings'].append(f"{key.replace('_', ' ').title()}: {value}")
             
-            try:
-                # Use a fresh session for the database update to avoid conflicts
-                document.ai_analysis_completed = True
-                document.ai_analysis_results = json.dumps(analysis_results)
-                document.ai_analysis_timestamp = datetime.utcnow()
-                document.ai_document_type = gemini_result.get('document_type', 'Unknown')
-                document.ai_confidence_score = azure_result.get('confidence', 0.0)
-                
-                db.session.commit()
-                
-            except Exception as db_error:
-                print(f"Database update error: {db_error}")
-                db.session.rollback()
-                # Still return results even if database save fails
-                pass
+            # Extract recommendations
+            if hasattr(gemini_result_raw, 'recommendations') and gemini_result_raw.recommendations:
+                gemini_result['recommendations'] = gemini_result_raw.recommendations
             
-            return jsonify(analysis_results)
+        # Prepare results to save
+        analysis_results = {
+            'document_id': document_id,
+            'filename': document.original_filename,
+            'status': 'completed',
+            'azure_result': azure_result,
+            'gemini_result': gemini_result,
+            'visualization_available': True,
+            'processing_notes': f'Processed with Azure: {"Yes" if azure_result_raw else "No"}, Gemini: {"Yes" if gemini_result_raw else "No"}'
+        }
+        
+        print(f"✓ Analysis results prepared")
+        print(f"Azure data: {'Yes' if azure_result_raw else 'No'}")
+        print(f"Gemini data: {'Yes' if gemini_result_raw else 'No'}")
+        
+        # Save analysis results to database with proper transaction handling
+        import json
+        from datetime import datetime
+        
+        try:
+            print("Saving to database...")
+            document.ai_analysis_completed = True
+            document.ai_analysis_results = json.dumps(analysis_results)
+            document.ai_analysis_timestamp = datetime.utcnow()
+            document.ai_document_type = gemini_result.get('document_type', 'Unknown')
+            document.ai_confidence_score = azure_result.get('confidence', 0.0)
             
-        finally:
-            loop.close()
+            db.session.commit()
+            print("✓ Database save successful")
             
+        except Exception as db_error:
+            print(f"⚠ Database update error: {db_error}")
+            db.session.rollback()
+            # Still return results even if database save fails
+        
+        print("✓ Analysis completed successfully")
+        return jsonify(analysis_results)
+        
     except Exception as e:
-        print(f"Document processing error: {e}")
+        print(f"✗ FATAL ERROR in document analysis: {e}")
+        import traceback
+        traceback.print_exc()
+        
         # Ensure session is clean for future requests
         try:
             db.session.rollback()
@@ -3765,7 +3906,7 @@ def get_document_analysis(document_id):
             pass
         
         return jsonify({
-            'error': 'Document processing failed',
+            'error': 'Document analysis failed',
             'details': str(e),
             'message': 'Unable to process document. Please ensure Azure and Gemini API keys are configured correctly.'
         }), 500
@@ -4213,8 +4354,25 @@ def create_document_visualization(document_id):
                 output_path.unlink(missing_ok=True)
         
         # Import services
-        from backend.services.azure_service import AzureDocumentService
-        from backend.services.document_visualizer import DocumentVisualizer
+        try:
+            from backend.services.azure_service import AzureDocumentService
+            print("Azure service imported successfully")
+        except Exception as import_error:
+            print(f"Failed to import Azure service: {import_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Azure service import failed: {str(import_error)}'
+            }), 500
+            
+        try:
+            from backend.services.document_visualizer import DocumentVisualizer
+            print("Document visualizer imported successfully")
+        except Exception as import_error:
+            print(f"Failed to import Document visualizer: {import_error}")
+            return jsonify({
+                'success': False,
+                'error': f'Document visualizer import failed: {str(import_error)}'
+            }), 500
         
         # Initialize services
         azure_service = AzureDocumentService()
@@ -4226,26 +4384,103 @@ def create_document_visualization(document_id):
             'show_label': False
         })
         
-        # Process document with Azure
-        azure_result = azure_service.analyze_document_from_file(document.file_path)
+        # Use cached Azure analysis results for visualization (contains polygon coordinates)
+        azure_result = None
+        if document.ai_analysis_completed and document.ai_analysis_results:
+            try:
+                import json
+                cached_results = json.loads(document.ai_analysis_results)
+                if cached_results.get('azure_result'):
+                    azure_result = cached_results['azure_result']
+                    print(f"Using cached Azure results for visualization (document {document_id})")
+                    print(f"Cached Azure result keys: {list(azure_result.keys()) if azure_result else 'None'}")
+            except (json.JSONDecodeError, KeyError) as e:
+                print(f"Error parsing cached Azure results: {e}")
         
-        if not azure_result or 'documents' not in azure_result or not azure_result['documents']:
+        # If no cached results available, cannot create visualization
+        if not azure_result:
             return jsonify({
                 'success': False,
-                'error': 'Could not analyze document fields'
-            }), 500
+                'error': 'No cached Azure analysis results available for visualization. Please analyze the document first using "Analyze All Documents".'
+            }), 400
+        
+        # Check for required document structure with polygon data
+        if not azure_result.get('documents') or not azure_result['documents']:
+            return jsonify({
+                'success': False,
+                'error': 'No document structure found in cached results. Polygon coordinate data needed for visualization.'
+            }), 400
         
         # Format result for visualizer
         formatted_result = {
             'documents': azure_result['documents']
         }
         
+        print(f"Using cached Azure data with {len(azure_result['documents'])} documents for visualization")
+        
+        # Handle PDF to image conversion if needed
+        image_path = document.file_path
+        temp_image_path = None
+        
+        # Check if document is PDF and needs conversion
+        if document.mime_type == 'application/pdf' or document.file_path.lower().endswith('.pdf'):
+            try:
+                from pdf2image import convert_from_path
+                # Convert first page to image
+                pages = convert_from_path(document.file_path, first_page=1, last_page=1, dpi=200)
+                if pages:
+                    temp_dir = Path('static/visualizations')
+                    temp_dir.mkdir(exist_ok=True, parents=True)
+                    temp_image_path = temp_dir / f'document_{document_id}_temp.png'
+                    pages[0].save(temp_image_path, 'PNG')
+                    image_path = str(temp_image_path)
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Could not convert PDF to image for visualization'
+                    }), 500
+            except ImportError:
+                return jsonify({
+                    'success': False,
+                    'error': 'PDF conversion not available - pdf2image package required'
+                }), 500
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'PDF conversion failed: {str(e)}'
+                }), 500
+        
         # Create annotated visualization
-        annotated_path = visualizer.create_visualization(
-            image_path=document.file_path,
-            api_result=formatted_result,
-            output_path=str(output_path)
-        )
+        try:
+            print(f"Creating visualization for document {document_id}")
+            print(f"Image path: {image_path}")
+            print(f"Document structure has {len(formatted_result['documents'][0].get('fields', {}))} fields")
+            
+            annotated_path = visualizer.create_visualization(
+                image_path=image_path,
+                api_result=formatted_result,
+                output_path=str(output_path)
+            )
+            
+            print(f"Visualization created: {annotated_path}")
+            
+        except Exception as viz_error:
+            print(f"Visualization creation error: {viz_error}")
+            import traceback
+            traceback.print_exc()
+            
+            # Clean up temp file if created
+            if temp_image_path and temp_image_path.exists():
+                temp_image_path.unlink(missing_ok=True)
+                
+            return jsonify({
+                'success': False,
+                'error': f'Failed to create visualization: {str(viz_error)}'
+            }), 500
+        
+        # Clean up temp file if created
+        if temp_image_path and temp_image_path.exists():
+            temp_image_path.unlink(missing_ok=True)
         
         if annotated_path and os.path.exists(annotated_path):
             return jsonify({
@@ -4256,7 +4491,7 @@ def create_document_visualization(document_id):
         else:
             return jsonify({
                 'success': False,
-                'error': 'Failed to create visualization'
+                'error': 'Failed to create visualization - output file not created'
             }), 500
             
     except Exception as e:

@@ -1,210 +1,401 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Select User - CPA WorkflowPilot</title>
-    
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select User - CtrlFiling</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --cpa-navy: #1e3a8a;
-            --cpa-blue: #3b82f6;
-            --cpa-green: #10b981;
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --secondary: #06b6d4;
+            --accent: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
         }
-        
+
         * {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        
+
         body {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
         }
-        
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .select-container {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            z-index: 2;
+        }
+
         .select-card {
             background: white;
-            border: none;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            padding: 3rem;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
-        .brand-icon {
-            width: 64px;
-            height: 64px;
-            background: linear-gradient(135deg, var(--cpa-blue) 0%, var(--cpa-navy) 100%);
-            border-radius: 16px;
-            display: flex;
+
+        .header-section {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .logo {
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 2rem;
-            margin: 0 auto 1.5rem;
-        }
-        
-        .user-button {
-            background: white;
-            border: 2px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 1.25rem;
-            text-align: left;
-            transition: all 0.3s ease;
-            width: 100%;
+            gap: 0.75rem;
             margin-bottom: 1rem;
         }
-        
-        .user-button:hover {
-            border-color: var(--cpa-blue);
-            background: #f8fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
-        }
-        
-        .user-avatar {
+
+        .logo img {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, var(--cpa-blue) 0%, var(--cpa-navy) 100%);
             border-radius: 12px;
+        }
+
+        .logo-text {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .welcome-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-subtitle {
+            color: var(--gray-600);
+            font-size: 1rem;
+        }
+
+        .users-list {
+            margin-bottom: 2rem;
+        }
+
+        .user-button {
+            width: 100%;
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: 16px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-button:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.02);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.15);
+        }
+
+        .user-button:last-child {
+            margin-bottom: 0;
+        }
+
+        .user-avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-right: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
             flex-shrink: 0;
         }
-        
-        .user-info h6 {
-            margin: 0;
+
+        .user-info {
+            flex-grow: 1;
+        }
+
+        .user-name {
+            font-size: 1.125rem;
             font-weight: 600;
-            color: #1e293b;
-            font-size: 1.1rem;
+            color: var(--gray-900);
+            margin-bottom: 0.25rem;
         }
-        
-        .user-info small {
-            color: #64748b;
-            font-size: 0.875rem;
+
+        .user-details {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
         }
-        
-        .role-badge {
-            background: #f1f5f9;
-            color: #475569;
+
+        .user-role {
+            background: var(--gray-100);
+            color: var(--gray-700);
             padding: 0.25rem 0.75rem;
-            border-radius: 0.5rem;
+            border-radius: 8px;
             font-size: 0.75rem;
-            font-weight: 500;
+            font-weight: 600;
             text-transform: capitalize;
         }
-        
-        .admin-badge {
-            background: #fef3c7;
-            color: #d97706;
+
+        .user-role.admin {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
         }
-        
-        .back-link {
-            color: var(--cpa-blue);
-            text-decoration: none;
-            font-weight: 500;
+
+        .user-email {
+            color: var(--gray-500);
             font-size: 0.875rem;
-            transition: color 0.3s ease;
         }
-        
-        .back-link:hover {
-            color: var(--cpa-navy);
+
+        .user-arrow {
+            color: var(--gray-400);
+            font-size: 1.25rem;
+            transition: all 0.3s ease;
         }
-        
-        .no-users-state {
+
+        .user-button:hover .user-arrow {
+            color: var(--primary);
+            transform: translateX(4px);
+        }
+
+        .no-users {
             text-align: center;
-            padding: 2rem;
-            color: #64748b;
+            padding: 3rem 2rem;
         }
-        
-        .no-users-state i {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            color: #cbd5e1;
+
+        .no-users-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: var(--gray-100);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+            color: var(--gray-400);
+        }
+
+        .no-users-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .no-users-text {
+            color: var(--gray-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .back-button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .back-link {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .back-link a {
+            color: var(--gray-500);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-link a:hover {
+            color: var(--gray-700);
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .select-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .user-button {
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .user-button:nth-child(1) { animation-delay: 0.1s; }
+        .user-button:nth-child(2) { animation-delay: 0.2s; }
+        .user-button:nth-child(3) { animation-delay: 0.3s; }
+        .user-button:nth-child(4) { animation-delay: 0.4s; }
+
+        /* Icons */
+        .icon-users::before { content: "👥"; }
+        .icon-arrow::before { content: "→"; }
+        .icon-back::before { content: "←"; }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .select-card {
+                padding: 2rem;
+                margin: 1rem;
+            }
+            
+            body {
+                padding: 1rem;
+            }
+
+            .user-button {
+                padding: 1rem;
+            }
+
+            .user-avatar {
+                width: 48px;
+                height: 48px;
+                font-size: 1.25rem;
+            }
+
+            .user-details {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
         }
     </style>
 </head>
-<body class="d-flex align-items-center">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-5">
-                <div class="card select-card">
-                    <div class="card-body p-4 p-sm-5">
-                        <!-- Brand -->
-                        <div class="text-center mb-4">
-                            <div class="brand-icon">
-                                <i class="bi bi-people-fill"></i>
-                            </div>
-                            <h1 class="h4 fw-bold text-dark mb-2">Welcome to {{ firm_name }}</h1>
-                            <p class="text-muted mb-0">Please select your user profile to continue</p>
-                        </div>
-                        
-                        <!-- User Selection -->
-                        {% if users %}
-                            <div class="user-selection">
-                                {% for user in users %}
-                                <form method="POST" action="{{ url_for('set_user') }}" class="d-inline-block w-100">
-                                    <input type="hidden" name="user_id" value="{{ user.id }}">
-                                    <button type="submit" class="user-button">
-                                        <div class="d-flex align-items-center">
-                                            <div class="user-avatar">
-                                                {{ user.name[0].upper() }}
-                                            </div>
-                                            <div class="user-info flex-grow-1">
-                                                <h6>{{ user.name }}</h6>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="role-badge {{ 'admin-badge' if user.role == 'admin' else '' }}">
-                                                        {{ user.role }}
-                                                    </span>
-                                                    {% if user.email %}
-                                                    <small>{{ user.email }}</small>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            <div class="text-end">
-                                                <i class="bi bi-chevron-right text-muted"></i>
-                                            </div>
-                                        </div>
-                                    </button>
-                                </form>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <!-- No Users State -->
-                            <div class="no-users-state">
-                                <i class="bi bi-people"></i>
-                                <h5 class="fw-bold text-dark mb-2">No Users Found</h5>
-                                <p class="mb-4">There are no active users in this firm. Please contact your administrator to set up user accounts.</p>
-                            </div>
-                        {% endif %}
-                        
-                        <!-- Back to Login -->
-                        {% if users %}
-                        <div class="text-center mt-4 pt-3 border-top">
-                            <a href="{{ url_for('login') }}" class="back-link">
-                                <i class="bi bi-arrow-left me-1"></i>Use Different Access Code
-                            </a>
-                        </div>
-                        {% else %}
-                        <div class="text-center">
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">
-                                <i class="bi bi-arrow-left me-2"></i>Back to Login
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
+<body>
+    <div class="select-container">
+        <div class="select-card">
+            <!-- Header Section -->
+            <div class="header-section">
+                <div class="logo">
+                    <img src="/CtrlFiling/public/logo.png" alt="CtrlFiling Logo">
+                    <span class="logo-text">CtrlFiling</span>
                 </div>
+                <h1 class="welcome-title">Welcome to {{ firm_name }}</h1>
+                <p class="welcome-subtitle">Please select your user profile to continue</p>
             </div>
+
+            <!-- Users List -->
+            {% if users %}
+                <div class="users-list">
+                    {% for user in users %}
+                    <form method="POST" action="{{ url_for('set_user') }}" style="display: inline-block; width: 100%;">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <button type="submit" class="user-button">
+                            <div class="user-avatar">
+                                {{ user.name[0].upper() }}
+                            </div>
+                            <div class="user-info">
+                                <div class="user-name">{{ user.name }}</div>
+                                <div class="user-details">
+                                    <span class="user-role {{ 'admin' if user.role == 'admin' else '' }}">
+                                        {{ user.role }}
+                                    </span>
+                                    {% if user.email %}
+                                    <span class="user-email">{{ user.email }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="user-arrow icon-arrow"></div>
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+
+                <!-- Back Link -->
+                <div class="back-link">
+                    <a href="{{ url_for('login') }}">
+                        <span class="icon-back"></span>
+                        <span>Use Different Access Code</span>
+                    </a>
+                </div>
+            {% else %}
+                <!-- No Users State -->
+                <div class="no-users">
+                    <div class="no-users-icon icon-users"></div>
+                    <h2 class="no-users-title">No Users Found</h2>
+                    <p class="no-users-text">
+                        There are no active users in this firm. Please contact your administrator to set up user accounts.
+                    </p>
+                    <a href="{{ url_for('login') }}" class="back-button">
+                        <span class="icon-back"></span>
+                        <span>Back to Login</span>
+                    </a>
+                </div>
+            {% endif %}
         </div>
     </div>
-    
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
