@@ -155,17 +155,33 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-                            <a href="{{ url_for('view_client', id=client.id) }}" 
-                               class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                                <i class="bi bi-x-circle mr-1.5"></i>
-                                Cancel
-                            </a>
-                            <button type="submit" 
-                                    class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
-                                <i class="bi bi-check-circle mr-1.5"></i>
-                                Update Client
-                            </button>
+                        <div class="flex justify-between items-center pt-6 border-t border-gray-200">
+                            <div class="flex space-x-3">
+                                <button type="button" 
+                                        onclick="confirmMarkInactive('{{ client.id }}', '{{ client.name }}', {{ client.is_active|lower }})"
+                                        class="inline-flex items-center rounded-md bg-{% if client.is_active %}yellow-600{% else %}green-600{% endif %} px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-{% if client.is_active %}yellow-500{% else %}green-500{% endif %} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-{% if client.is_active %}yellow-600{% else %}green-600{% endif %}">
+                                    <i class="bi bi-{% if client.is_active %}pause{% else %}play{% endif %} mr-1.5"></i>
+                                    {% if client.is_active %}Mark Inactive{% else %}Reactivate{% endif %}
+                                </button>
+                                <button type="button" 
+                                        onclick="confirmDeleteClient('{{ client.id }}', '{{ client.name }}')"
+                                        class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                                    <i class="bi bi-trash mr-1.5"></i>
+                                    Delete Client
+                                </button>
+                            </div>
+                            <div class="flex space-x-3">
+                                <a href="{{ url_for('view_client', id=client.id) }}" 
+                                   class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                    <i class="bi bi-x-circle mr-1.5"></i>
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
+                                    <i class="bi bi-check-circle mr-1.5"></i>
+                                    Update Client
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -236,4 +252,97 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDeleteClient(clientId, clientName) {
+    if (confirm(`Are you sure you want to PERMANENTLY DELETE the client "${clientName}"?\n\nThis action will permanently delete:\n• The client and all their information\n• ALL associated projects and tasks\n• ALL associated contacts and attachments\n• ALL activity history\n\nThis action cannot be undone.\n\nType "${clientName}" to confirm:`)) {
+        
+        const userInput = prompt(`Please type "${clientName}" to confirm deletion:`);
+        
+        if (userInput === clientName) {
+            const confirmBtn = document.querySelector(`[onclick="confirmDeleteClient('${clientId}', '${clientName}')"]`);
+            const originalText = confirmBtn.innerHTML;
+            
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Deleting...';
+            
+            fetch(`/clients/${clientId}/delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    }
+                } else {
+                    alert('Error deleting client: ' + data.message);
+                    confirmBtn.disabled = false;
+                    confirmBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                alert('Network error occurred while deleting client');
+                console.error('Error:', error);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalText;
+            });
+        } else if (userInput !== null) {
+            alert('Client name did not match. Deletion cancelled.');
+        }
+    }
+}
+
+function confirmMarkInactive(clientId, clientName, isCurrentlyActive) {
+    const action = isCurrentlyActive ? 'mark as INACTIVE' : 'REACTIVATE';
+    const actionText = isCurrentlyActive ? 'mark inactive' : 'reactivate';
+    
+    let message = `Are you sure you want to ${action} the client "${clientName}"?`;
+    
+    if (isCurrentlyActive) {
+        message += '\n\nThis will:\n• Mark the client as inactive\n• Set all active projects to "On Hold"\n• Hide the client from active client lists';
+    } else {
+        message += '\n\nThis will:\n• Mark the client as active\n• Reactivate their projects from "On Hold" to "Active"';
+    }
+    
+    if (confirm(message)) {
+        const confirmBtn = document.querySelector(`[onclick="confirmMarkInactive('${clientId}', '${clientName}', ${isCurrentlyActive})"]`);
+        const originalText = confirmBtn.innerHTML;
+        
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = `<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> ${isCurrentlyActive ? 'Deactivating' : 'Activating'}...`;
+        
+        fetch(`/clients/${clientId}/mark_inactive`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                // Reload the page to reflect changes
+                location.reload();
+            } else {
+                alert('Error updating client status: ' + data.message);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred while updating client status');
+            console.error('Error:', error);
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalText;
+        });
+    }
+}
+</script>
 {% endblock %}

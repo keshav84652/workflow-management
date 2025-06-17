@@ -28,7 +28,7 @@ ALLOWED_EXTENSIONS = {
 os.makedirs('instance', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem, IncomeWorksheet
+from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem, IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -274,11 +274,47 @@ def login():
 @app.route('/authenticate', methods=['POST'])
 def authenticate():
     access_code = request.form.get('access_code', '').strip()
+    email = request.form.get('email', '').strip()
+    
     firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
     
     if firm:
+        # Store email in session for tracking
+        session['user_email'] = email
         session['firm_id'] = firm.id
         session['firm_name'] = firm.name
+        
+        # For demo access, store email in database for tracking
+        if access_code == 'DEMO2024':
+            try:
+                # Check if email already exists for demo access
+                existing_request = db.session.execute(
+                    db.text("SELECT * FROM demo_access_request WHERE email = :email AND firm_access_code = 'DEMO2024'"),
+                    {'email': email}
+                ).first()
+                
+                if not existing_request:
+                    # Create new demo access record
+                    db.session.execute(
+                        db.text("""
+                            INSERT INTO demo_access_request 
+                            (email, firm_access_code, ip_address, user_agent, granted, granted_at, created_at) 
+                            VALUES (:email, 'DEMO2024', :ip_address, :user_agent, 1, :granted_at, :created_at)
+                        """),
+                        {
+                            'email': email,
+                            'ip_address': request.remote_addr,
+                            'user_agent': request.headers.get('User-Agent', ''),
+                            'granted_at': datetime.utcnow(),
+                            'created_at': datetime.utcnow()
+                        }
+                    )
+                    db.session.commit()
+            except Exception as e:
+                # Don't block access if demo tracking fails
+                print(f"Demo tracking error: {e}")
+                pass
+        
         return redirect(url_for('select_user'))
     else:
         flash('Invalid access code', 'error')
@@ -329,13 +365,6 @@ def clear_session():
     session.clear()
     return redirect(url_for('home'))
 
-@app.route('/CtrlFiling/public/<path:filename>')
-def serve_ctrlfiling_assets(filename):
-    """Serve CtrlFiling static assets"""
-    try:
-        return send_file(f'CtrlFiling/public/{filename}')
-    except:
-        return "Asset not found", 404
 
 
 @app.route('/dashboard')
@@ -981,6 +1010,49 @@ def delete_task(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/projects/<int:id>/delete', methods=['POST'])
+def delete_project(id):
+    project = Project.query.get_or_404(id)
+    
+    # Check access permission
+    if project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        project_name = project.name
+        client_name = project.client_name
+        
+        # Get count of associated tasks for confirmation
+        task_count = Task.query.filter_by(project_id=id).count()
+        
+        # Create activity log before deletion
+        create_activity_log(f'Project "{project_name}" for {client_name} deleted (with {task_count} tasks)', session['user_id'])
+        
+        # Delete all associated tasks first (cascade deletion)
+        tasks = Task.query.filter_by(project_id=id).all()
+        for task in tasks:
+            # Delete task comments first
+            TaskComment.query.filter_by(task_id=task.id).delete()
+            # Delete the task
+            db.session.delete(task)
+        
+        # Delete project attachments if any
+        Attachment.query.filter_by(project_id=id).delete()
+        
+        # Delete the project itself
+        db.session.delete(project)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Project "{project_name}" and {task_count} associated tasks deleted successfully',
+            'redirect': '/projects'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting project: {str(e)}'}), 500
 
 @app.route('/tasks/create', methods=['GET', 'POST'])
 def create_task():
@@ -2332,6 +2404,116 @@ def edit_client(id):
     
     return render_template('edit_client.html', client=client)
 
+@app.route('/clients/<int:id>/delete', methods=['POST'])
+def delete_client(id):
+    client = Client.query.get_or_404(id)
+    
+    # Check access permission
+    if client.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        client_name = client.name
+        
+        # Get counts for confirmation message
+        project_count = Project.query.filter_by(client_id=id).count()
+        task_count = Task.query.join(Project).filter_by(client_id=id).count()
+        contact_count = len(client.contacts)
+        
+        # Create activity log before deletion
+        create_activity_log(f'Client "{client_name}" deleted (with {project_count} projects, {task_count} tasks, {contact_count} contacts)', session['user_id'])
+        
+        # Delete all associated projects (which will cascade delete tasks and attachments)
+        projects = Project.query.filter_by(client_id=id).all()
+        for project in projects:
+            # Delete project attachments
+            Attachment.query.filter_by(project_id=project.id).delete()
+            
+            # Delete all tasks and their comments for this project
+            tasks = Task.query.filter_by(project_id=project.id).all()
+            for task in tasks:
+                TaskComment.query.filter_by(task_id=task.id).delete()
+                db.session.delete(task)
+            
+            # Delete the project
+            db.session.delete(project)
+        
+        # Delete any independent tasks for this client
+        independent_tasks = Task.query.filter_by(client_id=id, project_id=None).all()
+        for task in independent_tasks:
+            TaskComment.query.filter_by(task_id=task.id).delete()
+            db.session.delete(task)
+        
+        # Delete client-contact associations
+        ClientContact.query.filter_by(client_id=id).delete()
+        
+        # Delete client attachments
+        Attachment.query.filter_by(client_id=id).delete()
+        
+        # Delete the client itself
+        db.session.delete(client)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Client "{client_name}" and all associated data deleted successfully',
+            'redirect': '/clients'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting client: {str(e)}'}), 500
+
+@app.route('/clients/<int:id>/mark_inactive', methods=['POST'])
+def mark_client_inactive(id):
+    client = Client.query.get_or_404(id)
+    
+    # Check access permission
+    if client.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        client_name = client.name
+        previous_status = "Active" if client.is_active else "Inactive"
+        
+        # Toggle active status
+        client.is_active = not client.is_active
+        new_status = "Active" if client.is_active else "Inactive"
+        
+        # Update all associated projects to match client status
+        projects = Project.query.filter_by(client_id=id).all()
+        for project in projects:
+            if client.is_active:
+                # If activating client, set projects to Active if they were inactive
+                if project.status in ['Inactive', 'On Hold']:
+                    project.status = 'Active'
+            else:
+                # If deactivating client, set active projects to On Hold
+                if project.status == 'Active':
+                    project.status = 'On Hold'
+        
+        db.session.commit()
+        
+        # Create activity log
+        action = f'Client "{client_name}" marked as {new_status} (was {previous_status})'
+        if not client.is_active:
+            action += f' - {len(projects)} projects set to On Hold'
+        else:
+            action += f' - {len(projects)} projects reactivated'
+        
+        create_activity_log(action, session['user_id'])
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Client "{client_name}" marked as {new_status}',
+            'new_status': new_status,
+            'is_active': client.is_active
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error updating client status: {str(e)}'}), 500
+
 @app.route('/admin/work_types', methods=['GET'])
 def admin_work_types():
     if session.get('user_role') != 'Admin':
@@ -3420,7 +3602,6 @@ def client_authenticate():
         client_user.last_login = datetime.utcnow()
         db.session.commit()
         
-        flash(f'Welcome to the client portal!', 'success')
         return redirect(url_for('client_dashboard'))
     else:
         flash('Invalid access code', 'error')
@@ -4875,6 +5056,238 @@ DOCUMENT ANALYSIS SUMMARY:
     except Exception as e:
         logger.error(f"Workpaper endpoint error: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+# ====================================
+# PUBLIC CLIENT ACCESS ROUTES
+# ====================================
+
+@app.route('/checklist/<token>')
+def public_checklist(token):
+    """Public access to client checklist via secure token"""
+    try:
+        # Find checklist by access token
+        checklist = DocumentChecklist.query.filter_by(access_token=token, is_active=True).first()
+        
+        if not checklist:
+            return render_template('error.html', 
+                                 error_title="Checklist Not Found",
+                                 error_message="The requested checklist could not be found or the link has expired."), 404
+        
+        # Check if token is expired
+        if checklist.is_token_expired:
+            return render_template('error.html',
+                                 error_title="Link Expired", 
+                                 error_message="This checklist link has expired. Please contact your CPA for a new link."), 403
+        
+        # Record access
+        checklist.record_token_access()
+        db.session.commit()
+        
+        # Get client information
+        client = checklist.client
+        
+        # Render public checklist view (no login required)
+        return render_template('public_checklist.html', 
+                             checklist=checklist,
+                             client=client,
+                             items=checklist.items)
+    
+    except Exception as e:
+        app.logger.error(f"Public checklist access error: {e}")
+        return render_template('error.html',
+                             error_title="Access Error",
+                             error_message="An error occurred while accessing the checklist. Please try again or contact your CPA."), 500
+
+
+@app.route('/checklist/<token>/upload', methods=['POST'])
+def public_checklist_upload(token):
+    """Handle file uploads from public checklist"""
+    try:
+        # Find checklist by access token
+        checklist = DocumentChecklist.query.filter_by(access_token=token, is_active=True).first()
+        
+        if not checklist or checklist.is_token_expired:
+            return jsonify({'success': False, 'message': 'Invalid or expired checklist link'}), 403
+        
+        item_id = request.form.get('item_id')
+        item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+        
+        if not item:
+            return jsonify({'success': False, 'message': 'Invalid checklist item'}), 404
+        
+        # Handle file upload
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No file selected'}), 400
+        
+        if file and allowed_file(file.filename):
+            # Create client-specific upload directory
+            client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f'client_{checklist.client_id}')
+            os.makedirs(client_upload_dir, exist_ok=True)
+            
+            # Generate secure filename
+            filename = secure_filename(file.filename)
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            file_path = os.path.join(client_upload_dir, unique_filename)
+            
+            # Save file
+            file.save(file_path)
+            
+            # Create document record
+            document = ClientDocument(
+                checklist_id=checklist.id,
+                item_id=item.id,
+                filename=filename,
+                file_path=file_path,
+                file_size=os.path.getsize(file_path),
+                mime_type=mimetypes.guess_type(filename)[0] or 'application/octet-stream',
+                uploaded_at=datetime.utcnow()
+            )
+            db.session.add(document)
+            
+            # Update item status
+            item.update_status('uploaded')
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'File "{filename}" uploaded successfully',
+                'item_id': item.id,
+                'new_status': 'uploaded'
+            })
+        else:
+            return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+    
+    except Exception as e:
+        app.logger.error(f"Public checklist upload error: {e}")
+        return jsonify({'success': False, 'message': 'Upload failed. Please try again.'}), 500
+
+
+@app.route('/checklist/<token>/status', methods=['POST'])
+def public_checklist_status(token):
+    """Handle status updates from public checklist"""
+    try:
+        # Find checklist by access token
+        checklist = DocumentChecklist.query.filter_by(access_token=token, is_active=True).first()
+        
+        if not checklist or checklist.is_token_expired:
+            return jsonify({'success': False, 'message': 'Invalid or expired checklist link'}), 403
+        
+        item_id = request.form.get('item_id')
+        new_status = request.form.get('status')
+        
+        if new_status not in ['already_provided', 'not_applicable']:
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
+        
+        item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+        
+        if not item:
+            return jsonify({'success': False, 'message': 'Invalid checklist item'}), 404
+        
+        # Update item status
+        item.update_status(new_status)
+        db.session.commit()
+        
+        status_messages = {
+            'already_provided': 'marked as already provided',
+            'not_applicable': 'marked as not applicable'
+        }
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Item "{item.title}" {status_messages[new_status]}',
+            'item_id': item.id,
+            'new_status': new_status
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Public checklist status update error: {e}")
+        return jsonify({'success': False, 'message': 'Status update failed. Please try again.'}), 500
+
+
+@app.route('/checklist/<int:checklist_id>/share')
+def share_checklist(checklist_id):
+    """Generate or display share link for checklist"""
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    checklist = DocumentChecklist.query.filter_by(
+        id=checklist_id, 
+        created_by=session['user_id']
+    ).first()
+    
+    if not checklist:
+        flash('Checklist not found', 'error')
+        return redirect(url_for('document_checklists'))
+    
+    # Generate token if not exists
+    if not checklist.access_token:
+        checklist.generate_access_token()
+        checklist.client_email = checklist.client.email if checklist.client.email else ""
+        checklist.token_expires_at = datetime.utcnow() + timedelta(days=30)  # 30 day expiration
+        db.session.commit()
+    
+    # Generate full URL for sharing
+    public_url = request.url_root.rstrip('/') + checklist.public_url
+    
+    return render_template('share_checklist.html', 
+                         checklist=checklist, 
+                         client=checklist.client,
+                         public_url=public_url)
+
+
+@app.route('/checklist/<int:checklist_id>/revoke-share', methods=['POST'])
+def revoke_checklist_share(checklist_id):
+    """Revoke share link for checklist"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'}), 401
+    
+    checklist = DocumentChecklist.query.filter_by(
+        id=checklist_id, 
+        created_by=session['user_id']
+    ).first()
+    
+    if not checklist:
+        return jsonify({'success': False, 'message': 'Checklist not found'}), 404
+    
+    checklist.revoke_token()
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Share link revoked successfully'})
+
+
+@app.route('/checklist/<int:checklist_id>/regenerate-share', methods=['POST'])
+def regenerate_checklist_share(checklist_id):
+    """Regenerate share link for checklist"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authorized'}), 401
+    
+    checklist = DocumentChecklist.query.filter_by(
+        id=checklist_id, 
+        created_by=session['user_id']
+    ).first()
+    
+    if not checklist:
+        return jsonify({'success': False, 'message': 'Checklist not found'}), 404
+    
+    # Generate new token
+    checklist.generate_access_token()
+    checklist.token_expires_at = datetime.utcnow() + timedelta(days=30)
+    db.session.commit()
+    
+    # Return new URL
+    public_url = request.url_root.rstrip('/') + checklist.public_url
+    
+    return jsonify({
+        'success': True, 
+        'message': 'New share link generated',
+        'public_url': public_url
+    })
+
 
 if __name__ == '__main__':
     with app.app_context():

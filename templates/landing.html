@@ -123,6 +123,7 @@
         .cta-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+            color: white;
         }
 
         /* Hero Section */
@@ -867,21 +868,30 @@
             backdrop-filter: blur(10px);
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             color: white;
-            padding: 3rem 2rem 2rem;
+            padding: 4rem 2rem 2rem;
         }
 
         .footer-content {
             max-width: 1200px;
             margin: 0 auto;
-            text-align: center;
+        }
+
+        .footer-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand {
+            max-width: 400px;
         }
 
         .footer-logo {
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 0.75rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
 
         .footer-logo img {
@@ -889,16 +899,133 @@
             width: auto;
         }
 
-        .footer-text {
-            color: var(--gray-400);
-            margin-bottom: 2rem;
+        .footer-description {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        .footer-links {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .footer-column h4 {
+            color: white;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .footer-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-nav li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-nav a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-nav a:hover {
+            color: white;
+        }
+
+        .footer-contact-text {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .footer-cta-button {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .footer-cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            color: white;
         }
 
         .footer-bottom {
-            border-top: 1px solid var(--gray-700);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
             padding-top: 2rem;
-            color: var(--gray-500);
+        }
+
+        .footer-bottom-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.6);
             font-size: 0.875rem;
+        }
+
+        .footer-bottom-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-bottom-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-bottom-links a:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Footer Responsive */
+        @media (max-width: 1024px) {
+            .footer-main {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+            
+            .footer-links {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .footer {
+                padding: 3rem 1rem 2rem;
+            }
+            
+            .footer-links {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .footer-bottom-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .footer-bottom-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 1rem;
+            }
         }
 
         /* Animations */
@@ -1036,7 +1163,7 @@
                 <li><a href="#ai-tools">AI Tools</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#how-it-works">How It Works</a></li>
-                <li><a href="mailto:hello@ctrlfiling.com">Contact</a></li>
+                <li><a href="mailto:keshav@ctrlfiling.com">Contact Us</a></li>
             </ul>
             <a href="{{ url_for('login') }}" class="cta-button">Try Demo</a>
         </nav>
@@ -1227,7 +1354,7 @@
             <div class="transformation-cta">
                 <h3>Don't Get Left Behind</h3>
                 <p>Firms that embrace AI today will dominate tomorrow's market. Those that don't will struggle to compete on speed, accuracy, and value.</p>
-                <a href="mailto:hello@ctrlfiling.com" class="cta-button primary">Contact</a>
+                <a href="mailto:keshav@ctrlfiling.com" class="cta-button primary">Get Started</a>
             </div>
         </div>
     </section>
@@ -1349,7 +1476,7 @@
                     <span>Try a Demo</span>
                     <span class="icon-arrow"></span>
                 </a>
-                <a href="mailto:hello@ctrlfiling.com" class="btn-secondary">Contact</a>
+                <a href="mailto:keshav@ctrlfiling.com" class="btn-secondary">Contact Us</a>
             </div>
         </div>
     </section>
@@ -1357,12 +1484,54 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="footer-content">
-            <div class="footer-logo">
-                <img src="{{ url_for('static', filename='ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <img src="{{ url_for('static', filename='ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo">
+                    </div>
+                    <p class="footer-description">AI-powered workflow management for modern CPA firms. Transform your practice with intelligent automation and seamless client collaboration.</p>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4 class="footer-title">Product</h4>
+                        <ul class="footer-nav">
+                            <li><a href="#ai-tools">AI Tools</a></li>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                            <li><a href="{{ url_for('login') }}">Try Demo</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4 class="footer-title">Company</h4>
+                        <ul class="footer-nav">
+                            <li><a href="mailto:keshav@ctrlfiling.com">Contact Us</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Support</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Partnership</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Careers</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4 class="footer-title">Get Started</h4>
+                        <p class="footer-contact-text">Ready to transform your CPA practice?</p>
+                        <a href="mailto:keshav@ctrlfiling.com" class="footer-cta-button">
+                            Contact Us Today
+                        </a>
+                    </div>
+                </div>
             </div>
-            <p class="footer-text">AI-powered workflow management for modern CPA firms</p>
+            
             <div class="footer-bottom">
-                <p>&copy; 2024 CtrlFiling. All rights reserved.</p>
+                <div class="footer-bottom-content">
+                    <p>&copy; 2024 CtrlFiling. All rights reserved.</p>
+                    <div class="footer-bottom-links">
+                        <a href="mailto:keshav@ctrlfiling.com">Privacy Policy</a>
+                        <a href="mailto:keshav@ctrlfiling.com">Terms of Service</a>
+                        <a href="mailto:keshav@ctrlfiling.com">Security</a>
+                    </div>
+                </div>
             </div>
         </div>
     </footer>

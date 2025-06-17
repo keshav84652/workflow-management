@@ -106,17 +106,25 @@
                         </div>
 
                         <!-- Action Buttons -->
-                        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-                            <a href="{{ url_for('view_project', id=project.id) }}" 
-                               class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                                <i class="bi bi-x-circle mr-1.5"></i>
-                                Cancel
-                            </a>
-                            <button type="submit" 
-                                    class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
-                                <i class="bi bi-check-circle mr-1.5"></i>
-                                Update Project
+                        <div class="flex justify-between items-center pt-6 border-t border-gray-200">
+                            <button type="button" 
+                                    onclick="confirmDeleteProject('{{ project.id }}', '{{ project.name }}', '{{ project.client_name }}')"
+                                    class="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600">
+                                <i class="bi bi-trash mr-1.5"></i>
+                                Delete Project
                             </button>
+                            <div class="flex space-x-3">
+                                <a href="{{ url_for('view_project', id=project.id) }}" 
+                                   class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                    <i class="bi bi-x-circle mr-1.5"></i>
+                                    Cancel
+                                </a>
+                                <button type="submit" 
+                                        class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
+                                    <i class="bi bi-check-circle mr-1.5"></i>
+                                    Update Project
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -518,6 +526,43 @@ function bulkAssignTasks() {
         } else {
             alert('Invalid selection');
         }
+    }
+}
+
+function confirmDeleteProject(projectId, projectName, clientName) {
+    if (confirm(`Are you sure you want to delete the project "${projectName}" for ${clientName}?\n\nThis action will permanently delete:\n• The project and all its settings\n• All associated tasks and comments\n• All project attachments\n\nThis action cannot be undone.`)) {
+        
+        const confirmBtn = document.querySelector(`[onclick="confirmDeleteProject('${projectId}', '${projectName}', '${clientName}')"]`);
+        const originalText = confirmBtn.innerHTML;
+        
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Deleting...';
+        
+        fetch(`/projects/${projectId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                }
+            } else {
+                alert('Error deleting project: ' + data.message);
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = originalText;
+            }
+        })
+        .catch(error => {
+            alert('Network error occurred while deleting project');
+            console.error('Error:', error);
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = originalText;
+        });
     }
 }
 

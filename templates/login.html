@@ -35,7 +35,7 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -43,6 +43,7 @@
             padding: 2rem;
             position: relative;
             overflow: hidden;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         body::before {
@@ -52,8 +53,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-            opacity: 0.3;
+            background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                        url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1.5" fill="rgba(59,130,246,0.15)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>');
+            opacity: 0.7;
+            pointer-events: none;
         }
 
         .login-container {
@@ -64,12 +68,12 @@
         }
 
         .login-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 24px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
             padding: 3rem;
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .logo-section {
@@ -85,19 +89,18 @@
         }
 
         .logo img {
-            width: 48px;
-            height: 48px;
-            border-radius: 12px;
+            height: 50px;
+            width: auto;
         }
 
         .logo-text {
             font-size: 1.75rem;
             font-weight: 700;
-            color: var(--gray-900);
+            color: white;
         }
 
         .welcome-text {
-            color: var(--gray-600);
+            color: rgba(255, 255, 255, 0.7);
             font-size: 1rem;
             margin-bottom: 0;
         }
@@ -109,7 +112,7 @@
         .form-label {
             display: block;
             font-weight: 600;
-            color: var(--gray-700);
+            color: rgba(255, 255, 255, 0.9);
             margin-bottom: 0.5rem;
             font-size: 0.875rem;
         }
@@ -117,21 +120,24 @@
         .form-input {
             width: 100%;
             padding: 1rem;
-            border: 2px solid var(--gray-200);
+            border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            background: white;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            backdrop-filter: blur(10px);
         }
 
         .form-input:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.3);
+            background: rgba(255, 255, 255, 0.15);
         }
 
         .form-input::placeholder {
-            color: var(--gray-400);
+            color: rgba(255, 255, 255, 0.5);
         }
 
         .login-button {
@@ -166,21 +172,21 @@
         .divider-line {
             flex: 1;
             height: 1px;
-            background: var(--gray-200);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         .divider-text {
             padding: 0 1rem;
-            color: var(--gray-500);
+            color: rgba(255, 255, 255, 0.6);
             font-size: 0.875rem;
             font-weight: 500;
         }
 
         .demo-button {
             width: 100%;
-            background: var(--gray-50);
-            border: 2px solid var(--gray-200);
-            color: var(--gray-700);
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
             padding: 1rem 1.5rem;
             border-radius: 12px;
             font-size: 1rem;
@@ -191,12 +197,15 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            backdrop-filter: blur(10px);
         }
 
         .demo-button:hover {
-            background: var(--gray-100);
+            background: rgba(255, 255, 255, 0.15);
             border-color: var(--primary);
             color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.2);
         }
 
         .back-link {
@@ -205,7 +214,7 @@
         }
 
         .back-link a {
-            color: var(--gray-500);
+            color: rgba(255, 255, 255, 0.6);
             text-decoration: none;
             font-size: 0.875rem;
             font-weight: 500;
@@ -216,19 +225,21 @@
         }
 
         .back-link a:hover {
-            color: var(--gray-700);
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .features-preview {
-            background: var(--gray-50);
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 16px;
             padding: 1.5rem;
             margin-top: 2rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .features-title {
             font-weight: 600;
-            color: var(--gray-800);
+            color: white;
             margin-bottom: 1rem;
             font-size: 0.875rem;
         }
@@ -241,7 +252,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 0.75rem;
-            color: var(--gray-600);
+            color: rgba(255, 255, 255, 0.8);
             font-size: 0.875rem;
         }
 
@@ -273,15 +284,17 @@
         }
 
         .alert-danger {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--danger);
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            backdrop-filter: blur(10px);
         }
 
         .alert-success {
-            background: rgba(16, 185, 129, 0.1);
-            color: var(--accent);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            background: rgba(16, 185, 129, 0.15);
+            color: #6ee7b7;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            backdrop-filter: blur(10px);
         }
 
         /* Animations */
@@ -340,14 +353,25 @@
             <!-- Logo Section -->
             <div class="logo-section">
                 <div class="logo">
-                    <img src="/CtrlFiling/public/logo.png" alt="CtrlFiling Logo">
-                    <span class="logo-text">CtrlFiling</span>
+                    <img src="{{ url_for('static', filename='ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo" style="height: 50px; width: auto;">
                 </div>
                 <p class="welcome-text">Access your workflow management portal</p>
             </div>
 
             <!-- Login Form -->
-            <form method="POST" action="{{ url_for('authenticate') }}">
+            <form method="POST" action="{{ url_for('authenticate') }}" id="loginForm">
+                <div class="form-group">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        class="form-input"
+                        placeholder="Enter your email address"
+                        required
+                        autocomplete="email">
+                </div>
+
                 <div class="form-group">
                     <label for="access_code" class="form-label">Firm Access Code</label>
                     <input 
@@ -376,10 +400,32 @@
             <button 
                 type="button" 
                 class="demo-button"
-                onclick="document.getElementById('access_code').value='DEMO2024'; document.querySelector('form').submit();">
+                onclick="tryDemo()">
                 <span class="icon-play"></span>
-                <span>Try Demo (DEMO2024)</span>
+                <span>Try Demo</span>
             </button>
+
+            <script>
+                function tryDemo() {
+                    const email = document.getElementById('email').value;
+                    if (!email) {
+                        alert('Please enter your email address first');
+                        document.getElementById('email').focus();
+                        return;
+                    }
+                    
+                    // Validate email format
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(email)) {
+                        alert('Please enter a valid email address');
+                        document.getElementById('email').focus();
+                        return;
+                    }
+                    
+                    document.getElementById('access_code').value = 'DEMO2024';
+                    document.getElementById('loginForm').submit();
+                }
+            </script>
 
             <!-- Back Link -->
             <div class="back-link">

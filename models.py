@@ -724,6 +724,13 @@ class DocumentChecklist(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     
+    # Client access token for public URL sharing
+    access_token = db.Column(db.String(255), unique=True)  # Secure URL token for client access
+    token_expires_at = db.Column(db.DateTime)  # Optional expiration
+    client_email = db.Column(db.String(255))  # Client email for verification
+    token_access_count = db.Column(db.Integer, default=0, nullable=False)  # Track access count
+    token_last_accessed = db.Column(db.DateTime)  # Last access timestamp
+    
     # AI Analysis fields
     ai_analysis_completed = db.Column(db.Boolean, default=False, nullable=False)
     ai_analysis_results = db.Column(db.Text)  # JSON string of AI analysis results
@@ -781,6 +788,47 @@ class DocumentChecklist(db.Model):
             return json.loads(self.ai_analysis_results)
         except (json.JSONDecodeError, AttributeError):
             return None
+    
+    def generate_access_token(self):
+        """Generate a secure access token for client access"""
+        import secrets
+        import string
+        # Generate a 32-character URL-safe token
+        alphabet = string.ascii_letters + string.digits + '-_'
+        self.access_token = ''.join(secrets.choice(alphabet) for _ in range(32))
+        return self.access_token
+    
+    @property
+    def public_url(self):
+        """Generate the public URL for this checklist"""
+        if not self.access_token:
+            return None
+        return f"/checklist/{self.access_token}"
+    
+    @property
+    def is_token_expired(self):
+        """Check if access token has expired"""
+        if not self.token_expires_at:
+            return False
+        return datetime.utcnow() > self.token_expires_at
+    
+    def record_token_access(self):
+        """Record an access to this checklist via token"""
+        self.token_access_count += 1
+        self.token_last_accessed = datetime.utcnow()
+    
+    def revoke_token(self):
+        """Revoke the access token"""
+        self.access_token = None
+        self.token_expires_at = None
+    
+    def extend_token_expiration(self, days=30):
+        """Extend token expiration by specified days"""
+        from datetime import timedelta
+        if self.token_expires_at:
+            self.token_expires_at += timedelta(days=days)
+        else:
+            self.token_expires_at = datetime.utcnow() + timedelta(days=days)
 
 
 class ChecklistItem(db.Model):
@@ -956,5 +1004,178 @@ class IncomeWorksheet(db.Model):
             return json.loads(self.validation_results)
         except:
             return {}
+
+
+# ====================================
+# PRODUCTION DEPLOYMENT MODELS
+# ====================================
+
+class DemoAccessRequest(db.Model):
+    """Track demo access requests with email collection"""
+    __tablename__ = 'demo_access_request'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    firm_access_code = db.Column(db.String(255), nullable=False)  # The demo firm code they tried to access
+    ip_address = db.Column(db.String(50))  # Track IP for security
+    user_agent = db.Column(db.Text)  # Track browser/device info
+    granted = db.Column(db.Boolean, default=False, nullable=False)  # Whether access was granted
+    granted_at = db.Column(db.DateTime)  # When access was granted
+    granted_by = db.Column(db.Integer, db.ForeignKey('user.id'))  # Admin who granted access
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)  # Admin notes about the request
+    
+    # Session tracking
+    session_id = db.Column(db.String(255))  # Track demo session
+    last_activity = db.Column(db.DateTime)  # Last activity in demo
+    
+    # Relationships
+    granter = db.relationship('User', backref='granted_demo_access')
+    
+    @property
+    def is_recent_request(self):
+        """Check if request was made recently (within 24 hours)"""
+        if not self.created_at:
+            return False
+        time_diff = datetime.utcnow() - self.created_at
+        return time_diff.total_seconds() < 86400  # 24 hours
+    
+    def grant_access(self, admin_user_id, notes=None):
+        """Grant demo access to this email"""
+        self.granted = True
+        self.granted_at = datetime.utcnow()
+        self.granted_by = admin_user_id
+        if notes:
+            self.notes = notes
+    
+    def update_activity(self, session_id=None):
+        """Update last activity timestamp"""
+        self.last_activity = datetime.utcnow()
+        if session_id:
+            self.session_id = session_id
+
+
+class ClientChecklistAccess(db.Model):
+    """Secure token-based access to client checklists for production"""
+    __tablename__ = 'client_checklist_access'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('document_checklist.id'), nullable=False)
+    access_token = db.Column(db.String(255), unique=True, nullable=False)  # Secure URL token
+    client_email = db.Column(db.String(255), nullable=False)  # Client email for verification
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime)  # Optional expiration
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)  # CPA who created the link
+    
+    # Access tracking
+    access_count = db.Column(db.Integer, default=0, nullable=False)
+    last_accessed = db.Column(db.DateTime)
+    access_ip_addresses = db.Column(db.Text)  # JSON array of IPs that accessed
+    
+    # Security settings
+    max_access_count = db.Column(db.Integer)  # Limit number of accesses
+    ip_whitelist = db.Column(db.Text)  # JSON array of allowed IPs
+    requires_email_verification = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # Relationships
+    checklist = db.relationship('DocumentChecklist', backref='access_tokens')
+    creator = db.relationship('User', backref='created_checklist_access')
+    
+    def generate_token(self):
+        """Generate a secure access token"""
+        import secrets
+        import string
+        # Generate a 32-character URL-safe token
+        alphabet = string.ascii_letters + string.digits + '-_'
+        self.access_token = ''.join(secrets.choice(alphabet) for _ in range(32))
+        return self.access_token
+    
+    @property
+    def is_expired(self):
+        """Check if access token has expired"""
+        if not self.expires_at:
+            return False
+        return datetime.utcnow() > self.expires_at
+    
+    @property
+    def is_access_limited(self):
+        """Check if access is limited by count"""
+        if not self.max_access_count:
+            return False
+        return self.access_count >= self.max_access_count
+    
+    @property
+    def public_url(self):
+        """Generate the public URL for this checklist"""
+        # This will be used in production to generate URLs like:
+        # https://your-app.replit.app/checklist/ABC123XYZ789...
+        return f"/checklist/{self.access_token}"
+    
+    def record_access(self, ip_address=None):
+        """Record an access to this checklist"""
+        self.access_count += 1
+        self.last_accessed = datetime.utcnow()
+        
+        if ip_address:
+            # Track IP addresses as JSON array
+            try:
+                import json
+                if self.access_ip_addresses:
+                    ips = json.loads(self.access_ip_addresses)
+                else:
+                    ips = []
+                
+                if ip_address not in ips:
+                    ips.append(ip_address)
+                    # Keep only last 10 IPs to avoid bloat
+                    if len(ips) > 10:
+                        ips = ips[-10:]
+                    self.access_ip_addresses = json.dumps(ips)
+            except:
+                self.access_ip_addresses = json.dumps([ip_address])
+    
+    def is_ip_allowed(self, ip_address):
+        """Check if IP address is allowed"""
+        if not self.ip_whitelist:
+            return True  # No restriction
+        
+        try:
+            import json
+            allowed_ips = json.loads(self.ip_whitelist)
+            return ip_address in allowed_ips
+        except:
+            return True  # Default to allow if JSON parsing fails
+    
+    def can_access(self, client_email=None, ip_address=None):
+        """Check if access is allowed based on all restrictions"""
+        if not self.is_active:
+            return False, "Access token is inactive"
+        
+        if self.is_expired:
+            return False, "Access token has expired"
+        
+        if self.is_access_limited:
+            return False, "Access limit exceeded"
+        
+        if self.requires_email_verification and client_email != self.client_email:
+            return False, "Email verification required"
+        
+        if ip_address and not self.is_ip_allowed(ip_address):
+            return False, "IP address not allowed"
+        
+        return True, "Access granted"
+    
+    def revoke(self):
+        """Revoke access token"""
+        self.is_active = False
+    
+    def extend_expiration(self, days=30):
+        """Extend expiration by specified days"""
+        from datetime import timedelta
+        if self.expires_at:
+            self.expires_at += timedelta(days=days)
+        else:
+            self.expires_at = datetime.utcnow() + timedelta(days=days)
 
 

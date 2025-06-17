@@ -452,6 +452,18 @@
         text-decoration: none;
     }
 
+    .btn-success-modern {
+        background: var(--gradient-success);
+        color: white;
+    }
+
+    .btn-success-modern:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+
     .btn-outline-modern {
         background: white;
         color: var(--secondary);
@@ -703,6 +715,10 @@
                             <a href="{{ url_for('checklist_dashboard', checklist_id=checklist.id) }}" 
                                class="btn-modern btn-primary-modern" title="View detailed dashboard">
                                 <i class="bi bi-eye"></i> Dashboard
+                            </a>
+                            <a href="{{ url_for('share_checklist', checklist_id=checklist.id) }}" 
+                               class="btn-modern btn-success-modern" title="Share with client">
+                                <i class="bi bi-share"></i> Share
                             </a>
                             <a href="{{ url_for('edit_checklist', checklist_id=checklist.id) }}" 
                                class="btn-modern btn-outline-modern" title="Edit checklist items">
