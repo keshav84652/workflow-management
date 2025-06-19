@@ -30,6 +30,5 @@ ALL_BLUEPRINTS = [
     documents_bp,
     client_portal_bp,
     export_bp,
-]    api_bp
     api_bp
 ]

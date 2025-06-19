@@ -525,49 +525,7 @@ def kanban_view():
                          users=users,
                          today=date.today())
 
-@app.route('/api/clients/search')
-def search_clients():
-    """API endpoint to search for clients by name"""
-    if 'firm_id' not in session:
-        return jsonify({'error': 'Access denied'}), 403
-    
-    firm_id = session['firm_id']
-    query = request.args.get('q', '').strip()
-    
-    if not query:
-        return jsonify({'clients': []})
-    
-    # Search for clients by name (case-insensitive)
-    clients = Client.query.filter(
-        Client.firm_id == firm_id,
-        Client.is_active == True,
-        Client.name.ilike(f'%{query}%')
-    ).order_by(Client.name.asc()).limit(10).all()
-    
-    client_data = []
-    for client in clients:
-        client_data.append({
-            'id': client.id,
-            'name': client.name,
-            'email': client.email,
-            'entity_type': client.entity_type,
-            'contact_person': client.contact_person
-        })
-    
-    return jsonify({'clients': client_data})
-
-@app.route('/projects/<int:project_id>/move-status', methods=['POST'])
-def move_project_status(project_id):
-    """Move a project to a different template task stage"""
-    project = Project.query.get_or_404(project_id)
-    
-    # Check access
-    if project.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    
-    try:
-        new_column_id = request.json.get('status_id')  # Using same param name for compatibility
-        
+# API clients search route moved to api blueprint
         if not new_column_id:
             return jsonify({'success': False, 'message': 'Column ID is required'}), 400
         
@@ -706,60 +664,7 @@ def get_project_progress(project_id):
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@app.route('/search')
-def search():
-    firm_id = session['firm_id']
-    query = request.args.get('q', '').strip()
-    search_type = request.args.get('type', 'all')
-    
-    results = {
-        'tasks': [],
-        'projects': [],
-        'clients': [],
-        'query': query,
-        'search_type': search_type
-    }
-    
-    if not query:
-        return render_template('admin/search.html', **results)
-    
-    # Search tasks
-    if search_type in ['all', 'tasks']:
-        task_query = Task.query.outerjoin(Project).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            )
-        )
-        
-        # Search in task title, description, and comments
-        task_filters = db.or_(
-            Task.title.ilike(f'%{query}%'),
-            Task.description.ilike(f'%{query}%'),
-            Task.comments.ilike(f'%{query}%')
-        )
-        
-        results['tasks'] = task_query.filter(task_filters).order_by(Task.created_at.desc()).limit(20).all()
-    
-    # Search projects
-    if search_type in ['all', 'projects']:
-        project_query = Project.query.filter_by(firm_id=firm_id)
-        
-        # Search in project name and client name
-        project_filters = db.or_(
-            Project.name.ilike(f'%{query}%')
-        )
-        
-        # Also search by client name if client relationship exists
-        project_query = project_query.join(Client, Project.client_id == Client.id, isouter=True)
-        project_filters = db.or_(
-            project_filters,
-            Client.name.ilike(f'%{query}%')
-        )
-        
-        results['projects'] = project_query.filter(project_filters).order_by(Project.created_at.desc()).limit(20).all()
-    
-    # Search clients
+# Search route moved to views blueprint
     if search_type in ['all', 'clients']:
         client_query = Client.query.filter_by(firm_id=firm_id)
         
@@ -780,69 +685,7 @@ def search():
 
 # Additional client routes moved to clients blueprint
 
-@app.route('/admin/work_types', methods=['GET'])
-def admin_work_types():
-    if session.get('user_role') != 'Admin':
-        flash('Access denied', 'error')
-        return redirect(url_for('dashboard.main'))
-    
-    work_types = WorkType.query.filter_by(firm_id=session['firm_id']).all()
-    
-    # Get task count by work type (through project relationship)
-    work_type_usage = {}
-    for wt in work_types:
-        task_count = Task.query.join(Project).filter(
-            Task.firm_id == session['firm_id'],
-            Project.work_type_id == wt.id
-        ).count()
-        work_type_usage[wt.id] = task_count
-    
-    return render_template('admin/admin_work_types.html', 
-                         work_types=work_types, 
-                         work_type_usage=work_type_usage)
-
-@app.route('/admin/work_types/create', methods=['POST'])
-def admin_create_work_type():
-    if session.get('user_role') != 'Admin':
-        return jsonify({'error': 'Access denied'}), 403
-    
-    name = request.form.get('name')
-    color = request.form.get('color', '#3b82f6')
-    
-    if not name:
-        return jsonify({'error': 'Work type name is required'}), 400
-    
-    # Check if work type already exists
-    existing = WorkType.query.filter_by(firm_id=session['firm_id'], name=name).first()
-    if existing:
-        return jsonify({'error': 'Work type with this name already exists'}), 400
-    
-    work_type = WorkType(
-        firm_id=session['firm_id'],
-        name=name,
-        color=color
-    )
-    
-    db.session.add(work_type)
-    db.session.flush()  # Get the ID
-    
-    # Create default status
-    default_status = TaskStatus(
-        work_type_id=work_type.id,
-        name='Not Started',
-        color='#6b7280',
-        position=1,
-        is_default=True,
-        is_terminal=False
-    )
-    
-    db.session.add(default_status)
-    db.session.commit()
-    
-    create_activity_log(f'Work type "{name}" created', session['user_id'])
-    
-    return jsonify({'success': True, 'work_type_id': work_type.id})
-
+# Admin work_types routes moved to admin blueprint
 @app.route('/admin/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
     if session.get('user_role') != 'Admin':

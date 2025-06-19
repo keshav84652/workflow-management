@@ -2,10 +2,10 @@
 Administrative functions blueprint
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash\nimport os
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify\nimport os
 from datetime import datetime
 from core import db
-from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask\nfrom utils import generate_access_code
+from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project\nfrom utils import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -170,4 +170,70 @@ def generate_access_code_route():
     
     flash(f'Access code generated: {access_code}', 'success')
     return redirect(url_for('admin.dashboard'))
+EOF < /dev/null
+
+@admin_bp.route('/work_types', methods=['GET'])
+def admin_work_types():
+    if session.get('user_role') \!= 'Admin':
+        flash('Access denied', 'error')
+        return redirect(url_for('dashboard.main'))
+    
+    work_types = WorkType.query.filter_by(firm_id=session['firm_id']).all()
+    
+    # Get task count by work type (through project relationship)
+    work_type_usage = {}
+    for wt in work_types:
+        task_count = Task.query.join(Project).filter(
+            Task.firm_id == session['firm_id'],
+            Project.work_type_id == wt.id
+        ).count()
+        work_type_usage[wt.id] = task_count
+    
+    return render_template('admin/admin_work_types.html', 
+                         work_types=work_types, 
+                         work_type_usage=work_type_usage)
+
+
+@admin_bp.route('/work_types/create', methods=['POST'])
+def admin_create_work_type():
+    if session.get('user_role') \!= 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        name = request.form.get('name')
+        description = request.form.get('description')
+        
+        work_type = WorkType(
+            name=name,
+            description=description,
+            firm_id=session['firm_id']
+        )
+        db.session.add(work_type)
+        db.session.flush()
+        
+        # Create default statuses
+        default_statuses = [
+            {'name': 'Not Started', 'color': '#6b7280', 'position': 1, 'is_default': True},
+            {'name': 'In Progress', 'color': '#3b82f6', 'position': 2},
+            {'name': 'Review', 'color': '#f59e0b', 'position': 3},
+            {'name': 'Completed', 'color': '#10b981', 'position': 4, 'is_terminal': True}
+        ]
+        
+        for status_data in default_statuses:
+            status = TaskStatus(
+                firm_id=session['firm_id'],
+                work_type_id=work_type.id,
+                **status_data
+            )
+            db.session.add(status)
+        
+        db.session.commit()
+        
+        flash(f'Work type "{name}" created successfully with default statuses\!', 'success')
+        return redirect(url_for('admin.admin_work_types'))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating work type: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_work_types'))
 EOF < /dev/null
