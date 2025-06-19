@@ -106,23 +106,31 @@ def perform_checklist_ai_analysis(checklist):
             pass
 # AI Document Analysis Integration
 # Note: Requires environment setup (.env file with API keys)
-try:
-    from backend.services.document_processor import DocumentProcessor
-    from backend.services.azure_service import AzureDocumentService
-    from backend.services.gemini_service import GeminiDocumentService
-    from backend.services.document_visualizer import DocumentVisualizer
-    from backend.agents.tax_document_analyst_agent import TaxDocumentAnalystAgent
-    from backend.models.document import FileUpload, ProcessedDocument
-    from backend.utils.config import settings
-    AI_SERVICES_AVAILABLE = True
-    print("✅ AI Services loaded successfully")
-except ImportError as e:
-    AI_SERVICES_AVAILABLE = False
-    print(f"⚠️  AI Services not available: {e}")
-    print("💡 To enable AI features:")
-    print("   1. Copy .env.template to .env")
-    print("   2. Add your Azure and Gemini API keys")
-    print("   3. Install dependencies: pip install -r requirements.txt")
+# Temporarily disabled AI imports to resolve dependency issues
+AI_SERVICES_AVAILABLE = False
+print("⚠️  AI Services temporarily disabled")
+print("💡 To enable AI features:")
+print("   1. Copy .env.template to .env")
+print("   2. Add your Azure and Gemini API keys")
+print("   3. Install dependencies: pip install -r requirements.txt")
+
+# try:
+#     from backend.services.document_processor import DocumentProcessor
+#     from backend.services.azure_service import AzureDocumentService
+#     from backend.services.gemini_service import GeminiDocumentService
+#     from backend.services.document_visualizer import DocumentVisualizer
+#     from backend.agents.tax_document_analyst_agent import TaxDocumentAnalystAgent
+#     from backend.models.document import FileUpload, ProcessedDocument
+#     from backend.utils.config import settings
+#     AI_SERVICES_AVAILABLE = True
+#     print("✅ AI Services loaded successfully")
+# except Exception as e:
+#     AI_SERVICES_AVAILABLE = False
+#     print(f"⚠️  AI Services not available: {e}")
+#     print("💡 To enable AI features:")
+#     print("   1. Copy .env.template to .env")
+#     print("   2. Add your Azure and Gemini API keys")
+#     print("   3. Install dependencies: pip install -r requirements.txt")
 
 # Recurring tasks are now integrated into the Task model
 
@@ -245,11 +253,19 @@ def check_and_update_project_completion(project_id):
 @app.before_request
 def check_access():
     # Skip authentication for public endpoints and landing page
-    if request.endpoint in ['static', 'home', 'landing', 'admin_login', 'admin_dashboard', 'generate_access_code_route', 'admin_authenticate']:
+    if request.endpoint in ['static', 'auth.home', 'auth.landing', 'admin.login', 'admin.dashboard', 'admin.authenticate']:
         return
     
     # Skip for login flow
-    if request.endpoint in ['login', 'authenticate', 'select_user', 'set_user']:
+    if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user']:
+        return
+    
+    # Skip for client portal
+    if request.endpoint in ['client_login', 'client_authenticate', 'client_dashboard', 'client_logout']:
+        return
+    
+    # Skip for public checklist access
+    if request.endpoint in ['public_checklist', 'public_checklist_upload', 'public_checklist_status']:
         return
     
     # Check firm access
