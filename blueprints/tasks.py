@@ -249,3 +249,442 @@ def create_task():
     prefill_due_date = request.args.get('due_date')
     
     return render_template('tasks/create_task.html', projects=projects, users=users, selected_project=selected_project, prefill_due_date=prefill_due_date)
+
+
+@tasks_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+def edit_task(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks.list_tasks'))
+    elif not task.project and task.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks.list_tasks'))
+    
+    if request.method == 'POST':
+        # Track original values for change detection
+        original_assignee_id = task.assignee_id
+        original_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+        
+        # Get form data
+        task.title = request.form.get('title')
+        task.description = request.form.get('description')
+        assignee_id = request.form.get('assignee_id')
+        new_assignee_id = assignee_id if assignee_id else None
+        task.assignee_id = new_assignee_id
+        task.priority = request.form.get('priority', 'Medium')
+        task.status = request.form.get('status', task.status)
+        
+        # Handle due date
+        due_date = request.form.get('due_date')
+        if due_date:
+            task.due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        else:
+            task.due_date = None
+        
+        # Handle estimated hours
+        estimated_hours = request.form.get('estimated_hours')
+        if estimated_hours:
+            try:
+                task.estimated_hours = float(estimated_hours)
+            except ValueError:
+                task.estimated_hours = None
+        else:
+            task.estimated_hours = None
+        
+        # Handle comments
+        comments = request.form.get('comments')
+        if comments:
+            task.comments = comments
+        
+        # Handle dependencies (only for project tasks)
+        if task.project_id:
+            dependencies = request.form.getlist('dependencies')
+            if dependencies:
+                # Validate dependencies - ensure no circular dependencies
+                valid_dependencies = []
+                for dep_id in dependencies:
+                    try:
+                        dep_id = int(dep_id)
+                        dep_task = Task.query.filter_by(id=dep_id, project_id=task.project_id).first()
+                        if dep_task and dep_id != task.id:
+                            # Check for circular dependency - simple check for now
+                            valid_dependencies.append(str(dep_id))
+                    except ValueError:
+                        pass
+                task.dependencies = ','.join(valid_dependencies) if valid_dependencies else None
+            else:
+                task.dependencies = None
+        
+        db.session.commit()
+        
+        # Log assignee change if it occurred
+        if original_assignee_id != new_assignee_id:
+            new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+            assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
+            if task.project_id:
+                create_activity_log(assignee_log_msg, session['user_id'], task.project_id, task.id)
+            else:
+                create_activity_log(assignee_log_msg, session['user_id'], None, task.id)
+        
+        # General activity log
+        if task.project_id:
+            create_activity_log(f'Task "{task.title}" updated', session['user_id'], task.project_id, task.id)
+        else:
+            create_activity_log(f'Independent task "{task.title}" updated', session['user_id'], None, task.id)
+        
+        flash('Task updated successfully!', 'success')
+        return redirect(url_for('tasks.view_task', id=task.id))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    users = User.query.filter_by(firm_id=firm_id).all()
+    
+    # Get other tasks in the same project for dependency selection
+    project_tasks = []
+    if task.project_id:
+        project_tasks = Task.query.filter_by(project_id=task.project_id).order_by(Task.title).all()
+    
+    return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
+
+
+@tasks_bp.route('/<int:id>')
+def view_task(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks.list_tasks'))
+    elif not task.project and task.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('tasks.list_tasks'))
+    
+    # Get task activity logs
+    activity_logs = ActivityLog.query.filter_by(task_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
+    
+    # Get task comments
+    comments = TaskComment.query.filter_by(task_id=id).order_by(TaskComment.created_at.desc()).all()
+    
+    return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
+
+
+@tasks_bp.route('/<int:id>/comments', methods=['POST'])
+def add_task_comment(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    comment_text = request.form.get('comment', '').strip()
+    if not comment_text:
+        return jsonify({'success': False, 'message': 'Comment cannot be empty'})
+    
+    try:
+        # Create comment
+        comment = TaskComment(
+            comment=comment_text,
+            task_id=task.id,
+            user_id=session['user_id']
+        )
+        db.session.add(comment)
+        
+        # Create activity log
+        create_activity_log(
+            f'Comment added to task "{task.title}"',
+            session['user_id'],
+            task.project_id if task.project_id else None,
+            task.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'comment': {
+                'id': comment.id,
+                'comment': comment.comment,
+                'user_name': comment.user.name,
+                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@tasks_bp.route('/<int:id>/log-time', methods=['POST'])
+def log_time(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id != session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        data = request.get_json()
+        hours = float(data.get('hours', 0))
+        
+        if hours <= 0:
+            return jsonify({'success': False, 'message': 'Hours must be greater than 0'})
+        
+        # Add to existing actual hours
+        task.actual_hours = (task.actual_hours or 0) + hours
+        
+        # Create activity log
+        create_activity_log(
+            f'Logged {hours}h on task "{task.title}" (Total: {task.actual_hours}h)',
+            session['user_id'],
+            task.project_id if task.project_id else None,
+            task.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'total_hours': task.actual_hours,
+            'logged_hours': hours
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@tasks_bp.route('/bulk-update', methods=['POST'])
+def bulk_update_tasks():
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+    firm_id = session['firm_id']
+    
+    if not task_ids:
+        return jsonify({'success': False, 'message': 'No tasks selected'})
+    
+    try:
+        # Get tasks that belong to the firm
+        tasks = Task.query.outerjoin(Project).filter(
+            Task.id.in_(task_ids),
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).all()
+        
+        if not tasks:
+            return jsonify({'success': False, 'message': 'No valid tasks found'})
+        
+        updated_count = 0
+        for task in tasks:
+            # Update status if provided
+            if 'status' in data:
+                old_status = task.status
+                task.status = data['status']
+                if old_status \!= task.status:
+                    # Log status change
+                    create_activity_log(
+                        f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
+                        session['user_id'],
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+            
+            # Update assignee if provided
+            if 'assignee_id' in data:
+                old_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+                task.assignee_id = data['assignee_id'] if data['assignee_id'] else None
+                new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+                if old_assignee_name \!= new_assignee_name:
+                    # Log assignee change
+                    create_activity_log(
+                        f'Task "{task.title}" assignee changed from "{old_assignee_name}" to "{new_assignee_name}" (bulk update)',
+                        session['user_id'],
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+            
+            # Update priority if provided
+            if 'priority' in data:
+                old_priority = task.priority
+                task.priority = data['priority']
+                if old_priority \!= task.priority:
+                    # Log priority change
+                    create_activity_log(
+                        f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
+                        session['user_id'],
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+            
+            updated_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully updated {updated_count} tasks'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@tasks_bp.route('/bulk-delete', methods=['POST'])
+def bulk_delete_tasks():
+    data = request.get_json()
+    task_ids = data.get('task_ids', [])
+    firm_id = session['firm_id']
+    
+    if not task_ids:
+        return jsonify({'success': False, 'message': 'No tasks selected'})
+    
+    try:
+        # Get tasks that belong to the firm
+        tasks = Task.query.outerjoin(Project).filter(
+            Task.id.in_(task_ids),
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).all()
+        
+        if not tasks:
+            return jsonify({'success': False, 'message': 'No valid tasks found'})
+        
+        deleted_count = 0
+        for task in tasks:
+            # Log deletion
+            create_activity_log(
+                f'Task "{task.title}" deleted (bulk operation)',
+                session['user_id'],
+                task.project_id if task.project_id else None,
+                None  # task_id will be None since task is being deleted
+            )
+            
+            # Delete associated comments first
+            TaskComment.query.filter_by(task_id=task.id).delete()
+            
+            # Delete the task
+            db.session.delete(task)
+            deleted_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully deleted {deleted_count} tasks'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@tasks_bp.route('/<int:id>/update', methods=['POST'])
+def update_task(id):
+    task = Task.query.get_or_404(id)
+    # Check access for both project tasks and independent tasks
+    if task.project and task.project.firm_id \!= session['firm_id']:
+        return jsonify({'error': 'Access denied'}), 403
+    elif not task.project and task.firm_id \!= session['firm_id']:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    old_status = task.status
+    new_status = request.json.get('status')
+    
+    if new_status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
+        task.status = new_status
+        
+        # Handle recurring task completion
+        if new_status == 'Completed' and old_status \!= 'Completed':
+            task.completed_at = datetime.utcnow()
+            
+            # If this is a recurring task, create next instance
+            if task.is_recurring and task.is_recurring_master:
+                task.last_completed = date.today()
+                next_instance = task.create_next_instance()
+                if next_instance:
+                    db.session.add(next_instance)
+                    create_activity_log(
+                        f'Next instance of recurring task "{task.title}" created for {next_instance.due_date}',
+                        session.get('user_id', 1),
+                        task.project_id if task.project_id else None,
+                        task.id
+                    )
+        
+        db.session.commit()
+        
+        if old_status \!= new_status:
+            create_activity_log(
+                f'Task "{task.title}" status changed from "{old_status}" to "{new_status}"',
+                session.get('user_id', 1),
+                task.project_id if task.project_id else None,
+                task.id
+            )
+        
+        return jsonify({'success': True})
+    
+    return jsonify({'error': 'Invalid status'}), 400
+
+
+@tasks_bp.route('/<int:id>/timer/start', methods=['POST'])
+def start_timer(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    if task.start_timer():
+        db.session.commit()
+        create_activity_log(f'Timer started for task "{task.title}"', session['user_id'], task.project_id, task.id)
+        return jsonify({'success': True, 'message': 'Timer started'})
+    else:
+        return jsonify({'success': False, 'message': 'Timer already running'})
+
+
+@tasks_bp.route('/<int:id>/timer/stop', methods=['POST'])
+def stop_timer(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    elapsed_hours = task.stop_timer()
+    if elapsed_hours > 0:
+        db.session.commit()
+        create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', session['user_id'], task.project_id, task.id)
+        return jsonify({
+            'success': True, 
+            'message': f'Timer stopped - {elapsed_hours:.2f}h logged',
+            'elapsed_hours': elapsed_hours,
+            'total_hours': task.actual_hours
+        })
+    else:
+        return jsonify({'success': False, 'message': 'No timer running'})
+
+
+@tasks_bp.route('/<int:id>/timer/status', methods=['GET'])
+def timer_status(id):
+    task = Task.query.get_or_404(id)
+    # Check access
+    if task.project and task.project.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    elif not task.project and task.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    return jsonify({
+        'timer_running': task.timer_running,
+        'current_duration': task.current_timer_duration,
+        'total_hours': task.actual_hours or 0,
+        'billable_amount': task.billable_amount
+    })
+EOF < /dev/null
