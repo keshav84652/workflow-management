@@ -2,7 +2,7 @@
 Authentication and session management blueprint
 """
 
-from flask import Blueprint, render_template, redirect, url_for, request, session, flash
+from flask import Blueprint, render_template, redirect, url_for, request, session, flash, make_response, jsonify
 from datetime import datetime
 from core import db
 from models import Firm, User
@@ -121,12 +121,52 @@ def switch_user():
 
 @auth_bp.route('/logout')
 def logout():
+    """Logout user with proper cache control and session clearing"""
     session.clear()
-    return redirect(url_for('auth.home'))
+    
+    # Create response with proper cache control headers
+    response = make_response(redirect(url_for('auth.home')))
+    
+    # Prevent caching of any authenticated content
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    # Clear any authentication cookies if they exist
+    response.set_cookie('session', '', expires=0)
+    
+    return response
 
 
 @auth_bp.route('/clear-session')
 def clear_session():
-    """Clear session and redirect to landing page"""
+    """Clear session and redirect to landing page with proper cache control"""
     session.clear()
-    return redirect(url_for('auth.home'))
+    
+    response = make_response(redirect(url_for('auth.home')))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response
+
+
+@auth_bp.route('/api/auth-status')
+def auth_status():
+    """API endpoint to check authentication status"""
+    is_authenticated = 'firm_id' in session and 'user_id' in session
+    
+    response_data = {
+        'authenticated': is_authenticated,
+        'firm_id': session.get('firm_id'),
+        'user_id': session.get('user_id'),
+        'user_name': session.get('user_name'),
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    response = make_response(jsonify(response_data))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    
+    return response

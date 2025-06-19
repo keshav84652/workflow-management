@@ -253,11 +253,11 @@ def check_and_update_project_completion(project_id):
 @app.before_request
 def check_access():
     # Skip authentication for public endpoints and landing page
-    if request.endpoint in ['static', 'auth.home', 'auth.landing', 'admin.login', 'admin.dashboard', 'admin.authenticate']:
+    if request.endpoint in ['static', 'auth.home', 'auth.landing', 'auth.logout', 'auth.clear_session', 'admin.login', 'admin.dashboard', 'admin.authenticate']:
         return
     
     # Skip for login flow
-    if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user']:
+    if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user', 'auth.switch_user']:
         return
     
     # Skip for client portal
@@ -268,13 +268,31 @@ def check_access():
     if request.endpoint in ['public_checklist', 'public_checklist_upload', 'public_checklist_status']:
         return
     
-    # Check firm access
+    # Check firm access - clear session if invalid
     if 'firm_id' not in session:
+        session.clear()  # Clear any partial session data
         return redirect(url_for('auth.login'))
     
     # Check user selection (except for user selection pages)
     if 'user_id' not in session:
         return redirect(url_for('auth.select_user'))
+
+
+@app.after_request
+def add_security_headers(response):
+    """Add security headers to all responses"""
+    # For authenticated pages, prevent caching
+    if 'firm_id' in session:
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    
+    # Add other security headers
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    
+    return response
 
 # Auth routes moved to auth blueprint
 
