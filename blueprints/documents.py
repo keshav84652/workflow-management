@@ -261,3 +261,222 @@ def checklist_stats_api(checklist_id):
             stats['last_activity'] = latest_update.strftime('%Y-%m-%d %H:%M:%S')
     
     return jsonify(stats)
+
+
+@documents_bp.route('/checklist/<int:checklist_id>/share')
+def share_checklist(checklist_id):
+    """Generate shareable link for public checklist access"""
+    firm_id = session['firm_id']
+    
+    # Get checklist and verify it belongs to this firm
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    # Generate or get existing access token
+    if not checklist.public_access_token:
+        import secrets
+        checklist.public_access_token = secrets.token_urlsafe(32)
+        checklist.public_access_enabled = True
+        db.session.commit()
+    
+    # Generate shareable URL
+    from flask import url_for
+    share_url = url_for('documents.public_checklist', token=checklist.public_access_token, _external=True)
+    
+    return render_template('documents/share_checklist.html', 
+                         checklist=checklist, 
+                         share_url=share_url)
+
+
+@documents_bp.route('/checklist/<int:checklist_id>/revoke-share', methods=['POST'])
+def revoke_checklist_share(checklist_id):
+    """Revoke public access to checklist"""
+    firm_id = session['firm_id']
+    
+    # Get checklist and verify it belongs to this firm
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    # Disable public access
+    checklist.public_access_enabled = False
+    db.session.commit()
+    
+    flash('Public access revoked successfully', 'success')
+    return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
+
+
+@documents_bp.route('/checklist/<int:checklist_id>/regenerate-share', methods=['POST'])
+def regenerate_checklist_share(checklist_id):
+    """Regenerate shareable token for checklist"""
+    firm_id = session['firm_id']
+    
+    # Get checklist and verify it belongs to this firm
+    checklist = DocumentChecklist.query.join(Client).filter(
+        DocumentChecklist.id == checklist_id,
+        Client.firm_id == firm_id
+    ).first_or_404()
+    
+    # Generate new token
+    import secrets
+    checklist.public_access_token = secrets.token_urlsafe(32)
+    checklist.public_access_enabled = True
+    db.session.commit()
+    
+    flash('New shareable link generated', 'success')
+    return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
+
+
+@documents_bp.route('/checklist/<token>')
+def public_checklist(token):
+    """Public view of checklist for client access"""
+    # Find checklist by token
+    checklist = DocumentChecklist.query.filter_by(
+        public_access_token=token,
+        public_access_enabled=True
+    ).first_or_404()
+    
+    return render_template('documents/public_checklist.html', checklist=checklist)
+
+
+@documents_bp.route('/checklist/<token>/upload', methods=['POST'])
+def public_checklist_upload(token):
+    """Handle public document upload via shared link"""
+    # Find checklist by token
+    checklist = DocumentChecklist.query.filter_by(
+        public_access_token=token,
+        public_access_enabled=True
+    ).first_or_404()
+    
+    item_id = request.form.get('item_id')
+    item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first_or_404()
+    
+    if 'file' not in request.files:
+        flash('No file uploaded', 'error')
+        return redirect(url_for('documents.public_checklist', token=token))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('documents.public_checklist', token=token))
+    
+    from werkzeug.utils import secure_filename
+    
+    try:
+        # Generate unique filename
+        original_filename = secure_filename(file.filename)
+        file_extension = original_filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # Create client-specific subdirectory
+        from flask import current_app
+        client_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], f'client_{checklist.client_id}')
+        os.makedirs(client_upload_dir, exist_ok=True)
+        
+        file_path = os.path.join(client_upload_dir, unique_filename)
+        
+        # Save file
+        file.save(file_path)
+        file_size = os.path.getsize(file_path)
+        
+        # Detect MIME type
+        mime_type, _ = mimetypes.guess_type(original_filename)
+        
+        # Delete any existing document for this item
+        existing_doc = ClientDocument.query.filter_by(
+            client_id=checklist.client_id,
+            checklist_item_id=item_id
+        ).first()
+        
+        if existing_doc:
+            # Remove old file
+            if os.path.exists(existing_doc.file_path):
+                os.remove(existing_doc.file_path)
+            db.session.delete(existing_doc)
+        
+        # Create new document record
+        document = ClientDocument(
+            client_id=checklist.client_id,
+            checklist_item_id=item_id,
+            filename=unique_filename,
+            original_filename=original_filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=mime_type,
+            uploaded_by_client=True
+        )
+        
+        db.session.add(document)
+        
+        # Update item status
+        item.status = 'uploaded'
+        item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        flash('File uploaded successfully', 'success')
+        return redirect(url_for('documents.public_checklist', token=token))
+        
+    except Exception as e:
+        db.session.rollback()
+        # Clean up file if database operation fails
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+        flash(f'Error uploading file: {str(e)}', 'error')
+        return redirect(url_for('documents.public_checklist', token=token))
+
+
+@documents_bp.route('/checklist/<token>/status', methods=['POST'])
+def public_checklist_status(token):
+    """Update document status via public link"""
+    # Find checklist by token
+    checklist = DocumentChecklist.query.filter_by(
+        public_access_token=token,
+        public_access_enabled=True
+    ).first_or_404()
+    
+    item_id = request.form.get('item_id')
+    new_status = request.form.get('status')
+    
+    if new_status not in ['already_provided', 'not_applicable', 'pending']:
+        flash('Invalid status selected', 'error')
+        return redirect(url_for('documents.public_checklist', token=token))
+    
+    item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first_or_404()
+    
+    try:
+        # If changing from uploaded status, remove the uploaded file
+        if item.status == 'uploaded' and new_status != 'uploaded':
+            existing_doc = ClientDocument.query.filter_by(
+                client_id=checklist.client_id,
+                checklist_item_id=item_id
+            ).first()
+            
+            if existing_doc:
+                # Remove file
+                if os.path.exists(existing_doc.file_path):
+                    os.remove(existing_doc.file_path)
+                db.session.delete(existing_doc)
+        
+        # Update status
+        item.status = new_status
+        item.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        status_messages = {
+            'already_provided': 'Marked as already provided',
+            'not_applicable': 'Marked as not applicable',
+            'pending': 'Reset to pending'
+        }
+        
+        flash(status_messages.get(new_status, 'Status updated'), 'success')
+        return redirect(url_for('documents.public_checklist', token=token))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating status: {str(e)}', 'error')
+        return redirect(url_for('documents.public_checklist', token=token))

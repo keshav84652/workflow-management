@@ -18,6 +18,7 @@ from .export import export_bp
 from .api import api_bp
 from .attachments import attachments_bp
 from .subtasks import subtasks_bp
+from .ai import ai_bp
 
 # List of all blueprints for easy registration
 ALL_BLUEPRINTS = [
@@ -35,5 +36,6 @@ ALL_BLUEPRINTS = [
     export_bp,
     api_bp,
     attachments_bp,
-    subtasks_bp
+    subtasks_bp,
+    ai_bp
 ]
