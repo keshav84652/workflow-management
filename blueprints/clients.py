@@ -5,7 +5,7 @@ Client management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from core import db
-from models import Client, Project, Task, User, Contact, ClientContact, ActivityLog, Contact, ClientContact, Attachment, TaskComment
+from models import Client, Project, Task, User, Contact, ClientContact, ClientUser, ActivityLog, Contact, ClientContact, Attachment, TaskComment
 from utils import create_activity_log
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
@@ -243,4 +243,63 @@ def associate_client_contact(client_id):
     flash('Contact linked successfully!', 'success')
     
     return redirect(url_for('clients.view_client', id=client_id))
+
+
+@clients_bp.route('/<int:client_id>/access-setup', methods=['GET', 'POST'])
+def client_access_setup(client_id):
+    """Set up client portal access for a client"""
+    firm_id = session['firm_id']
+    
+    # Verify client belongs to this firm
+    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    
+    # Check if client user already exists
+    client_user = ClientUser.query.filter_by(client_id=client_id).first()
+    
+    if request.method == 'POST':
+        action = request.form.get('action', 'create')
+        
+        if action == 'create' and not client_user:
+            # Create new client user
+            email = request.form.get('email') or client.email
+            
+            # Ensure we have an email (use client email as fallback)
+            if not email:
+                flash('Client must have an email address to create portal access. Please update client information first.', 'error')
+                return redirect(url_for('clients.client_access_setup', client_id=client_id))
+            
+            client_user = ClientUser(
+                client_id=client_id,
+                email=email,
+                is_active=True
+            )
+            # Generate 8-character access code
+            client_user.generate_access_code()
+            
+            db.session.add(client_user)
+            db.session.commit()
+            
+            flash(f'Client portal access created successfully! Access code: {client_user.access_code}', 'success')
+            
+        elif action == 'regenerate' and client_user:
+            # Regenerate access code
+            old_code = client_user.access_code
+            client_user.generate_access_code()
+            db.session.commit()
+            
+            flash(f'New access code generated: {client_user.access_code}', 'success')
+            
+        elif action == 'toggle' and client_user:
+            # Toggle active status
+            client_user.is_active = not client_user.is_active
+            db.session.commit()
+            
+            status = 'activated' if client_user.is_active else 'deactivated'
+            flash(f'Client portal access {status}', 'success')
+        
+        # Refresh client_user object after changes
+        if client_user:
+            db.session.refresh(client_user)
+    
+    return render_template('clients/client_access_setup.html', client=client, client_user=client_user)
 EOF < /dev/null
