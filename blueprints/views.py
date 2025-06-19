@@ -137,3 +137,57 @@ def search():
     
     return render_template('admin/search.html', **results)
 EOF < /dev/null
+
+@views_bp.route('/reports/time-tracking')
+def time_tracking_report():
+    firm_id = session['firm_id']
+    
+    # Get filter parameters
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    user_id = request.args.get('user_id')
+    project_id = request.args.get('project_id')
+    
+    # Base query for tasks with time logged
+    query = Task.query.outerjoin(Project).filter(
+        db.or_(
+            Project.firm_id == firm_id,
+            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+        ),
+        Task.actual_hours > 0
+    )
+    
+    # Apply filters
+    if start_date:
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        query = query.filter(Task.updated_at >= start_date_obj)
+    
+    if end_date:
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        query = query.filter(Task.updated_at <= end_date_obj)
+    
+    if user_id:
+        query = query.filter(Task.assignee_id == user_id)
+    
+    if project_id:
+        query = query.filter(Task.project_id == project_id)
+    
+    tasks = query.order_by(Task.updated_at.desc()).all()
+    
+    # Calculate summary statistics
+    total_hours = sum(task.actual_hours or 0 for task in tasks)
+    billable_hours = sum(task.actual_hours or 0 for task in tasks if task.is_billable)
+    total_billable_amount = sum(task.billable_amount for task in tasks)
+    
+    # Get filter options
+    users = User.query.filter_by(firm_id=firm_id).all()
+    projects = Project.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('admin/time_tracking_report.html', 
+                         tasks=tasks,
+                         users=users,
+                         projects=projects,
+                         total_hours=total_hours,
+                         billable_hours=billable_hours,
+                         total_billable_amount=total_billable_amount)
+EOF < /dev/null

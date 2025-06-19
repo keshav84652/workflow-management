@@ -329,58 +329,7 @@ def add_security_headers(response):
 
 # Task timer status route moved to tasks blueprint
 
-@app.route('/reports/time-tracking')
-def time_tracking_report():
-    firm_id = session['firm_id']
-    
-    # Get filter parameters
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    user_id = request.args.get('user_id')
-    project_id = request.args.get('project_id')
-    
-    # Base query for tasks with time logged
-    query = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.actual_hours > 0
-    )
-    
-    # Apply filters
-    if start_date:
-        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-        query = query.filter(Task.updated_at >= start_date_obj)
-    
-    if end_date:
-        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-        query = query.filter(Task.updated_at <= end_date_obj)
-    
-    if user_id:
-        query = query.filter(Task.assignee_id == user_id)
-    
-    if project_id:
-        query = query.filter(Task.project_id == project_id)
-    
-    tasks = query.order_by(Task.updated_at.desc()).all()
-    
-    # Calculate summary statistics
-    total_hours = sum(task.actual_hours or 0 for task in tasks)
-    billable_hours = sum(task.actual_hours or 0 for task in tasks if task.is_billable)
-    total_billable_amount = sum(task.billable_amount for task in tasks)
-    
-    # Get filter options
-    users = User.query.filter_by(firm_id=firm_id).all()
-    projects = Project.query.filter_by(firm_id=firm_id).all()
-    
-    return render_template('admin/time_tracking_report.html', 
-                         tasks=tasks,
-                         users=users,
-                         projects=projects,
-                         total_hours=total_hours,
-                         billable_hours=billable_hours,
-                         total_billable_amount=total_billable_amount)
+# Reports time-tracking route moved to views blueprint
 
 # User routes moved to users blueprint
 
@@ -866,58 +815,7 @@ def admin_reorder_statuses(work_type_id):
     
     return jsonify({'success': True})
 
-@app.route('/contacts')
-def contacts():
-    firm_id = session['firm_id']
-    
-    # Get only contacts associated with clients from this firm
-    contacts_query = db.session.query(Contact).join(ClientContact).join(Client).filter(
-        Client.firm_id == firm_id
-    ).distinct()
-    
-    firm_contacts = contacts_query.all()
-    
-    # Add client count for each contact (only count clients from this firm)
-    for contact in firm_contacts:
-        contact.client_count = db.session.query(ClientContact).join(Client).filter(
-            ClientContact.contact_id == contact.id,
-            Client.firm_id == firm_id
-        ).count()
-    
-    return render_template('clients/contacts.html', contacts=firm_contacts)
-
-@app.route('/contacts/create', methods=['GET', 'POST'])
-def create_contact():
-    if request.method == 'POST':
-        contact = Contact(
-            first_name=request.form.get('first_name'),
-            last_name=request.form.get('last_name'),
-            email=request.form.get('email'),
-            phone=request.form.get('phone'),
-            title=request.form.get('title'),
-            company=request.form.get('company'),
-            address=request.form.get('address'),
-            notes=request.form.get('notes')
-        )
-        
-        try:
-            db.session.add(contact)
-            db.session.commit()
-            
-            create_activity_log(f'Contact "{contact.first_name} {contact.last_name}" created', session['user_id'])
-            flash('Contact created successfully!', 'success')
-            return redirect(url_for('contacts'))
-            
-        except Exception as e:
-            db.session.rollback()
-            if 'UNIQUE constraint failed' in str(e):
-                flash('A contact with this email already exists.', 'error')
-            else:
-                flash('Error creating contact.', 'error')
-            return redirect(url_for('create_contact'))
-    
-    return render_template('clients/create_contact.html')
-
+# Basic contacts routes moved to contacts blueprint
 @app.route('/contacts/<int:id>')
 def view_contact(id):
     contact = Contact.query.get_or_404(id)
