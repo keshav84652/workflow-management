@@ -300,42 +300,7 @@ def add_security_headers(response):
 
 # Dashboard route moved to dashboard blueprint
 
-@app.route('/admin')
-def admin_login():
-    return render_template('admin/admin_login.html')
-
-@app.route('/admin/authenticate', methods=['POST'])
-def admin_authenticate():
-    password = request.form.get('password')
-    if password == os.environ.get('ADMIN_PASSWORD', 'admin123'):
-        session['admin'] = True
-        return redirect(url_for('admin.dashboard'))
-    else:
-        flash('Invalid admin password', 'error')
-        return redirect(url_for('admin.login'))
-
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    if not session.get('admin'):
-        return redirect(url_for('admin.login'))
-    
-    firms = Firm.query.all()
-    return render_template('admin/admin_dashboard.html', firms=firms)
-
-@app.route('/admin/generate-code', methods=['POST'])
-def generate_access_code_route():
-    if not session.get('admin'):
-        return redirect(url_for('admin.login'))
-    
-    firm_name = request.form.get('firm_name')
-    access_code = generate_access_code()
-    
-    firm = Firm(name=firm_name, access_code=access_code)
-    db.session.add(firm)
-    db.session.commit()
-    
-    flash(f'Access code generated: {access_code}', 'success')
-    return redirect(url_for('admin.dashboard'))
+# Admin routes moved to admin blueprint
 
 
 
@@ -417,29 +382,7 @@ def time_tracking_report():
                          billable_hours=billable_hours,
                          total_billable_amount=total_billable_amount)
 
-@app.route('/users')
-def users():
-    firm_id = session['firm_id']
-    users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('admin/users.html', users=users)
-
-@app.route('/users/create', methods=['GET', 'POST'])
-def create_user():
-    if request.method == 'POST':
-        firm_id = session['firm_id']
-        
-        user = User(
-            name=request.form.get('name'),
-            role=request.form.get('role', 'Member'),
-            firm_id=firm_id
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('User created successfully!', 'success')
-        return redirect(url_for('users'))
-    
-    return render_template('admin/create_user.html')
+# User routes moved to users blueprint
 
 # Client routes moved to clients blueprint
 

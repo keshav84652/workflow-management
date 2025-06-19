@@ -2,10 +2,10 @@
 Administrative functions blueprint
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash\nimport os
 from datetime import datetime
 from core import db
-from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask
+from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask\nfrom utils import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -19,8 +19,8 @@ def login():
 def authenticate():
     password = request.form.get('password')
     # Simple admin authentication - in production use proper auth
-    if password == 'admin123':  # This should be configurable
-        session['admin_authenticated'] = True
+    if password == os.environ.get('ADMIN_PASSWORD', 'admin123'):  # This should be configurable
+        session['admin'] = True
         return redirect(url_for('admin.dashboard'))
     else:
         flash('Invalid admin password', 'error')
@@ -29,7 +29,7 @@ def authenticate():
 
 @admin_bp.route('/dashboard')
 def dashboard():
-    if not session.get('admin_authenticated'):
+    if not session.get('admin'):
         return redirect(url_for('admin.login'))
     
     # Basic admin dashboard functionality would go here
@@ -155,3 +155,19 @@ def edit_template(id):
         return redirect(url_for('admin.templates'))
     
     return render_template('admin/edit_template.html', template=template)
+
+@admin_bp.route('/generate-code', methods=['POST'])
+def generate_access_code_route():
+    if not session.get('admin'):
+        return redirect(url_for('admin.login'))
+    
+    firm_name = request.form.get('firm_name')
+    access_code = generate_access_code()
+    
+    firm = Firm(name=firm_name, access_code=access_code)
+    db.session.add(firm)
+    db.session.commit()
+    
+    flash(f'Access code generated: {access_code}', 'success')
+    return redirect(url_for('admin.dashboard'))
+EOF < /dev/null
