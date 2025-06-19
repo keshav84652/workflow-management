@@ -14,7 +14,10 @@ from .users import users_bp
 from .views import views_bp
 from .documents import documents_bp
 from .client_portal import client_portal_bp
-from .export import export_bp\nfrom .api import api_bp
+from .export import export_bp
+from .api import api_bp
+from .attachments import attachments_bp
+from .subtasks import subtasks_bp
 
 # List of all blueprints for easy registration
 ALL_BLUEPRINTS = [
@@ -30,6 +33,7 @@ ALL_BLUEPRINTS = [
     documents_bp,
     client_portal_bp,
     export_bp,
-]    api_bp
-    api_bp
+    api_bp,
+    attachments_bp,
+    subtasks_bp
 ]

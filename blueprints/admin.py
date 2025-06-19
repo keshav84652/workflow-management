@@ -237,3 +237,70 @@ def admin_create_work_type():
         flash(f'Error creating work type: {str(e)}', 'error')
         return redirect(url_for('admin.admin_work_types'))
 EOF < /dev/null
+
+@admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
+def admin_edit_work_type(work_type_id):
+    if session.get('user_role') \!= 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first_or_404()
+        
+        work_type.name = request.form.get('name')
+        work_type.description = request.form.get('description')
+        
+        db.session.commit()
+        
+        flash(f'Work type "{work_type.name}" updated successfully\!', 'success')
+        return redirect(url_for('admin.admin_work_types'))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating work type: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_work_types'))
+
+
+@admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
+def admin_create_status(work_type_id):
+    if session.get('user_role') \!= 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first_or_404()
+        
+        # Get next position
+        max_position = db.session.query(db.func.max(TaskStatus.position)).filter_by(work_type_id=work_type_id).scalar() or 0
+        
+        status = TaskStatus(
+            firm_id=session['firm_id'],
+            work_type_id=work_type_id,
+            name=request.form.get('name'),
+            color=request.form.get('color', '#6b7280'),
+            position=max_position + 1
+        )
+        
+        db.session.add(status)
+        db.session.commit()
+        
+        flash(f'Status "{status.name}" created successfully\!', 'success')
+        return redirect(url_for('admin.admin_work_types'))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating status: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_work_types'))
+
+
+@admin_bp.route('/process-recurring', methods=['POST'])
+def admin_process_recurring():
+    """Manual trigger for processing recurring tasks"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        from utils import process_recurring_tasks
+        process_recurring_tasks()
+        return jsonify({'success': True, 'message': 'Recurring tasks processed successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+EOF < /dev/null

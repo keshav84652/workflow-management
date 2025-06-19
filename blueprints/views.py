@@ -191,3 +191,97 @@ def time_tracking_report():
                          billable_hours=billable_hours,
                          total_billable_amount=total_billable_amount)
 EOF < /dev/null
+
+@views_bp.route('/kanban')
+def kanban_view():
+    firm_id = session['firm_id']
+    
+    # Get filter parameters
+    work_type_filter = request.args.get('work_type')
+    priority_filter = request.args.get('priority')
+    due_filter = request.args.get('due_filter')
+    
+    # Get work types for filtering
+    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    # If no work type is selected and work types exist, redirect to the first one
+    if not work_type_filter and work_types:
+        return redirect(url_for('views.kanban_view', work_type=work_types[0].id))
+    
+    current_work_type = None
+    kanban_columns = []
+    
+    if work_type_filter:
+        current_work_type = WorkType.query.filter_by(id=work_type_filter, firm_id=firm_id).first()
+        if current_work_type:
+            # Get the template associated with this work type
+            template = Template.query.filter_by(
+                work_type_id=current_work_type.id,
+                firm_id=firm_id
+            ).first()
+            
+            if template:
+                # Use template tasks as Kanban columns
+                kanban_columns = TemplateTask.query.filter_by(
+                    template_id=template.id
+                ).order_by(TemplateTask.order.asc()).all()
+    
+    # Base query for projects (not individual tasks)
+    query = Project.query.filter_by(firm_id=firm_id, status='Active')
+    
+    # Apply work type filter
+    if work_type_filter and current_work_type:
+        query = query.filter(Project.work_type_id == current_work_type.id)
+    
+    # Apply priority filter
+    if priority_filter:
+        query = query.filter(Project.priority == priority_filter)
+    
+    # Apply due date filters
+    today = date.today()
+    if due_filter == 'overdue':
+        query = query.filter(Project.due_date < today)
+    elif due_filter == 'today':
+        query = query.filter(Project.due_date == today)
+    elif due_filter == 'this_week':
+        week_end = today + timedelta(days=7)
+        query = query.filter(Project.due_date.between(today, week_end))
+    
+    # Get all projects
+    projects = query.order_by(Project.created_at.desc()).all()
+    
+    # Organize projects by current task progress (simplified version)
+    projects_by_column = {}
+    project_counts = {}
+    
+    if kanban_columns:
+        # Initialize columns
+        for column in kanban_columns:
+            projects_by_column[column.id] = []
+            project_counts[column.id] = 0
+        
+        # Add a "Completed" column for finished projects
+        projects_by_column['completed'] = []
+        project_counts['completed'] = 0
+        
+        # Simple column assignment based on project progress
+        for project in projects:
+            if len(kanban_columns) > 0:
+                projects_by_column[kanban_columns[0].id].append(project)
+                project_counts[kanban_columns[0].id] += 1
+    else:
+        projects_by_column = {}
+        project_counts = {}
+    
+    # Get filter options
+    users = User.query.filter_by(firm_id=firm_id).all()
+    
+    return render_template('projects/kanban_modern.html', 
+                         projects_by_column=projects_by_column,
+                         project_counts=project_counts,
+                         kanban_columns=kanban_columns,
+                         current_work_type=current_work_type,
+                         work_types=work_types,
+                         users=users,
+                         today=date.today())
+EOF < /dev/null

@@ -5,7 +5,7 @@ Client management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from core import db
-from models import Client, Project, Task, User, ActivityLog, Contact, ClientContact, Attachment, TaskComment
+from models import Client, Project, Task, User, Contact, ClientContact, ActivityLog, Contact, ClientContact, Attachment, TaskComment
 from utils import create_activity_log
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
@@ -199,4 +199,48 @@ def mark_client_inactive(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error updating client status: {str(e)}'}), 500
+
+
+@clients_bp.route('/<int:client_id>/associate_contact', methods=['POST'])
+def associate_client_contact(client_id):
+    client = Client.query.get_or_404(client_id)
+    
+    if client.firm_id != session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('clients.list_clients'))
+    
+    contact_id = request.form.get('contact_id')
+    relationship_type = request.form.get('relationship_type')
+    is_primary = request.form.get('is_primary') == '1'
+    
+    if not contact_id:
+        flash('Please select a contact', 'error')
+        return redirect(url_for('clients.view_client', id=client_id))
+    
+    # Check if association already exists
+    existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+    if existing:
+        flash('Contact is already associated with this client', 'error')
+        return redirect(url_for('clients.view_client', id=client_id))
+    
+    # If setting as primary, remove primary status from other contacts
+    if is_primary:
+        ClientContact.query.filter_by(client_id=client_id, is_primary=True).update({'is_primary': False})
+    
+    # Create new association
+    client_contact = ClientContact(
+        client_id=client_id,
+        contact_id=contact_id,
+        relationship_type=relationship_type,
+        is_primary=is_primary
+    )
+    
+    db.session.add(client_contact)
+    db.session.commit()
+    
+    contact = Contact.query.get(contact_id)
+    create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
+    flash('Contact linked successfully!', 'success')
+    
+    return redirect(url_for('clients.view_client', id=client_id))
 EOF < /dev/null
