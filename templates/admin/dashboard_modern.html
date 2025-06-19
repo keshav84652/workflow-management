@@ -38,7 +38,7 @@
                 </p>
                 <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
                     <div class="text-sm">
-                        <a href="{{ url_for('tasks') }}" class="font-medium text-cpa-blue hover:text-blue-500">
+                        <a href="/tasks" class="font-medium text-cpa-blue hover:text-blue-500">
                             View all<span class="sr-only"> Active Tasks stats</span>
                         </a>
                     </div>
@@ -62,7 +62,7 @@
                 </p>
                 <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
                     <div class="text-sm">
-                        <a href="{{ url_for('projects') }}" class="font-medium text-cpa-blue hover:text-blue-500">
+                        <a href="/projects" class="font-medium text-cpa-blue hover:text-blue-500">
                             View all<span class="sr-only"> Active Projects stats</span>
                         </a>
                     </div>
@@ -88,7 +88,7 @@
                 {% endif %}
                 <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
                     <div class="text-sm">
-                        <a href="{{ url_for('tasks', overdue='true') }}" class="font-medium text-cpa-blue hover:text-blue-500">
+                        <a href="/tasks?overdue=true" class="font-medium text-cpa-blue hover:text-blue-500">
                             View overdue<span class="sr-only"> Overdue Items</span>
                         </a>
                     </div>
@@ -111,7 +111,7 @@
                 </p>
                 <div class="absolute inset-x-0 bottom-0 bg-gray-50 px-4 py-4 sm:px-6">
                     <div class="text-sm">
-                        <a href="{{ url_for('users') }}" class="font-medium text-cpa-blue hover:text-blue-500">
+                        <a href="/users" class="font-medium text-cpa-blue hover:text-blue-500">
                             Manage team<span class="sr-only"> Team Members</span>
                         </a>
                     </div>
@@ -127,7 +127,7 @@
             <div class="p-6">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Tasks</h3>
-                    <a href="{{ url_for('tasks') }}" class="text-sm font-medium text-cpa-blue hover:text-blue-500">View all</a>
+                    <a href="/tasks" class="text-sm font-medium text-cpa-blue hover:text-blue-500">View all</a>
                 </div>
                 <div class="mt-6 flow-root">
                     <ul role="list" class="-my-5 divide-y divide-gray-200">
@@ -176,7 +176,7 @@
             <div class="p-6">
                 <div class="flex items-center justify-between">
                     <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Projects</h3>
-                    <a href="{{ url_for('projects') }}" class="text-sm font-medium text-cpa-blue hover:text-blue-500">View all</a>
+                    <a href="/projects" class="text-sm font-medium text-cpa-blue hover:text-blue-500">View all</a>
                 </div>
                 <div class="mt-6 flow-root">
                     <ul role="list" class="-my-5 divide-y divide-gray-200">
@@ -219,7 +219,7 @@
         <div class="p-6">
             <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <a href="{{ url_for('create_task') }}" 
+                <a href="/tasks/create" 
                    class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400">
                     <div class="flex-shrink-0">
                         <i class="bi bi-plus-circle h-10 w-10 text-cpa-blue"></i>
@@ -230,7 +230,7 @@
                     </div>
                 </a>
 
-                <a href="{{ url_for('create_project') }}" 
+                <a href="/projects/create" 
                    class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400">
                     <div class="flex-shrink-0">
                         <i class="bi bi-folder-plus h-10 w-10 text-cpa-green"></i>
@@ -241,7 +241,7 @@
                     </div>
                 </a>
 
-                <a href="{{ url_for('create_client') }}" 
+                <a href="/clients/create" 
                    class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400">
                     <div class="flex-shrink-0">
                         <i class="bi bi-person-plus h-10 w-10 text-cpa-amber"></i>
@@ -252,7 +252,7 @@
                     </div>
                 </a>
 
-                <a href="{{ url_for('kanban_view') }}" 
+                <a href="/kanban" 
                    class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400">
                     <div class="flex-shrink-0">
                         <i class="bi bi-kanban h-10 w-10 text-purple-500"></i>
