@@ -319,121 +319,6 @@ def generate_access_code_route():
     flash(f'Access code generated: {access_code}', 'success')
     return redirect(url_for('admin.dashboard'))
 
-@app.route('/templates')
-def templates():
-    firm_id = session['firm_id']
-    templates = Template.query.filter_by(firm_id=firm_id).all()
-    return render_template('admin/templates.html', templates=templates)
-
-@app.route('/templates/create', methods=['GET', 'POST'])
-def create_template():
-    if request.method == 'POST':
-        firm_id = session['firm_id']
-        
-        template = Template(
-            name=request.form.get('name'),
-            description=request.form.get('description'),
-            task_dependency_mode=request.form.get('task_dependency_mode') == 'true',
-            firm_id=firm_id
-        )
-        db.session.add(template)
-        db.session.flush()
-        
-        tasks_data = request.form.getlist('tasks')
-        for i, task_title in enumerate(tasks_data):
-            if task_title.strip():
-                template_task = TemplateTask(
-                    title=task_title.strip(),
-                    description=request.form.getlist('task_descriptions')[i] if i < len(request.form.getlist('task_descriptions')) else '',
-                    recurrence_rule=request.form.getlist('recurrence_rules')[i] if i < len(request.form.getlist('recurrence_rules')) else None,
-                    order=i,
-                    template_id=template.id
-                )
-                db.session.add(template_task)
-        
-        db.session.commit()
-        
-        # Auto-create work type from template
-        try:
-            template.create_work_type_from_template()
-            flash('Template and workflow created successfully!', 'success')
-        except Exception as e:
-            flash(f'Template created, but workflow creation failed: {str(e)}', 'warning')
-        
-        return redirect(url_for('templates'))
-    
-    return render_template('admin/create_template.html')
-
-@app.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
-def edit_template(id):
-    template = Template.query.get_or_404(id)
-    if template.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
-        return redirect(url_for('templates'))
-    
-    if request.method == 'POST':
-        template.name = request.form.get('name')
-        template.description = request.form.get('description')
-        template.task_dependency_mode = request.form.get('task_dependency_mode') == 'true'
-        
-        TemplateTask.query.filter_by(template_id=template.id).delete()
-        
-        tasks_data = request.form.getlist('tasks')
-        for i, task_title in enumerate(tasks_data):
-            if task_title.strip():
-                template_task = TemplateTask(
-                    title=task_title.strip(),
-                    description=request.form.getlist('task_descriptions')[i] if i < len(request.form.getlist('task_descriptions')) else '',
-                    recurrence_rule=request.form.getlist('recurrence_rules')[i] if i < len(request.form.getlist('recurrence_rules')) else None,
-                    order=i,
-                    template_id=template.id
-                )
-                db.session.add(template_task)
-        
-        db.session.commit()
-        
-        # Update work type from template if auto-creation is enabled
-        try:
-            if template.auto_create_work_type:
-                # If work type already exists, we need to update the statuses
-                if template.work_type_id:
-                    # Delete existing statuses for this work type
-                    TaskStatus.query.filter_by(work_type_id=template.work_type_id).delete()
-                    
-                    # Recreate statuses from updated template tasks
-                    for i, template_task in enumerate(sorted(template.template_tasks, key=lambda t: t.workflow_order or t.order)):
-                        status = TaskStatus(
-                            firm_id=template.firm_id,
-                            work_type_id=template.work_type_id,
-                            name=template_task.title,
-                            color='#6b7280' if i == 0 else '#3b82f6' if i < len(template.template_tasks) - 1 else '#10b981',
-                            position=i + 1,
-                            is_default=(i == 0),
-                            is_terminal=(i == len(template.template_tasks) - 1)
-                        )
-                        db.session.add(status)
-                        
-                        # Link template task to its corresponding status
-                        template_task.default_status_id = status.id
-                    
-                    # Update work type name to match template
-                    work_type = WorkType.query.get(template.work_type_id)
-                    if work_type:
-                        work_type.name = template.name
-                        work_type.description = f"Workflow for {template.name}"
-                else:
-                    # Create new work type if none exists
-                    template.create_work_type_from_template()
-                
-                db.session.commit()
-            
-            flash('Template and workflow updated successfully!', 'success')
-        except Exception as e:
-            flash(f'Template updated, but workflow sync failed: {str(e)}', 'warning')
-        
-        return redirect(url_for('templates'))
-    
-    return render_template('admin/edit_template.html', template=template)
 
 @app.route('/projects')
 def projects():
@@ -1408,7 +1293,7 @@ def time_tracking_report():
     users = User.query.filter_by(firm_id=firm_id).all()
     projects = Project.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('time_tracking_report.html', 
+    return render_template('admin/time_tracking_report.html', 
                          tasks=tasks,
                          users=users,
                          projects=projects,
@@ -1420,7 +1305,7 @@ def time_tracking_report():
 def users():
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('users.html', users=users)
+    return render_template('admin/users.html', users=users)
 
 @app.route('/users/create', methods=['GET', 'POST'])
 def create_user():
@@ -1438,13 +1323,13 @@ def create_user():
         flash('User created successfully!', 'success')
         return redirect(url_for('users'))
     
-    return render_template('create_user.html')
+    return render_template('admin/create_user.html')
 
 @app.route('/clients')
 def clients():
     firm_id = session['firm_id']
     clients = Client.query.filter_by(firm_id=firm_id).order_by(Client.name.asc()).all()
-    return render_template('clients.html', clients=clients)
+    return render_template('clients/clients.html', clients=clients)
 
 @app.route('/clients/create', methods=['GET', 'POST'])
 def create_client():
@@ -1471,7 +1356,7 @@ def create_client():
         flash('Client created successfully!', 'success')
         return redirect(url_for('clients'))
     
-    return render_template('create_client.html')
+    return render_template('clients/create_client.html')
 
 @app.route('/clients/<int:id>')
 def view_client(id):
@@ -1486,7 +1371,7 @@ def view_client(id):
     associated_contact_ids = db.session.query(ClientContact.contact_id).filter_by(client_id=id).subquery()
     available_contacts = Contact.query.filter(~Contact.id.in_(associated_contact_ids)).all()
     
-    return render_template('view_client.html', client=client, projects=projects, available_contacts=available_contacts)
+    return render_template('clients/view_client.html', client=client, projects=projects, available_contacts=available_contacts)
 
 @app.route('/calendar')
 def calendar_view():
@@ -1550,7 +1435,7 @@ def calendar_view():
             }
             calendar_data[date_str].append(task_data)
     
-    return render_template('calendar.html', 
+    return render_template('admin/calendar.html', 
                          calendar_data=calendar_data,
                          current_date=current_date,
                          year=year,
@@ -1684,7 +1569,7 @@ def kanban_view():
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('kanban_modern.html', 
+    return render_template('projects/kanban_modern.html', 
                          projects_by_column=projects_by_column,
                          project_counts=project_counts,
                          kanban_columns=kanban_columns,
@@ -1889,7 +1774,7 @@ def search():
     }
     
     if not query:
-        return render_template('search.html', **results)
+        return render_template('admin/search.html', **results)
     
     # Search tasks
     if search_type in ['all', 'tasks']:
@@ -1942,7 +1827,7 @@ def search():
         
         results['clients'] = client_query.filter(client_filters).order_by(Client.created_at.desc()).limit(20).all()
     
-    return render_template('search.html', **results)
+    return render_template('admin/search.html', **results)
 
 @app.route('/export/tasks')
 def export_tasks():
@@ -2124,7 +2009,7 @@ def edit_client(id):
         flash('Client updated successfully!', 'success')
         return redirect(url_for('view_client', id=client.id))
     
-    return render_template('edit_client.html', client=client)
+    return render_template('clients/edit_client.html', client=client)
 
 @app.route('/clients/<int:id>/delete', methods=['POST'])
 def delete_client(id):
@@ -2253,7 +2138,7 @@ def admin_work_types():
         ).count()
         work_type_usage[wt.id] = task_count
     
-    return render_template('admin_work_types.html', 
+    return render_template('admin/admin_work_types.html', 
                          work_types=work_types, 
                          work_type_usage=work_type_usage)
 
@@ -2497,7 +2382,7 @@ def contacts():
             Client.firm_id == firm_id
         ).count()
     
-    return render_template('contacts.html', contacts=firm_contacts)
+    return render_template('clients/contacts.html', contacts=firm_contacts)
 
 @app.route('/contacts/create', methods=['GET', 'POST'])
 def create_contact():
@@ -2529,7 +2414,7 @@ def create_contact():
                 flash('Error creating contact.', 'error')
             return redirect(url_for('create_contact'))
     
-    return render_template('create_contact.html')
+    return render_template('clients/create_contact.html')
 
 @app.route('/contacts/<int:id>')
 def view_contact(id):
@@ -2548,7 +2433,7 @@ def view_contact(id):
         ~Client.id.in_(associated_client_ids)
     ).all()
     
-    return render_template('view_contact.html', contact=contact, client_relationships=client_relationships, available_clients=available_clients)
+    return render_template('clients/view_contact.html', contact=contact, client_relationships=client_relationships, available_clients=available_clients)
 
 @app.route('/contacts/<int:id>/edit', methods=['GET', 'POST'])
 def edit_contact(id):
@@ -2577,7 +2462,7 @@ def edit_contact(id):
             else:
                 flash('Error updating contact.', 'error')
     
-    return render_template('edit_contact.html', contact=contact)
+    return render_template('clients/edit_contact.html', contact=contact)
 
 @app.route('/contacts/<int:contact_id>/clients/<int:client_id>/associate', methods=['POST'])
 def associate_contact_client(contact_id, client_id):
@@ -3022,7 +2907,7 @@ def document_checklists():
     # Get all clients for creating new checklists
     clients = Client.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('document_checklists.html', checklists=checklists, clients=clients)
+    return render_template('documents/document_checklists.html', checklists=checklists, clients=clients)
 
 @app.route('/create-checklist', methods=['GET', 'POST'])
 def create_checklist():
@@ -3056,7 +2941,7 @@ def create_checklist():
     
     # GET request - show form
     clients = Client.query.filter_by(firm_id=firm_id).all()
-    return render_template('create_checklist_modern.html', clients=clients)
+    return render_template('documents/create_checklist_modern.html', clients=clients)
 
 @app.route('/edit-checklist/<int:checklist_id>', methods=['GET', 'POST'])
 def edit_checklist(checklist_id):
@@ -3170,7 +3055,7 @@ def edit_checklist(checklist_id):
         
         return redirect(url_for('edit_checklist', checklist_id=checklist_id))
     
-    return render_template('edit_checklist.html', checklist=checklist)
+    return render_template('documents/edit_checklist.html', checklist=checklist)
 
 @app.route('/client-access-setup/<int:client_id>', methods=['GET', 'POST'])
 def client_access_setup(client_id):
@@ -3228,7 +3113,7 @@ def client_access_setup(client_id):
         if client_user:
             db.session.refresh(client_user)
     
-    return render_template('client_access_setup.html', client=client, client_user=client_user)
+    return render_template('clients/client_access_setup.html', client=client, client_user=client_user)
 
 @app.route('/checklist-dashboard/<int:checklist_id>')
 def checklist_dashboard(checklist_id):
@@ -3241,7 +3126,7 @@ def checklist_dashboard(checklist_id):
         Client.firm_id == firm_id
     ).first_or_404()
     
-    return render_template('checklist_dashboard.html', checklist=checklist)
+    return render_template('documents/checklist_dashboard.html', checklist=checklist)
 
 @app.route('/download-document/<int:document_id>')
 def download_document(document_id):
@@ -3275,7 +3160,7 @@ def uploaded_documents():
         Client.firm_id == firm_id
     ).order_by(ClientDocument.uploaded_at.desc()).all()
     
-    return render_template('uploaded_documents.html', documents=documents)
+    return render_template('documents/uploaded_documents.html', documents=documents)
 
 @app.route('/api/checklist-stats/<int:checklist_id>')
 def checklist_stats_api(checklist_id):
@@ -3309,7 +3194,7 @@ def checklist_stats_api(checklist_id):
 @app.route('/client-login')
 def client_login():
     """Client portal login page"""
-    return render_template('client_login.html')
+    return render_template('clients/client_login.html')
 
 @app.route('/client-authenticate', methods=['POST'])
 def client_authenticate():
@@ -3344,7 +3229,7 @@ def client_dashboard():
         is_active=True
     ).all()
     
-    return render_template('client_dashboard_modern.html', client=client, checklists=checklists)
+    return render_template('clients/client_dashboard_modern.html', client=client, checklists=checklists)
 
 @app.route('/client-logout')
 def client_logout():
@@ -4792,13 +4677,13 @@ def public_checklist(token):
         checklist = DocumentChecklist.query.filter_by(access_token=token, is_active=True).first()
         
         if not checklist:
-            return render_template('error.html', 
+            return render_template('base/error.html', 
                                  error_title="Checklist Not Found",
                                  error_message="The requested checklist could not be found or the link has expired."), 404
         
         # Check if token is expired
         if checklist.is_token_expired:
-            return render_template('error.html',
+            return render_template('base/error.html',
                                  error_title="Link Expired", 
                                  error_message="This checklist link has expired. Please contact your CPA for a new link."), 403
         
@@ -4810,14 +4695,14 @@ def public_checklist(token):
         client = checklist.client
         
         # Render public checklist view (no login required)
-        return render_template('public_checklist.html', 
+        return render_template('documents/public_checklist.html', 
                              checklist=checklist,
                              client=client,
                              items=checklist.items)
     
     except Exception as e:
         app.logger.error(f"Public checklist access error: {e}")
-        return render_template('error.html',
+        return render_template('base/error.html',
                              error_title="Access Error",
                              error_message="An error occurred while accessing the checklist. Please try again or contact your CPA."), 500
 
@@ -4956,7 +4841,7 @@ def share_checklist(checklist_id):
     # Generate full URL for sharing
     public_url = request.url_root.rstrip('/') + checklist.public_url
     
-    return render_template('share_checklist.html', 
+    return render_template('documents/share_checklist.html', 
                          checklist=checklist, 
                          client=checklist.client,
                          public_url=public_url)
