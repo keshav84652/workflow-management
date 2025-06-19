@@ -152,3 +152,100 @@ def delete_task(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@tasks_bp.route('/create', methods=['GET', 'POST'])
+def create_task():
+    if request.method == 'POST':
+        firm_id = session['firm_id']
+        
+        # Get form data
+        title = request.form.get('title')
+        description = request.form.get('description')
+        project_id = request.form.get('project_id')
+        assignee_id = request.form.get('assignee_id')
+        priority = request.form.get('priority', 'Medium')
+        due_date = request.form.get('due_date')
+        estimated_hours = request.form.get('estimated_hours')
+        
+        # Recurring task options
+        is_recurring = request.form.get('is_recurring') == 'on'
+        recurrence_rule = request.form.get('recurrence_rule')
+        recurrence_interval = request.form.get('recurrence_interval')
+        
+        # Convert due_date
+        due_date_obj = None
+        if due_date:
+            due_date_obj = datetime.strptime(due_date, '%Y-%m-%d').date()
+        
+        # Convert estimated_hours
+        estimated_hours_float = None
+        if estimated_hours:
+            try:
+                estimated_hours_float = float(estimated_hours)
+            except ValueError:
+                pass
+        
+        # Verify project belongs to firm (if project selected)
+        if project_id:
+            project = Project.query.filter_by(id=project_id, firm_id=firm_id).first()
+            if not project:
+                flash('Invalid project selected', 'error')
+                return redirect(url_for('tasks.create_task'))
+        
+        # Convert recurrence interval
+        recurrence_interval_int = None
+        if is_recurring and recurrence_interval:
+            try:
+                recurrence_interval_int = int(recurrence_interval)
+            except ValueError:
+                recurrence_interval_int = 1
+        
+        # Create task
+        task = Task(
+            title=title,
+            description=description,
+            due_date=due_date_obj,
+            priority=priority,
+            estimated_hours=estimated_hours_float,
+            project_id=project_id if project_id else None,
+            firm_id=firm_id,
+            assignee_id=assignee_id if assignee_id else None,
+            is_recurring=is_recurring,
+            recurrence_rule=recurrence_rule if is_recurring else None,
+            recurrence_interval=recurrence_interval_int if is_recurring else None
+        )
+        
+        # Calculate next due date for recurring tasks after object creation
+        if is_recurring:
+            task.next_due_date = task.calculate_next_due_date()
+            
+            # Create the first upcoming instance immediately
+            next_instance = task.create_next_instance()
+            if next_instance:
+                db.session.add(next_instance)
+        
+        db.session.add(task)
+        db.session.commit()
+        
+        # Activity log
+        if project_id:
+            create_activity_log(f'Task "{task.title}" created', session['user_id'], project_id, task.id)
+        else:
+            create_activity_log(f'Independent task "{task.title}" created', session['user_id'], None, task.id)
+        
+        flash('Task created successfully!', 'success')
+        return redirect(url_for('tasks.list_tasks'))
+    
+    # GET request - show form
+    firm_id = session['firm_id']
+    projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
+    users = User.query.filter_by(firm_id=firm_id).all()
+    
+    # Pre-select project if provided
+    selected_project = request.args.get('project_id')
+    
+    # Pre-fill due date if provided (from calendar click)
+    prefill_due_date = request.args.get('due_date')
+    
+    return render_template('tasks/create_task.html', projects=projects, users=users, selected_project=selected_project, prefill_due_date=prefill_due_date)
