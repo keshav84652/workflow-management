@@ -5,7 +5,7 @@ Project management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from core import db
-from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
+from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog, TaskComment, Attachment
 from utils import calculate_task_due_date, find_or_create_client, create_activity_log
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
@@ -170,3 +170,47 @@ def edit_project(id):
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
     return render_template('projects/edit_project.html', project=project, users=users)
+
+@projects_bp.route('/<int:id>/delete', methods=['POST'])
+def delete_project(id):
+    project = Project.query.get_or_404(id)
+    
+    # Check access permission
+    if project.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        project_name = project.name
+        client_name = project.client_name
+        
+        # Get count of associated tasks for confirmation
+        task_count = Task.query.filter_by(project_id=id).count()
+        
+        # Create activity log before deletion
+        create_activity_log(f'Project "{project_name}" for {client_name} deleted (with {task_count} tasks)', session['user_id'])
+        
+        # Delete all associated tasks first (cascade deletion)
+        tasks = Task.query.filter_by(project_id=id).all()
+        for task in tasks:
+            # Delete task comments first
+            TaskComment.query.filter_by(task_id=task.id).delete()
+            # Delete the task
+            db.session.delete(task)
+        
+        # Delete project attachments if any
+        Attachment.query.filter_by(project_id=id).delete()
+        
+        # Delete the project itself
+        db.session.delete(project)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Project "{project_name}" and {task_count} associated tasks deleted successfully',
+            'redirect': '/projects'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting project: {str(e)}'}), 500
+EOF < /dev/null
