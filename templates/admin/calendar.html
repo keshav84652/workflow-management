@@ -21,7 +21,7 @@
                    class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     <i class="bi bi-list-task mr-1"></i> Task List
                 </a>
-                <a href="{{ url_for('create_task') }}" 
+                <a href="{{ url_for('tasks.create_task') }}" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                     <i class="bi bi-plus-circle mr-1"></i> New Task
                 </a>
@@ -108,7 +108,7 @@
                 </div>
             </div>
             <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                <a href="{{ url_for('create_task') }}" id="add-task-link"
+                <a href="{{ url_for('tasks.create_task') }}" id="add-task-link"
                    class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-cpa-blue text-base font-medium text-white hover:bg-blue-600 sm:ml-3 sm:w-auto sm:text-sm">
                     Add New Task
                 </a>

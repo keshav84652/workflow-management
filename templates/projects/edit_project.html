@@ -137,7 +137,7 @@
                         <i class="bi bi-list-task text-cpa-blue mr-2"></i>
                         Project Tasks
                     </h3>
-                    <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" 
+                    <a href="{{ url_for('tasks.create_task') }}?project_id={{ project.id }}" 
                        class="inline-flex items-center rounded-md bg-cpa-green px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
                         <i class="bi bi-plus-circle mr-1.5"></i>
                         Add Task
@@ -277,7 +277,7 @@
                         <h3 class="mt-4 text-lg font-medium text-gray-900">No tasks yet</h3>
                         <p class="mt-2 text-sm text-gray-500">Add tasks to this project to track progress and assignments.</p>
                         <div class="mt-6">
-                            <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" 
+                            <a href="{{ url_for('tasks.create_task') }}?project_id={{ project.id }}" 
                                class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                                 <i class="bi bi-plus-circle mr-1.5"></i>
                                 Create First Task
@@ -400,7 +400,7 @@
                         <i class="bi bi-building mr-2"></i>
                         View Client
                     </a>
-                    <a href="{{ url_for('create_task') }}?project_id={{ project.id }}" 
+                    <a href="{{ url_for('tasks.create_task') }}?project_id={{ project.id }}" 
                        class="w-full flex items-center justify-center px-4 py-2 border border-cpa-green text-sm font-medium rounded-md text-cpa-green bg-white hover:bg-green-50">
                         <i class="bi bi-plus-circle mr-2"></i>
                         Add Task

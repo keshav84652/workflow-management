@@ -30,7 +30,7 @@
                    class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     <i class="bi bi-pencil mr-1"></i> Edit Client
                 </a>
-                <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" 
+                <a href="{{ url_for('projects.create_project') }}?client_id={{ client.id }}" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                     <i class="bi bi-plus-circle mr-1"></i> New Project
                 </a>
@@ -410,7 +410,7 @@
                     <i class="bi bi-folder text-gray-300 text-5xl mb-4"></i>
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
                     <p class="text-gray-500 mb-6">Get started by creating your first project for this client.</p>
-                    <a href="{{ url_for('create_project') }}?client_id={{ client.id }}" 
+                    <a href="{{ url_for('projects.create_project') }}?client_id={{ client.id }}" 
                        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cpa-blue hover:bg-blue-600">
                         <i class="bi bi-plus-circle mr-2"></i>
                         Create Project

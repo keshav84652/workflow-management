@@ -50,7 +50,7 @@
                     {% if not clients %}
                         <div class="text-gray-500 text-xs mt-1 flex items-center">
                             <i class="bi bi-info-circle mr-1"></i> 
-                            No clients found. <a href="{{ url_for('create_client') }}" class="text-cpa-blue hover:underline font-medium">Create a client first</a>.
+                            No clients found. <a href="{{ url_for('clients.create_client') }}" class="text-cpa-blue hover:underline font-medium">Create a client first</a>.
                         </div>
                     {% endif %}
                 </div>
