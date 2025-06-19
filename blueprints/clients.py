@@ -5,7 +5,7 @@ Client management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from core import db
-from models import Client, Project, Task, User, ActivityLog, Contact, ClientContact
+from models import Client, Project, Task, User, ActivityLog, Contact, ClientContact, Attachment, TaskComment
 from utils import create_activity_log
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
@@ -60,3 +60,143 @@ def view_client(id):
     available_contacts = Contact.query.filter(~Contact.id.in_(associated_contact_ids)).all()
     
     return render_template('clients/view_client.html', client=client, projects=projects, available_contacts=available_contacts)
+
+@clients_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+def edit_client(id):
+    client = Client.query.get_or_404(id)
+    if client.firm_id \!= session['firm_id']:
+        flash('Access denied', 'error')
+        return redirect(url_for('clients.list_clients'))
+    
+    if request.method == 'POST':
+        client.name = request.form.get('name')
+        client.email = request.form.get('email')
+        client.phone = request.form.get('phone')
+        client.address = request.form.get('address')
+        client.contact_person = request.form.get('contact_person')
+        client.entity_type = request.form.get('entity_type')
+        client.tax_id = request.form.get('tax_id')
+        client.notes = request.form.get('notes')
+        
+        db.session.commit()
+        
+        # Activity log
+        create_activity_log(f'Client "{client.name}" updated', session['user_id'])
+        
+        flash('Client updated successfully\!', 'success')
+        return redirect(url_for('clients.view_client', id=client.id))
+    
+    return render_template('clients/edit_client.html', client=client)
+
+
+@clients_bp.route('/<int:id>/delete', methods=['POST'])
+def delete_client(id):
+    client = Client.query.get_or_404(id)
+    
+    # Check access permission
+    if client.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        client_name = client.name
+        
+        # Get counts for confirmation message
+        project_count = Project.query.filter_by(client_id=id).count()
+        task_count = Task.query.join(Project).filter_by(client_id=id).count()
+        contact_count = len(client.contacts)
+        
+        # Create activity log before deletion
+        create_activity_log(f'Client "{client_name}" deleted (with {project_count} projects, {task_count} tasks, {contact_count} contacts)', session['user_id'])
+        
+        # Delete all associated projects (which will cascade delete tasks and attachments)
+        projects = Project.query.filter_by(client_id=id).all()
+        for project in projects:
+            # Delete project attachments
+            Attachment.query.filter_by(project_id=project.id).delete()
+            
+            # Delete all tasks and their comments for this project
+            tasks = Task.query.filter_by(project_id=project.id).all()
+            for task in tasks:
+                TaskComment.query.filter_by(task_id=task.id).delete()
+                db.session.delete(task)
+            
+            # Delete the project
+            db.session.delete(project)
+        
+        # Delete any independent tasks for this client
+        independent_tasks = Task.query.filter_by(client_id=id, project_id=None).all()
+        for task in independent_tasks:
+            TaskComment.query.filter_by(task_id=task.id).delete()
+            db.session.delete(task)
+        
+        # Delete client-contact associations
+        ClientContact.query.filter_by(client_id=id).delete()
+        
+        # Delete client attachments
+        Attachment.query.filter_by(client_id=id).delete()
+        
+        # Delete the client itself
+        db.session.delete(client)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Client "{client_name}" and all associated data deleted successfully',
+            'redirect': '/clients'
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error deleting client: {str(e)}'}), 500
+
+
+@clients_bp.route('/<int:id>/mark_inactive', methods=['POST'])
+def mark_client_inactive(id):
+    client = Client.query.get_or_404(id)
+    
+    # Check access permission
+    if client.firm_id \!= session['firm_id']:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    
+    try:
+        client_name = client.name
+        previous_status = "Active" if client.is_active else "Inactive"
+        
+        # Toggle active status
+        client.is_active = not client.is_active
+        new_status = "Active" if client.is_active else "Inactive"
+        
+        # Update all associated projects to match client status
+        projects = Project.query.filter_by(client_id=id).all()
+        for project in projects:
+            if client.is_active:
+                # If activating client, set projects to Active if they were inactive
+                if project.status in ['Inactive', 'On Hold']:
+                    project.status = 'Active'
+            else:
+                # If deactivating client, set active projects to On Hold
+                if project.status == 'Active':
+                    project.status = 'On Hold'
+        
+        db.session.commit()
+        
+        # Create activity log
+        action = f'Client "{client_name}" marked as {new_status} (was {previous_status})'
+        if not client.is_active:
+            action += f' - {len(projects)} projects set to On Hold'
+        else:
+            action += f' - {len(projects)} projects reactivated'
+        
+        create_activity_log(action, session['user_id'])
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Client "{client_name}" marked as {new_status}',
+            'new_status': new_status,
+            'is_active': client.is_active
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'Error updating client status: {str(e)}'}), 500
+EOF < /dev/null
