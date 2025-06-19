@@ -284,7 +284,7 @@ def check_access():
 
 @app.route('/admin')
 def admin_login():
-    return render_template('admin_login.html')
+    return render_template('admin/admin_login.html')
 
 @app.route('/admin/authenticate', methods=['POST'])
 def admin_authenticate():
@@ -302,7 +302,7 @@ def admin_dashboard():
         return redirect(url_for('admin.login'))
     
     firms = Firm.query.all()
-    return render_template('admin_dashboard.html', firms=firms)
+    return render_template('admin/admin_dashboard.html', firms=firms)
 
 @app.route('/admin/generate-code', methods=['POST'])
 def generate_access_code_route():
@@ -323,7 +323,7 @@ def generate_access_code_route():
 def templates():
     firm_id = session['firm_id']
     templates = Template.query.filter_by(firm_id=firm_id).all()
-    return render_template('templates.html', templates=templates)
+    return render_template('admin/templates.html', templates=templates)
 
 @app.route('/templates/create', methods=['GET', 'POST'])
 def create_template():
@@ -362,7 +362,7 @@ def create_template():
         
         return redirect(url_for('templates'))
     
-    return render_template('create_template.html')
+    return render_template('admin/create_template.html')
 
 @app.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 def edit_template(id):
@@ -433,13 +433,13 @@ def edit_template(id):
         
         return redirect(url_for('templates'))
     
-    return render_template('edit_template.html', template=template)
+    return render_template('admin/edit_template.html', template=template)
 
 @app.route('/projects')
 def projects():
     firm_id = session['firm_id']
     projects = Project.query.filter_by(firm_id=firm_id).all()
-    return render_template('projects.html', projects=projects)
+    return render_template('projects/projects.html', projects=projects)
 
 @app.route('/projects/create', methods=['GET', 'POST'])
 def create_project():
@@ -540,7 +540,7 @@ def create_project():
     firm_id = session['firm_id']
     templates = Template.query.filter_by(firm_id=firm_id).all()
     clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
-    return render_template('create_project.html', templates=templates, clients=clients)
+    return render_template('projects/create_project.html', templates=templates, clients=clients)
 
 @app.route('/projects/<int:id>')
 def view_project(id):
@@ -552,7 +552,7 @@ def view_project(id):
     tasks = Task.query.filter_by(project_id=id).order_by(Task.due_date.asc()).all()
     activity_logs = ActivityLog.query.filter_by(project_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
     
-    return render_template('view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
+    return render_template('projects/view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
 @app.route('/projects/<int:id>/edit', methods=['GET', 'POST'])
 def edit_project(id):
@@ -590,7 +590,7 @@ def edit_project(id):
     # GET request - show form
     firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('edit_project.html', project=project, users=users)
+    return render_template('projects/edit_project.html', project=project, users=users)
 
 @app.route('/tasks')
 def tasks():
@@ -698,7 +698,7 @@ def tasks():
     users = User.query.filter_by(firm_id=firm_id).all()
     projects = Project.query.filter_by(firm_id=firm_id).all()
     
-    return render_template('tasks_modern.html', tasks=tasks, users=users, projects=projects, today=date.today())
+    return render_template('tasks/tasks_modern.html', tasks=tasks, users=users, projects=projects, today=date.today())
 
 @app.route('/tasks/<int:id>/delete', methods=['POST'])
 def delete_task(id):
@@ -870,7 +870,7 @@ def create_task():
     # Pre-fill due date if provided (from calendar click)
     prefill_due_date = request.args.get('due_date')
     
-    return render_template('create_task.html', projects=projects, users=users, selected_project=selected_project, prefill_due_date=prefill_due_date)
+    return render_template('tasks/create_task.html', projects=projects, users=users, selected_project=selected_project, prefill_due_date=prefill_due_date)
 
 @app.route('/tasks/<int:id>/edit', methods=['GET', 'POST'])
 def edit_task(id):
@@ -969,7 +969,7 @@ def edit_task(id):
     if task.project_id:
         project_tasks = Task.query.filter_by(project_id=task.project_id).order_by(Task.title).all()
     
-    return render_template('edit_task.html', task=task, users=users, project_tasks=project_tasks)
+    return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
 @app.route('/tasks/<int:id>')
 def view_task(id):
@@ -988,7 +988,7 @@ def view_task(id):
     # Get task comments
     comments = TaskComment.query.filter_by(task_id=id).order_by(TaskComment.created_at.desc()).all()
     
-    return render_template('view_task.html', task=task, activity_logs=activity_logs, comments=comments)
+    return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
 
 @app.route('/tasks/<int:id>/comments', methods=['POST'])
 def add_task_comment(id):
