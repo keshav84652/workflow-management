@@ -71,7 +71,7 @@
                     <li>
                         <ul role="list" class="-mx-2 space-y-1">
                             <li>
-                                <a href="{{ url_for('dashboard') }}" 
+                                <a href="{{ url_for('dashboard.main') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-house h-6 w-6 shrink-0"></i>
                                     Dashboard
@@ -168,7 +168,7 @@
                             </ul>
                         </div>
                         <div class="border-t border-gray-700 pt-4 mt-4">
-                            <a href="{{ url_for('logout') }}" 
+                            <a href="{{ url_for('auth.logout') }}" 
                                class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-red-600">
                                 <i class="bi bi-box-arrow-right h-6 w-6 shrink-0"></i>
                                 Sign out
@@ -233,7 +233,7 @@
                         
                         <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5" 
                              x-show="userMenuOpen" @click.away="userMenuOpen = false" x-cloak>
-                            <a href="{{ url_for('logout') }}" class="block px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50">Sign out</a>
+                            <a href="{{ url_for('auth.logout') }}" class="block px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50">Sign out</a>
                         </div>
                     </div>
                 </div>

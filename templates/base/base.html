@@ -473,7 +473,7 @@
                                     <small class="fw-bold">{{ session.user_name }}</small>
                                     <br><small class="text-muted">{{ session.user_role }}</small>
                                 </div>
-                                <a href="{{ url_for('switch_user') }}" class="btn btn-sm btn-outline-secondary" title="Switch User">
+                                <a href="{{ url_for('auth.switch_user') }}" class="btn btn-sm btn-outline-secondary" title="Switch User">
                                     <i class="bi bi-arrow-repeat"></i>
                                 </a>
                             </div>
@@ -493,7 +493,7 @@
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <a class="nav-link" href="{{ url_for('dashboard.main') }}">
                                 <i class="bi bi-house-door"></i> Dashboard
                             </a>
                         </li>
@@ -551,7 +551,7 @@
                     <hr>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">
+                            <a class="nav-link" href="{{ url_for('auth.logout') }}">
                                 <i class="bi bi-box-arrow-right"></i> Logout
                             </a>
                         </li>
