@@ -26,14 +26,14 @@
                     <div x-show="open" @click.away="open = false" x-transition
                          class="absolute right-0 z-10 mt-2 w-32 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
                         <div class="py-1">
-                            <a href="{{ url_for('export_projects', format='csv') }}" 
+                            <a href="/projects/export?format=csv" 
                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="bi bi-filetype-csv mr-2"></i>CSV
                             </a>
                         </div>
                     </div>
                 </div>
-                <a href="{{ url_for('create_project') }}" 
+                <a href="/projects/create" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                     <i class="bi bi-plus-circle mr-1"></i> New Project
                 </a>
