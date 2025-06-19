@@ -1,9 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 from datetime import datetime, date, timedelta
-import os
-import secrets
 import calendar
 import time
 from pathlib import Path
@@ -12,26 +8,32 @@ from werkzeug.utils import secure_filename
 import mimetypes
 import uuid
 
+# Import configuration and core utilities
+from config import get_config
+from core import db, migrate, create_directories
+
+# Import models
+from models import (
+    Firm, User, Template, TemplateTask, Project, Task, ActivityLog, 
+    Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, 
+    Attachment, ClientUser, DocumentChecklist, ChecklistItem, 
+    ClientDocument, DocumentTemplate, DocumentTemplateItem, 
+    IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
+)
+
+# Create Flask application
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.abspath("instance/workflow.db")}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# File upload configuration
-app.config['UPLOAD_FOLDER'] = os.path.abspath('uploads')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-ALLOWED_EXTENSIONS = {
-    'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx', 
-    'ppt', 'pptx', 'csv', 'zip', 'rar', '7z', 'mp4', 'avi', 'mov', 'mp3', 'wav'
-}
+# Load configuration
+config_class = get_config()
+app.config.from_object(config_class)
 
-os.makedirs('instance', exist_ok=True)
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+# Create necessary directories
+create_directories(app)
 
-from models import db, Firm, User, Template, TemplateTask, Project, Task, ActivityLog, Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, Attachment, ClientUser, DocumentChecklist, ChecklistItem, ClientDocument, DocumentTemplate, DocumentTemplateItem, IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
-
+# Initialize extensions
 db.init_app(app)
-migrate = Migrate(app, db)
+migrate.init_app(app, db)
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
 
@@ -118,14 +120,14 @@ except ImportError as e:
 
 # Recurring tasks are now integrated into the Task model
 
-def allowed_file(filename):
+def allowed_file_local(filename):
     """Check if file extension is allowed"""
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def save_uploaded_file(file, firm_id, entity_type, entity_id):
     """Save uploaded file and create attachment record"""
-    if not file or not allowed_file(file.filename):
+    if not file or not allowed_file_local(file.filename):
         return None, "Invalid file type"
     
     # Generate unique filename
@@ -3657,7 +3659,7 @@ def client_upload_document(item_id):
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No file selected'}), 400
     
-    if not allowed_file(file.filename):
+    if not allowed_file_local(file.filename):
         return jsonify({'success': False, 'message': 'File type not allowed'}), 400
     
     try:
@@ -5124,7 +5126,7 @@ def public_checklist_upload(token):
         if file.filename == '':
             return jsonify({'success': False, 'message': 'No file selected'}), 400
         
-        if file and allowed_file(file.filename):
+        if file and allowed_file_local(file.filename):
             # Create client-specific upload directory
             client_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f'client_{checklist.client_id}')
             os.makedirs(client_upload_dir, exist_ok=True)
