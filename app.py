@@ -34,6 +34,12 @@ create_directories(app)
 # Initialize extensions
 db.init_app(app)
 migrate.init_app(app, db)
+
+# Register blueprints
+from blueprints import ALL_BLUEPRINTS
+for blueprint in ALL_BLUEPRINTS:
+    app.register_blueprint(blueprint)
+
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
 
@@ -248,319 +254,17 @@ def check_access():
     
     # Check firm access
     if 'firm_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('auth.login'))
     
     # Check user selection (except for user selection pages)
     if 'user_id' not in session:
-        return redirect(url_for('select_user'))
+        return redirect(url_for('auth.select_user'))
 
-@app.route('/')
-def home():
-    # Show simplified landing page as main entry point
-    return render_template('landing.html')
-
-@app.route('/landing')
-def landing():
-    # Redirect to main landing page for consistency
-    return redirect(url_for('home'))
-
-@app.route('/login')
-def login():
-    if 'firm_id' in session:
-        if 'user_id' in session:
-            return redirect(url_for('dashboard'))
-        else:
-            return redirect(url_for('select_user'))
-    return render_template('login.html')
-
-@app.route('/authenticate', methods=['POST'])
-def authenticate():
-    access_code = request.form.get('access_code', '').strip()
-    email = request.form.get('email', '').strip()
-    
-    firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
-    
-    if firm:
-        # Store email in session for tracking
-        session['user_email'] = email
-        session['firm_id'] = firm.id
-        session['firm_name'] = firm.name
-        
-        # For demo access, store email in database for tracking
-        if access_code == 'DEMO2024':
-            try:
-                # Check if email already exists for demo access
-                existing_request = db.session.execute(
-                    db.text("SELECT * FROM demo_access_request WHERE email = :email AND firm_access_code = 'DEMO2024'"),
-                    {'email': email}
-                ).first()
-                
-                if not existing_request:
-                    # Create new demo access record
-                    db.session.execute(
-                        db.text("""
-                            INSERT INTO demo_access_request 
-                            (email, firm_access_code, ip_address, user_agent, granted, granted_at, created_at) 
-                            VALUES (:email, 'DEMO2024', :ip_address, :user_agent, 1, :granted_at, :created_at)
-                        """),
-                        {
-                            'email': email,
-                            'ip_address': request.remote_addr,
-                            'user_agent': request.headers.get('User-Agent', ''),
-                            'granted_at': datetime.utcnow(),
-                            'created_at': datetime.utcnow()
-                        }
-                    )
-                    db.session.commit()
-            except Exception as e:
-                # Don't block access if demo tracking fails
-                print(f"Demo tracking error: {e}")
-                pass
-        
-        return redirect(url_for('select_user'))
-    else:
-        flash('Invalid access code', 'error')
-        return redirect(url_for('login'))
-
-@app.route('/select-user')
-def select_user():
-    if 'firm_id' not in session:
-        return redirect(url_for('login'))
-    
-    firm_id = session['firm_id']
-    users = User.query.filter_by(firm_id=firm_id).all()
-    return render_template('select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
-
-@app.route('/set-user', methods=['POST'])
-def set_user():
-    if 'firm_id' not in session:
-        return redirect(url_for('login'))
-    
-    user_id = request.form.get('user_id')
-    user = User.query.filter_by(id=user_id, firm_id=session['firm_id']).first()
-    
-    if user:
-        session['user_id'] = user.id
-        session['user_name'] = user.name
-        session['user_role'] = user.role
-        flash(f'Welcome, {user.name}!', 'success')
-        return redirect(url_for('dashboard'))
-    else:
-        flash('Invalid user selection', 'error')
-        return redirect(url_for('select_user'))
-
-@app.route('/switch-user')
-def switch_user():
-    session.pop('user_id', None)
-    session.pop('user_name', None)
-    session.pop('user_role', None)
-    return redirect(url_for('select_user'))
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('home'))
-
-@app.route('/clear-session')
-def clear_session():
-    """Clear session and redirect to landing page"""
-    session.clear()
-    return redirect(url_for('home'))
+# Auth routes moved to auth blueprint
 
 
 
-@app.route('/dashboard')
-def dashboard():
-    firm_id = session['firm_id']
-    projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
-    
-    # Basic counts - include both project tasks and independent tasks
-    total_tasks = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        )
-    ).count()
-    
-    # Count completed tasks using new status system
-    completed_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        db.or_(
-            TaskStatus.is_terminal == True,  # New status system
-            db.and_(Task.status_id.is_(None), Task.status == 'Completed')  # Legacy fallback
-        )
-    ).count()
-    
-    # Count overdue tasks (exclude completed)
-    overdue_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.due_date < date.today(),
-        db.or_(
-            TaskStatus.is_terminal == False,  # New status system
-            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
-        )
-    ).count()
-    
-    active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
-    
-    # Get work types for enhanced dashboard
-    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
-    
-    # Task status distribution by work type
-    work_type_status_data = {}
-    for work_type in work_types:
-        work_type_data = {
-            'name': work_type.name,
-            'color': work_type.color,
-            'statuses': {}
-        }
-        
-        for status in work_type.task_statuses:
-            # Count tasks with this specific status
-            count = Task.query.join(Project).filter(
-                Project.firm_id == firm_id,
-                Project.work_type_id == work_type.id,
-                Task.status_id == status.id
-            ).count()
-            work_type_data['statuses'][status.name] = {
-                'count': count,
-                'color': status.color,
-                'is_terminal': status.is_terminal
-            }
-        
-        work_type_status_data[work_type.name] = work_type_data
-    
-    # Legacy status distribution for backward compatibility
-    task_status_data = {}
-    for status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
-        count = Task.query.outerjoin(Project).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            ),
-            Task.status == status
-        ).count()
-        task_status_data[status] = count
-    
-    # Priority distribution (exclude completed tasks)
-    priority_data = {}
-    for priority in ['High', 'Medium', 'Low']:
-        count = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            ),
-            Task.priority == priority,
-            db.or_(
-                TaskStatus.is_terminal == False,  # New status system
-                db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
-            )
-        ).count()
-        priority_data[priority] = count
-    
-    # Recent activity (last 7 days)
-    week_ago = datetime.now() - timedelta(days=7)
-    recent_tasks = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.created_at >= week_ago
-    ).count()
-    
-    # Workload by user - include both project tasks and independent tasks
-    user_workload = {}
-    users = User.query.filter_by(firm_id=firm_id).all()
-    for user in users:
-        active_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            ),
-            Task.assignee_id == user.id,
-            db.or_(
-                TaskStatus.is_terminal == False,  # New status system
-                db.and_(Task.status_id.is_(None), Task.status.in_(['Not Started', 'In Progress', 'Needs Review']))  # Legacy fallback
-            )
-        ).count()
-        user_workload[user.name] = active_tasks
-    
-    # Upcoming deadlines (next 7 days) - include both project tasks and independent tasks
-    next_week = date.today() + timedelta(days=7)
-    upcoming_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.due_date.between(date.today(), next_week),
-        db.or_(
-            TaskStatus.is_terminal == False,  # New status system
-            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
-        )
-    ).order_by(Task.due_date.asc()).limit(5).all()
-    
-    # Critical notifications - overdue and due today
-    today_tasks = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.due_date == date.today(),
-        db.or_(
-            TaskStatus.is_terminal == False,  # New status system
-            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
-        )
-    ).count()
-    
-    # Due this week count
-    due_this_week = Task.query.outerjoin(Project).outerjoin(TaskStatus).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.due_date.between(date.today(), next_week),
-        db.or_(
-            TaskStatus.is_terminal == False,  # New status system
-            db.and_(Task.status_id.is_(None), Task.status != 'Completed')  # Legacy fallback
-        )
-    ).count()
-    
-    # Get recent tasks and projects for the modern dashboard
-    recent_tasks_list = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        )
-    ).order_by(Task.created_at.desc()).limit(10).all()
-    
-    recent_projects_list = Project.query.filter_by(firm_id=firm_id).order_by(Project.created_at.desc()).limit(10).all()
-    
-    return render_template('dashboard_modern.html', 
-                         projects=projects, 
-                         active_tasks_count=total_tasks - completed_tasks,
-                         active_projects_count=len(projects),
-                         overdue_tasks_count=overdue_tasks,
-                         users_count=len(users),
-                         recent_tasks=recent_tasks_list,
-                         recent_projects=recent_projects_list,
-                         # Legacy data for fallback
-                         total_tasks=total_tasks,
-                         completed_tasks=completed_tasks,
-                         active_clients=active_clients,
-                         task_status_data=task_status_data,
-                         work_type_status_data=work_type_status_data,
-                         work_types=work_types,
-                         priority_data=priority_data,
-                         user_workload=user_workload,
-                         upcoming_tasks=upcoming_tasks,
-                         today_tasks=today_tasks,
-                         due_this_week=due_this_week)
+# Dashboard route moved to dashboard blueprint
 
 @app.route('/admin')
 def admin_login():
@@ -571,15 +275,15 @@ def admin_authenticate():
     password = request.form.get('password')
     if password == os.environ.get('ADMIN_PASSWORD', 'admin123'):
         session['admin'] = True
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('admin.dashboard'))
     else:
         flash('Invalid admin password', 'error')
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin.login'))
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not session.get('admin'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin.login'))
     
     firms = Firm.query.all()
     return render_template('admin_dashboard.html', firms=firms)
@@ -587,7 +291,7 @@ def admin_dashboard():
 @app.route('/admin/generate-code', methods=['POST'])
 def generate_access_code_route():
     if not session.get('admin'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin.login'))
     
     firm_name = request.form.get('firm_name')
     access_code = generate_access_code()
@@ -597,7 +301,7 @@ def generate_access_code_route():
     db.session.commit()
     
     flash(f'Access code generated: {access_code}', 'success')
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin.dashboard'))
 
 @app.route('/templates')
 def templates():
@@ -2520,7 +2224,7 @@ def mark_client_inactive(id):
 def admin_work_types():
     if session.get('user_role') != 'Admin':
         flash('Access denied', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard.main'))
     
     work_types = WorkType.query.filter_by(firm_id=session['firm_id']).all()
     
@@ -3068,11 +2772,11 @@ def download_attachment(attachment_id):
     # Check access
     if attachment.firm_id != session['firm_id']:
         flash('Access denied', 'error')
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('dashboard.main'))
     
     if not os.path.exists(attachment.file_path):
         flash('File not found', 'error')
-        return redirect(request.referrer or url_for('dashboard'))
+        return redirect(request.referrer or url_for('dashboard.main'))
     
     # Activity log
     entity_type = 'task' if attachment.task_id else 'project'
@@ -5215,7 +4919,7 @@ def public_checklist_status(token):
 def share_checklist(checklist_id):
     """Generate or display share link for checklist"""
     if 'user_id' not in session:
-        return redirect(url_for('login'))
+        return redirect(url_for('auth.login'))
     
     checklist = DocumentChecklist.query.filter_by(
         id=checklist_id, 
