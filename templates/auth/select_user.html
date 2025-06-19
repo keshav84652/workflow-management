@@ -356,7 +356,7 @@
             {% if users %}
                 <div class="users-list">
                     {% for user in users %}
-                    <form method="POST" action="{{ url_for('set_user') }}" style="display: inline-block; width: 100%;">
+                    <form method="POST" action="{{ url_for('auth.set_user') }}" style="display: inline-block; width: 100%;">
                         <input type="hidden" name="user_id" value="{{ user.id }}">
                         <button type="submit" class="user-button">
                             <div class="user-avatar">
