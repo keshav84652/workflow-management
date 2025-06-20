@@ -264,11 +264,31 @@ def kanban_view():
         projects_by_column['completed'] = []
         project_counts['completed'] = 0
         
-        # Simple column assignment based on project progress
+        # Assign projects to columns based on their current status
         for project in projects:
-            if len(kanban_columns) > 0:
-                projects_by_column[kanban_columns[0].id].append(project)
-                project_counts[kanban_columns[0].id] += 1
+            if project.status == 'Completed':
+                # Completed projects go to a special completed column
+                projects_by_column['completed'].append(project)
+                project_counts['completed'] += 1
+            elif project.current_status_id:
+                # Project has a workflow status - find matching column
+                status_found = False
+                for column in kanban_columns:
+                    if column.default_status_id == project.current_status_id:
+                        projects_by_column[column.id].append(project)
+                        project_counts[column.id] += 1
+                        status_found = True
+                        break
+                
+                # If no matching column found, put in first column
+                if not status_found and len(kanban_columns) > 0:
+                    projects_by_column[kanban_columns[0].id].append(project)
+                    project_counts[kanban_columns[0].id] += 1
+            else:
+                # Project has no current status - put in first column (default)
+                if len(kanban_columns) > 0:
+                    projects_by_column[kanban_columns[0].id].append(project)
+                    project_counts[kanban_columns[0].id] += 1
     else:
         projects_by_column = {}
         project_counts = {}
