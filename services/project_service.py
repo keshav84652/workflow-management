@@ -263,6 +263,17 @@ class ProjectService:
                 project.current_status_id = None
                 status_name = 'Completed'
                 print(f"DEBUG: Set project to completed status")
+                
+                # Mark ALL tasks as completed
+                tasks_updated = 0
+                for task in project.tasks:
+                    if task.status != 'Completed':
+                        task.status = 'Completed'
+                        task.completed_at = datetime.utcnow()
+                        tasks_updated += 1
+                
+                print(f"DEBUG: Marked {tasks_updated} tasks as completed")
+                
             else:
                 print(f"DEBUG: Looking up TemplateTask {status_id}")
                 # The status_id is actually a TemplateTask ID, find the corresponding TaskStatus
@@ -272,25 +283,66 @@ class ProjectService:
                     print(f"DEBUG: TemplateTask {status_id} not found")
                     return {'success': False, 'message': f'Template task {status_id} not found'}
                 
-                print(f"DEBUG: Found TemplateTask {template_task.title}, default_status_id: {template_task.default_status_id}")
+                print(f"DEBUG: Found TemplateTask {template_task.title}, order: {template_task.workflow_order}")
                 
-                # Get the default status for this template task
+                # Calculate target progress based on template task position
+                # Get all template tasks for this work type, ordered by workflow_order
+                all_template_tasks = TemplateTask.query.filter_by(
+                    template_id=template_task.template_id
+                ).order_by(TemplateTask.workflow_order.asc()).all()
+                
+                # Find position of current template task
+                current_position = 0
+                for i, tt in enumerate(all_template_tasks):
+                    if tt.id == template_task.id:
+                        current_position = i
+                        break
+                
+                # Calculate target progress (each column represents a portion of completion)
+                total_columns = len(all_template_tasks)
+                target_progress_percent = ((current_position + 1) / total_columns) * 100
+                target_progress_percent = min(target_progress_percent, 95)  # Cap at 95% for non-completed
+                
+                print(f"DEBUG: Target progress for column {current_position}/{total_columns}: {target_progress_percent}%")
+                
+                # Update tasks to match target progress
+                total_tasks = len(project.tasks)
+                if total_tasks > 0:
+                    target_completed_tasks = int((target_progress_percent / 100) * total_tasks)
+                    
+                    # Sort tasks by creation order for consistent completion
+                    sorted_tasks = sorted(project.tasks, key=lambda t: t.id)
+                    
+                    tasks_updated = 0
+                    for i, task in enumerate(sorted_tasks):
+                        should_be_completed = i < target_completed_tasks
+                        
+                        if should_be_completed and task.status != 'Completed':
+                            task.status = 'Completed'
+                            task.completed_at = datetime.utcnow()
+                            tasks_updated += 1
+                        elif not should_be_completed and task.status == 'Completed':
+                            task.status = 'In Progress'
+                            task.completed_at = None
+                            tasks_updated += 1
+                    
+                    print(f"DEBUG: Updated {tasks_updated} tasks to achieve {target_progress_percent}% progress")
+                
+                # Set workflow status
                 if template_task.default_status_id:
                     status = TaskStatus.query.get(template_task.default_status_id)
-                    if not status:
-                        print(f"DEBUG: TaskStatus {template_task.default_status_id} not found")
-                        return {'success': False, 'message': f'Status {template_task.default_status_id} not found for template task'}
-                    
-                    project.current_status_id = status.id
-                    project.status = 'Active'
-                    status_name = status.name
-                    print(f"DEBUG: Set project current_status_id to {status.id} ({status.name})")
+                    if status:
+                        project.current_status_id = status.id
+                        status_name = status.name
+                    else:
+                        project.current_status_id = None
+                        status_name = template_task.title
                 else:
-                    # No default status, just use template task title
                     project.current_status_id = None
-                    project.status = 'Active'
                     status_name = template_task.title
-                    print(f"DEBUG: No default status, using template task title: {status_name}")
+                
+                project.status = 'Active'
+                print(f"DEBUG: Set project workflow status to {status_name}")
             
             print(f"DEBUG: About to commit changes")
             db.session.commit()

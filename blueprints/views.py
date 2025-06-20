@@ -264,38 +264,37 @@ def kanban_view():
         projects_by_column['completed'] = []
         project_counts['completed'] = 0
         
-        # Assign projects to columns based on their current status
+        # Assign projects to columns based on their actual progress
         for project in projects:
-            print(f"DEBUG: Project {project.id} ({project.name}) - status: {project.status}, current_status_id: {project.current_status_id}, progress: {project.progress_percentage}%")
+            print(f"DEBUG: Project {project.id} ({project.name}) - status: {project.status}, progress: {project.progress_percentage}%")
             
-            if project.status == 'Completed':
+            if project.status == 'Completed' or project.progress_percentage == 100:
                 # Completed projects go to a special completed column
                 projects_by_column['completed'].append(project)
                 project_counts['completed'] += 1
-                print(f"DEBUG: Assigned project {project.id} to completed column")
-            elif project.current_status_id:
-                # Project has a workflow status - find matching column
-                status_found = False
-                for column in kanban_columns:
-                    print(f"DEBUG: Checking column {column.id} (default_status_id: {column.default_status_id}) vs project current_status_id: {project.current_status_id}")
-                    if column.default_status_id == project.current_status_id:
-                        projects_by_column[column.id].append(project)
-                        project_counts[column.id] += 1
-                        status_found = True
-                        print(f"DEBUG: Assigned project {project.id} to column {column.id}")
-                        break
+                print(f"DEBUG: Assigned project {project.id} to completed column (100% complete)")
+            elif len(kanban_columns) > 0:
+                # Assign based on progress percentage across available columns
+                progress = project.progress_percentage
+                column_count = len(kanban_columns)
                 
-                # If no matching column found, put in first column
-                if not status_found and len(kanban_columns) > 0:
-                    projects_by_column[kanban_columns[0].id].append(project)
-                    project_counts[kanban_columns[0].id] += 1
-                    print(f"DEBUG: No match found, assigned project {project.id} to first column {kanban_columns[0].id}")
-            else:
-                # Project has no current status - put in first column (default)
-                if len(kanban_columns) > 0:
-                    projects_by_column[kanban_columns[0].id].append(project)
-                    project_counts[kanban_columns[0].id] += 1
-                    print(f"DEBUG: No current_status_id, assigned project {project.id} to first column {kanban_columns[0].id}")
+                # Calculate which column based on progress
+                if progress == 0:
+                    # 0% progress - first column
+                    target_column_index = 0
+                elif progress >= 100:
+                    # Should be in completed already, but fallback to last column
+                    target_column_index = column_count - 1
+                else:
+                    # Distribute projects across columns based on progress ranges
+                    # Example: 0-33% = column 0, 34-66% = column 1, 67-99% = column 2
+                    progress_per_column = 100 / column_count
+                    target_column_index = min(int(progress / progress_per_column), column_count - 1)
+                
+                target_column = kanban_columns[target_column_index]
+                projects_by_column[target_column.id].append(project)
+                project_counts[target_column.id] += 1
+                print(f"DEBUG: Assigned project {project.id} ({progress}% complete) to column {target_column_index} ({target_column.title})")
     else:
         projects_by_column = {}
         project_counts = {}
