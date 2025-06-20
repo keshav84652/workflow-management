@@ -69,13 +69,6 @@
             display: none !important;
         }
         
-        .sidebar-minimized .sidebar-icon-only {
-            display: block !important;
-        }
-        
-        .sidebar-icon-only {
-            display: none;
-        }
         
         /* Adjust padding for minimized sidebar */
         .sidebar-minimized .bg-cpa-navy {
@@ -103,25 +96,24 @@
     <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300"
          :class="sidebarMinimized ? 'w-16 sidebar-minimized' : 'w-72'">
         <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-cpa-navy px-6 pb-4">
-            <div class="flex h-16 shrink-0 items-center justify-between">
-                <!-- Full Logo -->
-                <div class="flex items-center sidebar-text sidebar-logo" x-show="!sidebarMinimized">
-                    <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" 
-                         alt="Ctrl Filing" class="h-8 w-auto mr-3">
-                    <span class="text-xl font-bold text-white">Ctrl Filing</span>
+            <!-- Full Sidebar Header -->
+            <div class="flex h-16 shrink-0 items-center justify-between" x-show="!sidebarMinimized">
+                <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" 
+                     alt="Ctrl Filing" class="h-8 w-auto">
+                <button @click="sidebarMinimized = true; localStorage.setItem('sidebarMinimized', true)"
+                        class="text-gray-300 hover:text-white transition-colors p-1">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+            </div>
+            
+            <!-- Minimized Sidebar Header -->
+            <div class="flex h-16 shrink-0 flex-col items-center justify-center space-y-1" x-show="sidebarMinimized">
+                <div class="bg-white text-cpa-navy rounded px-1.5 py-0.5 font-bold text-xs">
+                    CTRL
                 </div>
-                
-                <!-- Minimized Logo -->
-                <div class="sidebar-icon-only text-white text-center w-full" x-show="sidebarMinimized">
-                    <div class="bg-white text-cpa-navy rounded px-2 py-1 font-bold text-sm mx-auto w-fit">
-                        CTRL
-                    </div>
-                </div>
-                
-                <!-- Toggle Button -->
-                <button @click="sidebarMinimized = !sidebarMinimized; localStorage.setItem('sidebarMinimized', sidebarMinimized)"
-                        class="text-gray-300 hover:text-white transition-colors">
-                    <i class="bi" :class="sidebarMinimized ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
+                <button @click="sidebarMinimized = false; localStorage.setItem('sidebarMinimized', false)"
+                        class="text-gray-300 hover:text-white transition-colors p-1 rounded">
+                    <i class="bi bi-chevron-right text-sm"></i>
                 </button>
             </div>
             <nav class="flex flex-1 flex-col">
