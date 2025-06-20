@@ -317,46 +317,16 @@
 
     <!-- Main content -->
     <div class="transition-all duration-300" :class="sidebarMinimized ? 'lg:pl-16' : 'lg:pl-72'">
-        <!-- Top bar -->
-        <div class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-            <button type="button" class="-m-2.5 p-2.5 text-gray-700 lg:hidden" @click="sidebarOpen = true">
+        <!-- Mobile menu button (only visible on mobile) -->
+        <div class="lg:hidden sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm">
+            <button type="button" class="-m-2.5 p-2.5 text-gray-700" @click="sidebarOpen = true">
                 <span class="sr-only">Open sidebar</span>
                 <i class="bi bi-list h-6 w-6"></i>
             </button>
-
-            <!-- Separator -->
-            <div class="h-6 w-px bg-gray-200 lg:hidden"></div>
-
-            <div class="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-                <div class="relative flex flex-1">
-                    <!-- Global search could go here -->
-                </div>
-                <div class="flex items-center gap-x-4 lg:gap-x-6">
-
-                    <!-- User menu -->
-                    <div class="relative" x-data="{ userMenuOpen: false }">
-                        <button type="button" class="flex items-center p-1.5 text-sm" @click="userMenuOpen = !userMenuOpen">
-                            <span class="sr-only">Open user menu</span>
-                            <div class="h-8 w-8 rounded-full bg-gray-400 flex items-center justify-center">
-                                <i class="bi bi-person text-white"></i>
-                            </div>
-                            <span class="hidden lg:flex lg:items-center">
-                                <span class="ml-4 text-sm font-semibold leading-6 text-gray-900">{{ session.user_name }}</span>
-                                <i class="bi bi-chevron-down ml-2 h-5 w-5 text-gray-400"></i>
-                            </span>
-                        </button>
-                        
-                        <div class="absolute right-0 z-10 mt-2.5 w-32 origin-top-right rounded-md bg-white py-2 shadow-lg ring-1 ring-gray-900/5" 
-                             x-show="userMenuOpen" @click.away="userMenuOpen = false" x-cloak>
-                            <a href="{{ url_for('auth.logout') }}" class="block px-3 py-1 text-sm leading-6 text-gray-900 hover:bg-gray-50">Sign out</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Page content -->
-        <main class="py-10">
+        <main class="py-6">
             <div class="px-4 sm:px-6 lg:px-8">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}

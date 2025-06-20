@@ -8,7 +8,6 @@
     <div class="sm:flex sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-                <i class="bi bi-briefcase text-cpa-blue mr-2"></i>
                 Client Management
             </h1>
             <p class="mt-2 text-sm text-gray-700">
@@ -26,7 +25,7 @@
                     <div x-show="open" @click.away="open = false" x-transition
                          class="absolute right-0 z-10 mt-2 w-32 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5">
                         <div class="py-1">
-                            <a href="/clients/export?format=csv" 
+                            <a href="{{ url_for('export.export_clients', format='csv') }}" 
                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                 <i class="bi bi-filetype-csv mr-2"></i>CSV
                             </a>
@@ -35,7 +34,7 @@
                 </div>
                 <a href="/clients/create" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-                    <i class="bi bi-plus-circle mr-1"></i> New Client
+                    New Client
                 </a>
             </div>
         </div>
@@ -43,65 +42,73 @@
 
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200">
-            <div class="p-6">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 card-hover">
+            <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="bi bi-briefcase text-cpa-blue text-2xl"></i>
+                        <div class="w-10 h-10 bg-cpa-blue bg-opacity-10 rounded-lg flex items-center justify-center">
+                            <i class="bi bi-briefcase text-cpa-blue text-lg"></i>
+                        </div>
                     </div>
-                    <div class="ml-5 w-0 flex-1">
+                    <div class="ml-4 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">Total Clients</dt>
-                            <dd class="text-2xl font-bold text-gray-900">{{ clients|length }}</dd>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Clients</dt>
+                            <dd class="text-xl font-semibold text-gray-900">{{ clients|length }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-gradient-to-br from-green-500 to-green-600 overflow-hidden shadow-sm rounded-lg">
-            <div class="p-6">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 card-hover">
+            <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="bi bi-check-circle text-white text-2xl opacity-80"></i>
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                            <i class="bi bi-check-circle text-green-600 text-lg"></i>
+                        </div>
                     </div>
-                    <div class="ml-5 w-0 flex-1">
+                    <div class="ml-4 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-green-100 truncate">Active Clients</dt>
-                            <dd class="text-2xl font-bold text-white">{{ clients|selectattr('is_active')|list|length }}</dd>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Active Clients</dt>
+                            <dd class="text-xl font-semibold text-gray-900">{{ clients|selectattr('is_active')|list|length }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-gradient-to-br from-amber-500 to-amber-600 overflow-hidden shadow-sm rounded-lg">
-            <div class="p-6">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 card-hover">
+            <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="bi bi-building text-white text-2xl opacity-80"></i>
+                        <div class="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+                            <i class="bi bi-building text-amber-600 text-lg"></i>
+                        </div>
                     </div>
-                    <div class="ml-5 w-0 flex-1">
+                    <div class="ml-4 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-amber-100 truncate">Corporations</dt>
-                            <dd class="text-2xl font-bold text-white">{{ clients|selectattr('entity_type', 'equalto', 'Corporation')|list|length }}</dd>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Corporations</dt>
+                            <dd class="text-xl font-semibold text-gray-900">{{ clients|selectattr('entity_type', 'equalto', 'Corporation')|list|length }}</dd>
                         </dl>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="bg-gradient-to-br from-slate-500 to-slate-600 overflow-hidden shadow-sm rounded-lg">
-            <div class="p-6">
+        <div class="bg-white overflow-hidden shadow-sm rounded-lg border border-gray-200 card-hover">
+            <div class="p-5">
                 <div class="flex items-center">
                     <div class="flex-shrink-0">
-                        <i class="bi bi-person text-white text-2xl opacity-80"></i>
+                        <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                            <i class="bi bi-person text-slate-600 text-lg"></i>
+                        </div>
                     </div>
-                    <div class="ml-5 w-0 flex-1">
+                    <div class="ml-4 w-0 flex-1">
                         <dl>
-                            <dt class="text-sm font-medium text-slate-100 truncate">Individuals</dt>
-                            <dd class="text-2xl font-bold text-white">{{ clients|selectattr('entity_type', 'equalto', 'Individual')|list|length }}</dd>
+                            <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider">Individuals</dt>
+                            <dd class="text-xl font-semibold text-gray-900">{{ clients|selectattr('entity_type', 'equalto', 'Individual')|list|length }}</dd>
                         </dl>
                     </div>
                 </div>

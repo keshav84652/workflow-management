@@ -8,71 +8,94 @@
     <div class="sm:flex sm:items-center sm:justify-between">
         <div>
             <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
-                <i class="bi bi-calendar text-cpa-blue mr-2"></i>
-                Calendar View
+                Calendar
             </h1>
             <p class="mt-2 text-sm text-gray-700">
-                View and manage your tasks by date
+                Track project deadlines and schedule overview
             </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <div class="flex gap-3">
                 <a href="{{ url_for('tasks.list_tasks') }}" 
                    class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    <i class="bi bi-list-task mr-1"></i> Task List
+                    All Tasks
                 </a>
                 <a href="{{ url_for('tasks.create_task') }}" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
-                    <i class="bi bi-plus-circle mr-1"></i> New Task
+                    New Task
                 </a>
             </div>
         </div>
     </div>
 
     <!-- Calendar Controls -->
-    <div class="sm:flex sm:items-center sm:justify-between">
-        <div class="flex items-center gap-3">
-            <div class="flex rounded-md shadow-sm">
-                <button type="button" id="prev-month"
-                        class="relative inline-flex items-center rounded-l-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    <i class="bi bi-chevron-left mr-1"></i> Previous
-                </button>
-                <button type="button" id="today-btn"
-                        class="relative -ml-px inline-flex items-center bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Today
-                </button>
-                <button type="button" id="next-month"
-                        class="relative -ml-px inline-flex items-center rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
-                    Next <i class="bi bi-chevron-right ml-1"></i>
-                </button>
+    <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <!-- Left: Month Navigation -->
+                <div class="flex items-center gap-4">
+                    <div class="flex rounded-md shadow-sm">
+                        <button type="button" id="prev-month"
+                                class="relative inline-flex items-center rounded-l-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <button type="button" id="today-btn"
+                                class="relative -ml-px inline-flex items-center bg-white px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            Today
+                        </button>
+                        <button type="button" id="next-month"
+                                class="relative -ml-px inline-flex items-center rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                    <h2 class="text-xl font-semibold text-gray-900" id="current-month">{{ current_date.strftime('%B %Y') }}</h2>
+                </div>
+
+                <!-- Right: Legend -->
+                <div class="hidden lg:flex items-center gap-3 text-xs">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-red-100 text-red-800">
+                        <span class="status-dot red mr-1.5"></span>
+                        Overdue
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                        <span class="status-dot yellow mr-1.5"></span>
+                        Due Soon
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
+                        <span class="status-dot blue mr-1.5"></span>
+                        Scheduled
+                    </span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-green-100 text-green-800">
+                        <span class="status-dot green mr-1.5"></span>
+                        Completed
+                    </span>
+                </div>
             </div>
-            <h2 class="text-xl font-semibold text-gray-900" id="current-month">{{ current_date.strftime('%B %Y') }}</h2>
-        </div>
-        <div class="mt-4 sm:mt-0">
-            <div class="flex flex-wrap gap-2 text-sm">
-                <span class="inline-flex items-center px-2 py-1 rounded-full bg-red-100 text-red-800">
-                    <span class="w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+            
+            <!-- Mobile Legend -->
+            <div class="lg:hidden mt-4 flex flex-wrap gap-2 text-xs">
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-red-100 text-red-800">
+                    <span class="status-dot red mr-1.5"></span>
                     Overdue
                 </span>
-                <span class="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                    <span class="w-2 h-2 bg-yellow-500 rounded-full mr-1"></span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                    <span class="status-dot yellow mr-1.5"></span>
                     Due Soon
                 </span>
-                <span class="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 text-blue-800">
-                    <span class="w-2 h-2 bg-blue-500 rounded-full mr-1"></span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-100 text-blue-800">
+                    <span class="status-dot blue mr-1.5"></span>
                     Scheduled
                 </span>
-                <span class="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800">
-                    <span class="w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-green-100 text-green-800">
+                    <span class="status-dot green mr-1.5"></span>
                     Completed
                 </span>
             </div>
         </div>
-    </div>
 
-    <!-- Calendar -->
-    <div class="bg-white shadow-sm rounded-lg border border-gray-200 overflow-hidden">
-        <div class="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
+        <!-- Calendar Grid -->
+        <div class="overflow-hidden">
+            <div class="grid grid-cols-7 gap-px bg-gray-200 text-center text-xs font-semibold text-gray-700 uppercase tracking-wide">
             <div class="bg-gray-50 py-2">Sunday</div>
             <div class="bg-gray-50 py-2">Monday</div>
             <div class="bg-gray-50 py-2">Tuesday</div>
@@ -80,9 +103,10 @@
             <div class="bg-gray-50 py-2">Thursday</div>
             <div class="bg-gray-50 py-2">Friday</div>
             <div class="bg-gray-50 py-2">Saturday</div>
-        </div>
-        <div class="grid grid-cols-7 gap-px bg-gray-200" id="calendar-body">
-            <!-- Calendar days will be generated by JavaScript -->
+            </div>
+            <div class="grid grid-cols-7 gap-px bg-gray-200" id="calendar-body">
+                <!-- Calendar days will be generated by JavaScript -->
+            </div>
         </div>
     </div>
 </div>
@@ -162,7 +186,7 @@ function generateCalendar(date) {
     for (let week = 0; week < 6; week++) {
         for (let day = 0; day < 7; day++) {
             const cell = document.createElement('div');
-            cell.className = 'bg-white p-2 h-32 cursor-pointer hover:bg-gray-50 relative';
+            cell.className = 'bg-white p-2 h-24 cursor-pointer hover:bg-gray-50 relative transition-colors';
             
             let dayNumber;
             let isCurrentMonth = true;

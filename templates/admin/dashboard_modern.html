@@ -3,18 +3,18 @@
 {% block title %}Dashboard - CPA WorkflowPilot{% endblock %}
 
 {% block content %}
-<div class="space-y-8">
+<div class="space-y-6">
     <!-- Header -->
-    <div class="border-b border-gray-200 pb-5">
+    <div>
         <div class="sm:flex sm:items-center sm:justify-between">
             <div>
-                <h1 class="text-3xl font-bold leading-tight tracking-tight text-gray-900">Dashboard</h1>
+                <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">Dashboard</h1>
                 <p class="mt-2 text-sm text-gray-700">Welcome back, {{ session.user_name }}! Here's your workflow overview.</p>
             </div>
-            <div class="mt-3 sm:ml-4 sm:mt-0 sm:flex-none">
-                <button type="button" class="block rounded-md bg-cpa-blue px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 btn-hover">
-                    <i class="bi bi-plus"></i> Quick Action
-                </button>
+            <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+                <a href="{{ url_for('tasks.create_task') }}" class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                    New Task
+                </a>
             </div>
         </div>
     </div>
