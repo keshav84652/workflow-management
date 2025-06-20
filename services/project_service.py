@@ -2,7 +2,7 @@
 Project service layer for business logic
 """
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from flask import session
 from core import db
@@ -304,3 +304,86 @@ class ProjectService:
         }
         
         return stats
+    
+    @staticmethod
+    def get_project_workflow_progress(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+        """Get project workflow progress (OpenProject-inspired)"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        project = ProjectService.get_project_by_id(project_id, firm_id)
+        if not project:
+            return {'success': False, 'message': 'Project not found'}
+        
+        # Calculate workflow progress
+        total_tasks = len(project.tasks)
+        completed_tasks = len([t for t in project.tasks if t.status == 'Completed'])
+        in_progress_tasks = len([t for t in project.tasks if t.status == 'In Progress'])
+        blocked_tasks = len([t for t in project.tasks if hasattr(t, 'is_blocked') and t.is_blocked])
+        
+        # Calculate completion percentage
+        completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+        
+        # Determine project health status
+        health_status = 'healthy'
+        if blocked_tasks > 0:
+            health_status = 'blocked'
+        elif project.is_overdue:
+            health_status = 'at_risk'
+        elif completion_percentage < 25 and project.due_date and (project.due_date - date.today()).days < 7:
+            health_status = 'behind_schedule'
+        
+        return {
+            'success': True,
+            'project_name': project.name,
+            'client_name': project.client_name,
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'in_progress_tasks': in_progress_tasks,
+            'blocked_tasks': blocked_tasks,
+            'completion_percentage': round(completion_percentage, 1),
+            'health_status': health_status,
+            'days_remaining': (project.due_date - date.today()).days if project.due_date else None,
+            'is_overdue': project.is_overdue
+        }
+    
+    @staticmethod
+    def get_firm_workflow_summary(firm_id: Optional[int] = None) -> Dict[str, Any]:
+        """Get firm-wide workflow summary (OpenProject-inspired dashboard)"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        projects = ProjectService.get_projects_for_firm(firm_id)
+        
+        # Project health distribution
+        healthy_projects = 0
+        at_risk_projects = 0
+        blocked_projects = 0
+        
+        total_completion = 0
+        
+        for project in projects:
+            if project.status != 'Completed':
+                progress = ProjectService.get_project_workflow_progress(project.id, firm_id)
+                if progress['success']:
+                    total_completion += progress['completion_percentage']
+                    if progress['health_status'] == 'healthy':
+                        healthy_projects += 1
+                    elif progress['health_status'] in ['at_risk', 'behind_schedule']:
+                        at_risk_projects += 1
+                    elif progress['health_status'] == 'blocked':
+                        blocked_projects += 1
+        
+        active_projects = len([p for p in projects if p.status == 'Active'])
+        avg_completion = (total_completion / active_projects) if active_projects > 0 else 0
+        
+        return {
+            'total_projects': len(projects),
+            'active_projects': active_projects,
+            'completed_projects': len([p for p in projects if p.status == 'Completed']),
+            'healthy_projects': healthy_projects,
+            'at_risk_projects': at_risk_projects,
+            'blocked_projects': blocked_projects,
+            'average_completion': round(avg_completion, 1),
+            'overdue_projects': len([p for p in projects if p.is_overdue])
+        }
