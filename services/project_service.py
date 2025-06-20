@@ -256,35 +256,45 @@ class ProjectService:
             if status_id == 'completed':
                 project.status = 'Completed'
                 project.current_status_id = None
+                status_name = 'Completed'
             else:
-                # Find the status
-                status = TaskStatus.query.get(status_id)
+                # The status_id is actually a TemplateTask ID, find the corresponding TaskStatus
+                from models import TemplateTask
+                template_task = TemplateTask.query.get(status_id)
+                if not template_task:
+                    return {'success': False, 'message': 'Template task not found'}
+                
+                # Get the default status for this template task
+                status = TaskStatus.query.get(template_task.default_status_id) if template_task.default_status_id else None
                 if not status:
-                    return {'success': False, 'message': 'Status not found'}
+                    return {'success': False, 'message': 'Status not found for template task'}
                 
                 project.current_status_id = status.id
                 project.status = 'Active'  # Set general status to active
+                status_name = status.name
             
             db.session.commit()
             
             # Create activity log
             create_activity_log(
+                action=f'Moved project "{project.name}" to status: {status_name}',
                 user_id=session.get('user_id'),
-                firm_id=firm_id,
-                action='update',
-                details=f'Moved project "{project.name}" to status: {status_id}'
+                project_id=project.id
             )
             
             return {
                 'success': True,
-                'message': f'Project moved to {status_id}',
+                'message': f'Project moved to {status_name}',
                 'project_progress': project.progress_percentage,
                 'completed_tasks': len([t for t in project.tasks if t.status == 'Completed']),
                 'total_tasks': len(project.tasks)
             }
             
         except Exception as e:
+            import traceback
             db.session.rollback()
+            error_details = traceback.format_exc()
+            print(f"ProjectService.move_project_status error: {error_details}")
             return {'success': False, 'message': f'Error moving project: {str(e)}'}
     
     @staticmethod
