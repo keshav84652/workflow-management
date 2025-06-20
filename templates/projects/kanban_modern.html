@@ -435,7 +435,7 @@ function updateProjectProgress(projectId, progressPercentage, completedTasks, to
 
 // Function to refresh a specific project card's data
 function refreshProjectCard(projectId) {
-    fetch(`{{ url_for('api.get_project_progress', project_id='') }}${projectId}`)
+    fetch(`/api/project-progress/${projectId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {

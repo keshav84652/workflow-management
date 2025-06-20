@@ -839,7 +839,7 @@ function deleteAttachment(attachmentId) {
         return;
     }
     
-    fetch(`{{ url_for('attachments.delete_attachment', attachment_id='') }}${attachmentId}`, {
+    fetch(`/attachments/${attachmentId}/delete`, {
         method: 'POST'
     })
     .then(response => response.json())
