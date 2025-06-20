@@ -40,6 +40,47 @@ from blueprints import ALL_BLUEPRINTS
 for blueprint in ALL_BLUEPRINTS:
     app.register_blueprint(blueprint)
 
+# Add error handlers
+from werkzeug.routing import BuildError
+
+@app.errorhandler(BuildError)
+def handle_build_error(e):
+    """Handle URL build errors without clearing session"""
+    # Log the error for debugging
+    app.logger.error(f'BuildError: {e}')
+    
+    # Show user-friendly error message without losing session
+    flash(f'Page not found or URL error. Please try again.', 'error')
+    
+    # Redirect to dashboard if user is logged in, otherwise to login
+    if 'firm_id' in session and 'user_id' in session:
+        return redirect(url_for('dashboard.main'))
+    else:
+        return redirect(url_for('auth.login'))
+
+@app.errorhandler(404)
+def handle_not_found(e):
+    """Handle 404 errors without clearing session"""
+    flash('Page not found. Redirecting to dashboard.', 'warning')
+    
+    # Redirect to dashboard if user is logged in, otherwise to login
+    if 'firm_id' in session and 'user_id' in session:
+        return redirect(url_for('dashboard.main'))
+    else:
+        return redirect(url_for('auth.login'))
+
+@app.errorhandler(500)
+def handle_server_error(e):
+    """Handle server errors without clearing session"""
+    app.logger.error(f'Server Error: {e}')
+    flash('A server error occurred. Please try again.', 'error')
+    
+    # Redirect to dashboard if user is logged in, otherwise to login
+    if 'firm_id' in session and 'user_id' in session:
+        return redirect(url_for('dashboard.main'))
+    else:
+        return redirect(url_for('auth.login'))
+
 from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
 
 
@@ -268,9 +309,12 @@ def check_access():
     if request.endpoint in ['public_checklist', 'public_checklist_upload', 'public_checklist_status']:
         return
     
-    # Check firm access - clear session if invalid
+    # Check firm access - only clear session if completely invalid
     if 'firm_id' not in session:
-        session.clear()  # Clear any partial session data
+        # Only clear session if it's completely empty or corrupted
+        if not any(key.startswith('_') for key in session.keys()) and len(session) > 0:
+            # Session has non-Flask data but no firm_id, likely corrupted
+            session.clear()
         return redirect(url_for('auth.login'))
     
     # Check user selection (except for user selection pages)

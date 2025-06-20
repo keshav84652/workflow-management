@@ -148,12 +148,12 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div class="flex space-x-2">
-                            <a href="{{ url_for('download_document', document_id=document.id) }}" 
+                            <a href="{{ url_for('documents.download_document', document_id=document.id) }}" 
                                class="inline-flex items-center px-3 py-1 bg-cpa-blue text-white rounded text-xs hover:bg-cpa-navy transition-colors">
                                 <i class="bi bi-download mr-1"></i>
                                 Download
                             </a>
-                            <a href="{{ url_for('view_document_analysis', client_id=document.checklist_item.checklist.client.id) }}" 
+                            <a href="{{ url_for('documents.view_document_analysis', client_id=document.checklist_item.checklist.client.id) }}" 
                                class="inline-flex items-center px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors">
                                 <i class="bi bi-cpu mr-1"></i>
                                 AI Analysis

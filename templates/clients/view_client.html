@@ -133,7 +133,7 @@
                                     </div>
                                     
                                     <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                                        <form method="POST" action="{{ url_for('associate_client_contact', client_id=client.id) }}">
+                                        <form method="POST" action="{{ url_for('clients.associate_client_contact', client_id=client.id) }}">
                                             <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                                 <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Link Contact to {{ client.name }}</h3>
                                                 
@@ -214,7 +214,7 @@
                                 </div>
                                 {% endif %}
                                 <div class="mt-2 flex justify-end">
-                                    <form method="POST" action="{{ url_for('disassociate_contact_client', contact_id=contact.id, client_id=client.id) }}" 
+                                    <form method="POST" action="{{ url_for('contacts.disassociate_contact_client', contact_id=contact.id, client_id=client.id) }}" 
                                           onsubmit="return confirm('Remove this contact association?')" class="inline">
                                         <button type="submit" class="text-xs text-red-600 hover:text-red-800">
                                             <i class="bi bi-x-circle mr-1"></i>Unlink
