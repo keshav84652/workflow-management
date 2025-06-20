@@ -14,7 +14,7 @@
                 <h5>Generate New Access Code</h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('generate_access_code_route') }}">
+                <form method="POST" action="{{ url_for('admin.generate_access_code_route') }}">
                     <div class="mb-3">
                         <label for="firm_name" class="form-label">Firm Name</label>
                         <input type="text" class="form-control" id="firm_name" name="firm_name" required>

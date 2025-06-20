@@ -362,10 +362,10 @@
             <button class="btn btn-danger" onclick="confirmRevoke()">
                 🚫 Revoke Access
             </button>
-            <a href="{{ url_for('checklist_dashboard', checklist_id=checklist.id) }}" class="btn btn-primary">
+            <a href="{{ url_for('documents.checklist_dashboard', checklist_id=checklist.id) }}" class="btn btn-primary">
                 📊 View Dashboard
             </a>
-            <a href="{{ url_for('document_checklists') }}" class="btn btn-secondary">
+            <a href="{{ url_for('documents.document_checklists') }}" class="btn btn-secondary">
                 ← Back to Checklists
             </a>
         </div>
@@ -463,7 +463,7 @@ function revokeLink() {
             closeModal();
             // Redirect back to checklists after a delay
             setTimeout(() => {
-                window.location.href = "{{ url_for('document_checklists') }}";
+                window.location.href = "{{ url_for('documents.document_checklists') }}";
             }, 1500);
         } else {
             showAlert(data.message, 'error');

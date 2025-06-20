@@ -9,7 +9,7 @@
             <div class="card">
                 <div class="card-body">
                     <h2 class="card-title text-center mb-4">Admin Access</h2>
-                    <form method="POST" action="{{ url_for('admin_authenticate') }}">
+                    <form method="POST" action="{{ url_for('admin.authenticate') }}">
                         <div class="mb-3">
                             <label for="password" class="form-label">Admin Password</label>
                             <input type="password" class="form-control" id="password" name="password" required>

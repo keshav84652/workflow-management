@@ -51,13 +51,13 @@
             <div class="mt-4 sm:mt-0">
                 <div class="flex items-center space-x-2">
                     {% if request.args.get('show_completed') == 'true' %}
-                    <a href="{{ url_for('tasks') }}" 
+                    <a href="{{ url_for('tasks.list_tasks') }}" 
                        class="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700">
                         <i class="bi bi-eye-slash mr-1.5"></i>
                         Hide Completed
                     </a>
                     {% else %}
-                    <a href="{{ url_for('tasks', show_completed='true') }}" 
+                    <a href="{{ url_for('tasks.list_tasks', show_completed='true') }}" 
                        class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">
                         <i class="bi bi-eye mr-1.5"></i>
                         Show Completed
@@ -116,7 +116,7 @@
                                 </div>
                                 <div class="min-w-0">
                                     <div class="text-sm font-medium text-gray-900">
-                                        <a href="{{ url_for('view_task', id=task.id) }}" class="hover:text-cpa-blue">
+                                        <a href="{{ url_for('tasks.view_task', id=task.id) }}" class="hover:text-cpa-blue">
                                             {{ task.title }}
                                         </a>
                                     </div>
@@ -228,11 +228,11 @@
                         <!-- Actions -->
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div class="flex items-center justify-end space-x-2">
-                                <a href="{{ url_for('view_task', id=task.id) }}" 
+                                <a href="{{ url_for('tasks.view_task', id=task.id) }}" 
                                    class="text-cpa-blue hover:text-cpa-navy">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a href="{{ url_for('edit_task', id=task.id) }}" 
+                                <a href="{{ url_for('tasks.edit_task', id=task.id) }}" 
                                    class="text-gray-600 hover:text-gray-900">
                                     <i class="bi bi-pencil"></i>
                                 </a>

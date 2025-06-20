@@ -22,11 +22,11 @@
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <div class="flex flex-wrap gap-2">
-                <a href="{{ url_for('clients') }}" 
+                <a href="{{ url_for('clients.list_clients') }}" 
                    class="rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
                     <i class="bi bi-arrow-left mr-1"></i> Back to Clients
                 </a>
-                <a href="{{ url_for('edit_client', id=client.id) }}" 
+                <a href="{{ url_for('clients.edit_client', id=client.id) }}" 
                    class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     <i class="bi bi-pencil mr-1"></i> Edit Client
                 </a>
@@ -188,7 +188,7 @@
                             {% for contact in client.contacts %}
                             <div class="border border-gray-200 rounded-lg p-3 mb-3">
                                 <div class="font-medium text-gray-900">
-                                    <a href="{{ url_for('view_contact', id=contact.id) }}" class="text-cpa-blue hover:text-blue-600">
+                                    <a href="{{ url_for('contacts.view_contact', id=contact.id) }}" class="text-cpa-blue hover:text-blue-600">
                                         {{ contact.full_name }}
                                     </a>
                                     {% if contact.title %}
@@ -358,7 +358,7 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">
-                                                <a href="{{ url_for('view_project', id=project.id) }}" class="hover:text-cpa-blue">
+                                                <a href="{{ url_for('projects.view_project', id=project.id) }}" class="hover:text-cpa-blue">
                                                     {{ project.name }}
                                                 </a>
                                             </div>
@@ -395,7 +395,7 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="{{ url_for('view_project', id=project.id) }}" 
+                                    <a href="{{ url_for('projects.view_project', id=project.id) }}" 
                                        class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                         <i class="bi bi-eye"></i>
                                     </a>

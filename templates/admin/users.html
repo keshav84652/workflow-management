@@ -16,7 +16,7 @@
             </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-            <a href="{{ url_for('create_user') }}" 
+            <a href="{{ url_for('users.create_user') }}" 
                class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                 <i class="bi bi-plus-circle mr-1"></i> New User
             </a>
@@ -172,7 +172,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end space-x-2">
                                     {% if user.tasks|length > 0 %}
-                                    <a href="{{ url_for('tasks') }}?assignee={{ user.id }}" 
+                                    <a href="{{ url_for('tasks.list_tasks') }}?assignee={{ user.id }}" 
                                        class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                         <i class="bi bi-list-task mr-1"></i>View Tasks
                                     </a>
@@ -192,7 +192,7 @@
             <i class="bi bi-people text-gray-300 text-5xl mb-4"></i>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No team members found</h3>
             <p class="text-gray-500 mb-6">Add your first team member to start collaborating on projects and tasks.</p>
-            <a href="{{ url_for('create_user') }}" 
+            <a href="{{ url_for('users.create_user') }}" 
                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cpa-blue hover:bg-blue-600">
                 <i class="bi bi-plus-circle mr-2"></i>
                 Add Team Member

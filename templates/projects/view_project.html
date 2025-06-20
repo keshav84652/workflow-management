@@ -26,11 +26,11 @@
                         {{ project.status }}
                     </span>
                 {% endif %}
-                <a href="{{ url_for('projects') }}" 
+                <a href="{{ url_for('projects.list_projects') }}" 
                    class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                     <i class="bi bi-arrow-left mr-1"></i> Back to Projects
                 </a>
-                <a href="{{ url_for('edit_project', id=project.id) }}" 
+                <a href="{{ url_for('projects.edit_project', id=project.id) }}" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                     <i class="bi bi-pencil mr-1"></i> Edit Project
                 </a>
@@ -56,7 +56,7 @@
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">CLIENT</label>
                             <div>
-                                <a href="{{ url_for('view_client', id=project.client_id) }}" 
+                                <a href="{{ url_for('clients.view_client', id=project.client_id) }}" 
                                    class="flex items-center text-cpa-blue hover:text-blue-600">
                                     <i class="bi bi-building mr-2"></i>
                                     {{ project.client_name }}
@@ -265,7 +265,7 @@
                                         </select>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <a href="{{ url_for('view_task', id=task.id) }}" 
+                                        <a href="{{ url_for('tasks.view_task', id=task.id) }}" 
                                            class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                             <i class="bi bi-eye mr-1"></i>View
                                         </a>

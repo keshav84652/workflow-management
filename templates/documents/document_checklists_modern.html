@@ -583,7 +583,7 @@
                     Streamline client document collection with modern, professional checklists and real-time tracking. 
                     Monitor progress, manage portal access, and ensure compliance with ease.
                 </p>
-                <a href="{{ url_for('create_checklist') }}" class="create-btn">
+                <a href="{{ url_for('documents.create_checklist') }}" class="create-btn">
                     <i class="bi bi-plus-circle"></i> Create New Checklist
                 </a>
             </div>
@@ -712,19 +712,19 @@
                         </div>
                         
                         <div class="action-buttons">
-                            <a href="{{ url_for('checklist_dashboard', checklist_id=checklist.id) }}" 
+                            <a href="{{ url_for('documents.checklist_dashboard', checklist_id=checklist.id) }}" 
                                class="btn-modern btn-primary-modern" title="View detailed dashboard">
                                 <i class="bi bi-eye"></i> Dashboard
                             </a>
-                            <a href="{{ url_for('share_checklist', checklist_id=checklist.id) }}" 
+                            <a href="{{ url_for('documents.share_checklist', checklist_id=checklist.id) }}" 
                                class="btn-modern btn-success-modern" title="Share with client">
                                 <i class="bi bi-share"></i> Share
                             </a>
-                            <a href="{{ url_for('edit_checklist', checklist_id=checklist.id) }}" 
+                            <a href="{{ url_for('documents.edit_checklist', checklist_id=checklist.id) }}" 
                                class="btn-modern btn-outline-modern" title="Edit checklist items">
                                 <i class="bi bi-pencil"></i> Edit
                             </a>
-                            <a href="{{ url_for('client_access_setup', client_id=checklist.client_id) }}" 
+                            <a href="{{ url_for('clients.client_access_setup', client_id=checklist.client_id) }}" 
                                class="btn-modern btn-outline-modern" title="Manage portal access">
                                 <i class="bi bi-key"></i> Access
                             </a>
@@ -745,7 +745,7 @@
                 Get started by creating your first document checklist. Streamline your client document collection 
                 process with professional templates, real-time tracking, and secure portal access.
             </p>
-            <a href="{{ url_for('create_checklist') }}" class="create-btn">
+            <a href="{{ url_for('documents.create_checklist') }}" class="create-btn">
                 <i class="bi bi-plus-circle"></i> Create Your First Checklist
             </a>
         </div>

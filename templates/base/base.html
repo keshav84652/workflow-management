@@ -483,7 +483,7 @@
                     
                     <!-- Search Box -->
                     <div class="px-3 mb-3">
-                        <form action="{{ url_for('search') }}" method="GET" class="d-flex">
+                        <form action="{{ url_for('views.search') }}" method="GET" class="d-flex">
                             <input class="form-control form-control-sm me-2" type="search" placeholder="Search..." name="q" style="font-size: 0.875rem;">
                             <button class="btn btn-outline-primary btn-sm" type="submit">
                                 <i class="bi bi-search"></i>
@@ -498,37 +498,37 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('templates') }}">
+                            <a class="nav-link" href="{{ url_for('admin.templates') }}">
                                 <i class="bi bi-file-earmark-text"></i> Templates
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('projects') }}">
+                            <a class="nav-link" href="{{ url_for('projects.list_projects') }}">
                                 <i class="bi bi-folder"></i> Projects
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('tasks') }}">
+                            <a class="nav-link" href="{{ url_for('tasks.list_tasks') }}">
                                 <i class="bi bi-check-square"></i> Tasks
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('calendar_view') }}">
+                            <a class="nav-link" href="{{ url_for('views.calendar_view') }}">
                                 <i class="bi bi-calendar3"></i> Calendar
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('kanban_view') }}">
+                            <a class="nav-link" href="{{ url_for('views.kanban_view') }}">
                                 <i class="bi bi-kanban"></i> Kanban
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('clients') }}">
+                            <a class="nav-link" href="{{ url_for('clients.list_clients') }}">
                                 <i class="bi bi-briefcase"></i> Clients
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('contacts') }}">
+                            <a class="nav-link" href="{{ url_for('contacts.list_contacts') }}">
                                 <i class="bi bi-person-lines-fill"></i> Contacts
                             </a>
                         </li>
@@ -537,13 +537,13 @@
                                 <i class="bi bi-graph-up"></i> Reports
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('time_tracking_report') }}">
+                                <li><a class="dropdown-item" href="{{ url_for('admin.time_tracking_report') }}">
                                     <i class="bi bi-stopwatch"></i> Time Tracking
                                 </a></li>
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('users') }}">
+                            <a class="nav-link" href="{{ url_for('users.list_users') }}">
                                 <i class="bi bi-people"></i> Users
                             </a>
                         </li>
@@ -643,50 +643,50 @@
                 if (searchInput) {
                     searchInput.focus();
                 } else {
-                    window.location.href = '{{ url_for("search") }}';
+                    window.location.href = '{{ url_for("views.search") }}';
                 }
             }
             
             // N - New Task
             if (e.key === 'n' || e.key === 'N') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("create_task") }}';
+                window.location.href = '{{ url_for("tasks.create_task") }}';
             }
             
             // P - New Project
             if (e.key === 'p' || e.key === 'P') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("create_project") }}';
+                window.location.href = '{{ url_for("projects.create_project") }}';
             }
             
             // C - New Client
             if (e.key === 'c' || e.key === 'C') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("create_client") }}';
+                window.location.href = '{{ url_for("clients.create_client") }}';
             }
             
             // D - Dashboard
             if (e.key === 'd' || e.key === 'D') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("dashboard") }}';
+                window.location.href = '{{ url_for("dashboard.index") }}';
             }
             
             // T - Tasks
             if (e.key === 't' || e.key === 'T') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("tasks") }}';
+                window.location.href = '{{ url_for("tasks.list_tasks") }}';
             }
             
             // B - Kanban Board
             if (e.key === 'b' || e.key === 'B') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("kanban_view") }}';
+                window.location.href = '{{ url_for("views.kanban_view") }}';
             }
             
             // V - Calendar View
             if (e.key === 'v' || e.key === 'V') {
                 e.preventDefault();
-                window.location.href = '{{ url_for("calendar_view") }}';
+                window.location.href = '{{ url_for("views.calendar_view") }}';
             }
             
             // ? - Show shortcuts help

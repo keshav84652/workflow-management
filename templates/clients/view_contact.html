@@ -22,11 +22,11 @@
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <div class="flex space-x-2">
-                <a href="{{ url_for('contacts') }}" 
+                <a href="{{ url_for('contacts.list_contacts') }}" 
                    class="rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
                     <i class="bi bi-arrow-left mr-1"></i> Back to Contacts
                 </a>
-                <a href="{{ url_for('edit_contact', id=contact.id) }}" 
+                <a href="{{ url_for('contacts.edit_contact', id=contact.id) }}" 
                    class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                     <i class="bi bi-pencil mr-1"></i> Edit Contact
                 </a>
@@ -145,7 +145,7 @@
                         </div>
                         
                         <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                            <form method="POST" action="{{ url_for('link_contact_client', contact_id=contact.id) }}">
+                            <form method="POST" action="{{ url_for('contacts.link_contact_client', contact_id=contact.id) }}">
                                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Link {{ contact.full_name }} to Client</h3>
                                     
@@ -229,7 +229,7 @@
                                         </div>
                                         <div class="ml-4">
                                             <div class="text-sm font-medium text-gray-900">
-                                                <a href="{{ url_for('view_client', id=relationship.client.id) }}" class="hover:text-cpa-blue">
+                                                <a href="{{ url_for('clients.view_client', id=relationship.client.id) }}" class="hover:text-cpa-blue">
                                                     {{ relationship.client.name }}
                                                 </a>
                                             </div>
@@ -256,11 +256,11 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end space-x-2">
-                                        <a href="{{ url_for('view_client', id=relationship.client.id) }}" 
+                                        <a href="{{ url_for('clients.view_client', id=relationship.client.id) }}" 
                                            class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <form method="POST" action="{{ url_for('disassociate_contact_client', contact_id=contact.id, client_id=relationship.client.id) }}" 
+                                        <form method="POST" action="{{ url_for('contacts.disassociate_contact_client', contact_id=contact.id, client_id=relationship.client.id) }}" 
                                               onsubmit="return confirm('Remove association with {{ relationship.client.name }}?')" class="inline">
                                             <button type="submit" class="text-red-600 hover:text-red-800 border border-red-200 hover:border-red-300 rounded px-3 py-1">
                                                 <i class="bi bi-x-circle"></i>
@@ -279,7 +279,7 @@
                     <h3 class="text-lg font-medium text-gray-900 mb-2">No clients associated</h3>
                     <p class="text-gray-500 mb-6">This contact is not currently associated with any clients.</p>
                     <div class="flex justify-center space-x-3">
-                        <a href="{{ url_for('clients') }}" 
+                        <a href="{{ url_for('clients.list_clients') }}" 
                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cpa-blue hover:bg-blue-600">
                             <i class="bi bi-briefcase mr-2"></i>
                             View Clients

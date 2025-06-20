@@ -214,11 +214,11 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex gap-2 justify-end">
-                                    <a href="{{ url_for('view_client', id=client.id) }}" 
+                                    <a href="{{ url_for('clients.view_client', id=client.id) }}" 
                                        class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    <a href="{{ url_for('edit_client', id=client.id) }}" 
+                                    <a href="{{ url_for('clients.edit_client', id=client.id) }}" 
                                        class="text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded px-3 py-1">
                                         <i class="bi bi-pencil"></i>
                                     </a>

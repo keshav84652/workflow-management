@@ -16,7 +16,7 @@
             </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-            <a href="{{ url_for('view_client', id=client.id) }}" 
+            <a href="{{ url_for('clients.view_client', id=client.id) }}" 
                class="rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
                 <i class="bi bi-arrow-left"></i> Back to Client
             </a>
@@ -171,7 +171,7 @@
                                 </button>
                             </div>
                             <div class="flex space-x-3">
-                                <a href="{{ url_for('view_client', id=client.id) }}" 
+                                <a href="{{ url_for('clients.view_client', id=client.id) }}" 
                                    class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
                                     <i class="bi bi-x-circle mr-1.5"></i>
                                     Cancel
@@ -242,7 +242,7 @@
                         <i class="bi bi-plus-circle mr-2"></i>
                         New Project
                     </a>
-                    <a href="{{ url_for('view_client', id=client.id) }}" 
+                    <a href="{{ url_for('clients.view_client', id=client.id) }}" 
                        class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                         <i class="bi bi-eye mr-2"></i>
                         View Details

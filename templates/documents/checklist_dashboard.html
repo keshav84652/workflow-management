@@ -8,19 +8,19 @@
 <div class="flex items-center justify-between mb-6">
     <div>
         <div class="flex items-center space-x-2 text-sm text-gray-500 mb-1">
-            <a href="{{ url_for('document_checklists') }}" class="hover:text-cpa-blue">Checklists</a>
+            <a href="{{ url_for('documents.document_checklists') }}" class="hover:text-cpa-blue">Checklists</a>
             <i class="bi bi-chevron-right"></i>
             <span>{{ checklist.client.name }}</span>
         </div>
         <h1 class="text-2xl font-bold text-gray-900">{{ checklist.name }}</h1>
     </div>
     <div class="flex space-x-3">
-        <a href="{{ url_for('edit_checklist', checklist_id=checklist.id) }}" 
+        <a href="{{ url_for('documents.edit_checklist', checklist_id=checklist.id) }}" 
            class="inline-flex items-center px-4 py-2 bg-cpa-blue text-white rounded-lg hover:bg-cpa-navy transition-colors">
             <i class="bi bi-pencil mr-2"></i>
             Edit Checklist
         </a>
-        <a href="{{ url_for('client_access_setup', client_id=checklist.client_id) }}" 
+        <a href="{{ url_for('clients.client_access_setup', client_id=checklist.client_id) }}" 
            class="inline-flex items-center px-4 py-2 bg-cpa-green text-white rounded-lg hover:bg-green-600 transition-colors">
             <i class="bi bi-person-circle mr-2"></i>
             Setup Portal Access
@@ -154,7 +154,7 @@
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     <span class="text-xs text-gray-500">{{ document.uploaded_at.strftime('%m/%d/%Y %I:%M %p') }}</span>
-                                    <a href="{{ url_for('download_document', document_id=document.id) }}" 
+                                    <a href="{{ url_for('documents.download_document', document_id=document.id) }}" 
                                        class="inline-flex items-center px-3 py-1 bg-cpa-blue text-white rounded text-xs hover:bg-cpa-navy transition-colors">
                                         <i class="bi bi-download mr-1"></i>
                                         Download
@@ -279,7 +279,7 @@
                 {% else %}
                 <div class="text-center">
                     <p class="text-sm text-gray-600 mb-2">No access</p>
-                    <a href="{{ url_for('client_access_setup', client_id=checklist.client_id) }}" 
+                    <a href="{{ url_for('clients.client_access_setup', client_id=checklist.client_id) }}" 
                        class="inline-flex items-center px-3 py-1 bg-cpa-blue text-white rounded text-xs hover:bg-cpa-navy">
                         <i class="bi bi-gear mr-1"></i>
                         Setup

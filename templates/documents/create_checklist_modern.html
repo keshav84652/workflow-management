@@ -21,7 +21,7 @@
         </p>
     </div>
     <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-        <a href="{{ url_for('document_checklists') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
+        <a href="{{ url_for('documents.document_checklists') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
             <i class="bi bi-arrow-left mr-2"></i> Back to Checklists
         </a>
     </div>
@@ -31,7 +31,7 @@
 <div class="flex justify-center">
     <div class="w-full lg:w-3/4 xl:w-2/3">
         <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200 animate__animated animate__fadeInUp">
-            <form action="{{ url_for('create_checklist') }}" method="POST">
+            <form action="{{ url_for('documents.create_checklist') }}" method="POST">
                 <div class="mb-4">
                     <label for="client_id" class="block text-gray-700 text-sm font-semibold mb-1">
                         <i class="bi bi-building text-cpa-blue mr-2"></i> Select Client
@@ -79,7 +79,7 @@
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-end gap-2">
-                    <a href="{{ url_for('document_checklists') }}" class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
+                    <a href="{{ url_for('documents.document_checklists') }}" class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
                         <i class="bi bi-x mr-2"></i> Cancel
                     </a>
                     <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-br from-cpa-green to-green-700 rounded-md text-white font-semibold text-sm hover:from-green-600 hover:to-green-800 transition duration-300 ease-in-out shadow-sm">

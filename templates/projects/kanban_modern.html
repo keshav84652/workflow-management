@@ -29,7 +29,7 @@
             <div class="sm:flex-auto">
                 <div class="flex flex-wrap gap-2">
                     {% for work_type in work_types %}
-                    <a href="{{ url_for('kanban_view', work_type=work_type.id) }}" 
+                    <a href="{{ url_for('views.kanban_view', work_type=work_type.id) }}" 
                        class="inline-flex items-center rounded-full {% if request.args.get('work_type') == work_type.id|string %}bg-cpa-blue text-white{% else %}bg-gray-100 text-gray-900{% endif %} px-3 py-1.5 text-sm font-medium hover:bg-blue-600">
                         <div class="w-2 h-2 rounded-full mr-2" style="background-color: {{ work_type.color }}"></div>
                         {{ work_type.name }}
@@ -128,7 +128,7 @@
                                         </span>
                                         {% endif %}
                                     </div>
-                                    <a href="{{ url_for('view_project', id=project.id) }}" 
+                                    <a href="{{ url_for('projects.view_project', id=project.id) }}" 
                                        class="text-xs text-cpa-blue hover:text-blue-600 font-medium">
                                         View →
                                     </a>
@@ -229,7 +229,7 @@
                                         </span>
                                         {% endif %}
                                     </div>
-                                    <a href="{{ url_for('view_project', id=project.id) }}" 
+                                    <a href="{{ url_for('projects.view_project', id=project.id) }}" 
                                        class="text-xs text-cpa-blue hover:text-blue-600 font-medium">
                                         View →
                                     </a>

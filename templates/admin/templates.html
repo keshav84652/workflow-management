@@ -16,7 +16,7 @@
             </p>
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
-            <a href="{{ url_for('create_template') }}" 
+            <a href="{{ url_for('admin.create_template') }}" 
                class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
                 <i class="bi bi-plus-circle mr-1"></i> New Template
             </a>
@@ -60,7 +60,7 @@
                 
                 <div class="flex justify-between items-center">
                     <div class="flex space-x-2">
-                        <a href="{{ url_for('edit_template', id=template.id) }}" 
+                        <a href="{{ url_for('admin.edit_template', id=template.id) }}" 
                            class="text-cpa-blue hover:text-blue-600 border border-blue-200 hover:border-blue-300 rounded px-3 py-1 text-sm">
                             <i class="bi bi-pencil mr-1"></i>Edit
                         </a>
@@ -140,7 +140,7 @@
             <i class="bi bi-card-list text-gray-300 text-5xl mb-4"></i>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
             <p class="text-gray-500 mb-6">Create your first workflow template to standardize your processes.</p>
-            <a href="{{ url_for('create_template') }}" 
+            <a href="{{ url_for('admin.create_template') }}" 
                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cpa-blue hover:bg-blue-600">
                 <i class="bi bi-plus-circle mr-2"></i>
                 Create Template

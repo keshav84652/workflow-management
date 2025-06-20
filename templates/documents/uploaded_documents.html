@@ -11,7 +11,7 @@
         <p class="text-gray-600">All documents uploaded by clients across all checklists</p>
     </div>
     <div class="flex space-x-3">
-        <a href="{{ url_for('document_checklists') }}" 
+        <a href="{{ url_for('documents.document_checklists') }}" 
            class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors">
             <i class="bi bi-list-check mr-2"></i>
             View Checklists
@@ -158,7 +158,7 @@
                                 <i class="bi bi-cpu mr-1"></i>
                                 AI Analysis
                             </a>
-                            <a href="{{ url_for('checklist_dashboard', checklist_id=document.checklist_item.checklist.id) }}" 
+                            <a href="{{ url_for('documents.checklist_dashboard', checklist_id=document.checklist_item.checklist.id) }}" 
                                class="inline-flex items-center px-3 py-1 border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 transition-colors">
                                 <i class="bi bi-eye mr-1"></i>
                                 View Checklist
@@ -178,7 +178,7 @@
     </div>
     <h3 class="text-lg font-semibold text-gray-900 mb-2">No Documents Yet</h3>
     <p class="text-gray-600 mb-6">No documents have been uploaded by clients yet.</p>
-    <a href="{{ url_for('document_checklists') }}" 
+    <a href="{{ url_for('documents.document_checklists') }}" 
        class="inline-flex items-center px-4 py-2 bg-cpa-blue text-white rounded-lg hover:bg-cpa-navy transition-colors">
         <i class="bi bi-plus mr-2"></i>
         Create Your First Checklist
