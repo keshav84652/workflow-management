@@ -248,39 +248,62 @@ class ProjectService:
             firm_id = session['firm_id']
         
         try:
+            print(f"DEBUG: Moving project {project_id} to status {status_id}")
+            
             project = ProjectService.get_project_by_id(project_id, firm_id)
             if not project:
+                print(f"DEBUG: Project {project_id} not found")
                 return {'success': False, 'message': 'Project not found'}
+            
+            print(f"DEBUG: Found project {project.name}")
             
             # Handle special "completed" status
             if status_id == 'completed':
                 project.status = 'Completed'
                 project.current_status_id = None
                 status_name = 'Completed'
+                print(f"DEBUG: Set project to completed status")
             else:
+                print(f"DEBUG: Looking up TemplateTask {status_id}")
                 # The status_id is actually a TemplateTask ID, find the corresponding TaskStatus
                 from models import TemplateTask
                 template_task = TemplateTask.query.get(status_id)
                 if not template_task:
-                    return {'success': False, 'message': 'Template task not found'}
+                    print(f"DEBUG: TemplateTask {status_id} not found")
+                    return {'success': False, 'message': f'Template task {status_id} not found'}
+                
+                print(f"DEBUG: Found TemplateTask {template_task.title}, default_status_id: {template_task.default_status_id}")
                 
                 # Get the default status for this template task
-                status = TaskStatus.query.get(template_task.default_status_id) if template_task.default_status_id else None
-                if not status:
-                    return {'success': False, 'message': 'Status not found for template task'}
-                
-                project.current_status_id = status.id
-                project.status = 'Active'  # Set general status to active
-                status_name = status.name
+                if template_task.default_status_id:
+                    status = TaskStatus.query.get(template_task.default_status_id)
+                    if not status:
+                        print(f"DEBUG: TaskStatus {template_task.default_status_id} not found")
+                        return {'success': False, 'message': f'Status {template_task.default_status_id} not found for template task'}
+                    
+                    project.current_status_id = status.id
+                    project.status = 'Active'
+                    status_name = status.name
+                    print(f"DEBUG: Set project current_status_id to {status.id} ({status.name})")
+                else:
+                    # No default status, just use template task title
+                    project.current_status_id = None
+                    project.status = 'Active'
+                    status_name = template_task.title
+                    print(f"DEBUG: No default status, using template task title: {status_name}")
             
+            print(f"DEBUG: About to commit changes")
             db.session.commit()
+            print(f"DEBUG: Changes committed successfully")
             
             # Create activity log
+            print(f"DEBUG: Creating activity log")
             create_activity_log(
                 action=f'Moved project "{project.name}" to status: {status_name}',
                 user_id=session.get('user_id'),
                 project_id=project.id
             )
+            print(f"DEBUG: Activity log created")
             
             return {
                 'success': True,

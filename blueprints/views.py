@@ -266,29 +266,36 @@ def kanban_view():
         
         # Assign projects to columns based on their current status
         for project in projects:
+            print(f"DEBUG: Project {project.id} ({project.name}) - status: {project.status}, current_status_id: {project.current_status_id}, progress: {project.progress_percentage}%")
+            
             if project.status == 'Completed':
                 # Completed projects go to a special completed column
                 projects_by_column['completed'].append(project)
                 project_counts['completed'] += 1
+                print(f"DEBUG: Assigned project {project.id} to completed column")
             elif project.current_status_id:
                 # Project has a workflow status - find matching column
                 status_found = False
                 for column in kanban_columns:
+                    print(f"DEBUG: Checking column {column.id} (default_status_id: {column.default_status_id}) vs project current_status_id: {project.current_status_id}")
                     if column.default_status_id == project.current_status_id:
                         projects_by_column[column.id].append(project)
                         project_counts[column.id] += 1
                         status_found = True
+                        print(f"DEBUG: Assigned project {project.id} to column {column.id}")
                         break
                 
                 # If no matching column found, put in first column
                 if not status_found and len(kanban_columns) > 0:
                     projects_by_column[kanban_columns[0].id].append(project)
                     project_counts[kanban_columns[0].id] += 1
+                    print(f"DEBUG: No match found, assigned project {project.id} to first column {kanban_columns[0].id}")
             else:
                 # Project has no current status - put in first column (default)
                 if len(kanban_columns) > 0:
                     projects_by_column[kanban_columns[0].id].append(project)
                     project_counts[kanban_columns[0].id] += 1
+                    print(f"DEBUG: No current_status_id, assigned project {project.id} to first column {kanban_columns[0].id}")
     else:
         projects_by_column = {}
         project_counts = {}
