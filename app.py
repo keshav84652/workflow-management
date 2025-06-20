@@ -302,23 +302,27 @@ def check_access():
         return
     
     # Skip for client portal
-    if request.endpoint in ['client_login', 'client_authenticate', 'client_dashboard', 'client_logout']:
+    if request.endpoint in ['client_portal.client_login', 'client_portal.client_authenticate', 'client_portal.client_dashboard', 'client_portal.client_logout']:
         return
     
     # Skip for public checklist access
-    if request.endpoint in ['public_checklist', 'public_checklist_upload', 'public_checklist_status']:
+    if request.endpoint and any(endpoint in request.endpoint for endpoint in ['public_checklist', 'documents.public']):
         return
     
-    # Check firm access - only clear session if completely invalid
+    # Log session status for debugging
+    app.logger.debug(f'Session check for endpoint {request.endpoint}: firm_id={session.get("firm_id")}, user_id={session.get("user_id")}')
+    
+    # Check firm access - be more conservative about clearing session
     if 'firm_id' not in session:
-        # Only clear session if it's completely empty or corrupted
-        if not any(key.startswith('_') for key in session.keys()) and len(session) > 0:
-            # Session has non-Flask data but no firm_id, likely corrupted
-            session.clear()
+        app.logger.warning(f'No firm_id in session for endpoint {request.endpoint}. Session keys: {list(session.keys())}')
+        
+        # Don't clear session aggressively - just redirect
+        flash('Your session has expired. Please log in again.', 'warning')
         return redirect(url_for('auth.login'))
     
     # Check user selection (except for user selection pages)
     if 'user_id' not in session:
+        app.logger.warning(f'No user_id in session for endpoint {request.endpoint}. Session: firm_id={session.get("firm_id")}')
         return redirect(url_for('auth.select_user'))
 
 

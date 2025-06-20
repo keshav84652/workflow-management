@@ -40,6 +40,9 @@ def authenticate():
     firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
     
     if firm:
+        # Make session permanent for better persistence
+        session.permanent = True
+        
         # Store email in session for tracking
         session['user_email'] = email
         session['firm_id'] = firm.id
@@ -101,6 +104,9 @@ def set_user():
     user = User.query.filter_by(id=user_id, firm_id=session['firm_id']).first()
     
     if user:
+        # Ensure session remains permanent
+        session.permanent = True
+        
         session['user_id'] = user.id
         session['user_name'] = user.name
         session['user_role'] = user.role

@@ -34,7 +34,7 @@ def list_tasks():
     
     # Hide completed tasks by default
     if not show_completed:
-        query = query.filter(Task.status != 'completed')
+        query = query.filter(Task.status != 'Completed')
     
     # Apply multi-select filters
     if status_filters:

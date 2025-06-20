@@ -13,6 +13,13 @@ class BaseConfig:
     # Core Flask Settings
     SECRET_KEY = os.environ.get('SECRET_KEY', secrets.token_hex(32))
     
+    # Session Configuration for better persistence
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    PERMANENT_SESSION_LIFETIME = 86400  # 24 hours
+    SESSION_COOKIE_NAME = 'cpa_workflow_session'
+    
     # Database Configuration
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
