@@ -418,7 +418,7 @@ function regenerateLink() {
         return;
     }
     
-    fetch(`/checklist/{{ checklist.id }}/regenerate-share`, {
+    fetch(`{{ url_for('documents.regenerate_checklist_share', checklist_id=checklist.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -450,7 +450,7 @@ function closeModal() {
 }
 
 function revokeLink() {
-    fetch(`/checklist/{{ checklist.id }}/revoke-share`, {
+    fetch(`{{ url_for('documents.revoke_checklist_share', checklist_id=checklist.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

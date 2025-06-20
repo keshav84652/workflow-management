@@ -268,7 +268,7 @@ function confirmDeleteClient(clientId, clientName) {
             confirmBtn.disabled = true;
             confirmBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Deleting...';
             
-            fetch(`/clients/${clientId}/delete`, {
+            fetch(`{{ url_for('clients.delete_client', id='') }}${clientId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ function confirmMarkInactive(clientId, clientName, isCurrentlyActive) {
         confirmBtn.disabled = true;
         confirmBtn.innerHTML = `<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> ${isCurrentlyActive ? 'Deactivating' : 'Activating'}...`;
         
-        fetch(`/clients/${clientId}/mark_inactive`, {
+        fetch(`{{ url_for('clients.mark_inactive', id='') }}${clientId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

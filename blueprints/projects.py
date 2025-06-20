@@ -207,7 +207,7 @@ def delete_project(id):
         return jsonify({
             'success': True, 
             'message': f'Project "{project_name}" and {task_count} associated tasks deleted successfully',
-            'redirect': '/projects'
+            'redirect': url_for('projects.list_projects')
         })
     
     except Exception as e:

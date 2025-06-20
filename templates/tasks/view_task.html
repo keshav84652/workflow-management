@@ -643,7 +643,7 @@
 {% block scripts %}
 <script>
 function updateTaskStatus(newStatus) {
-    fetch(`/tasks/{{ task.id }}/update`, {
+    fetch(`{{ url_for('tasks.update_task', id=task.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -680,7 +680,7 @@ function logTime() {
         return;
     }
     
-    fetch(`/tasks/{{ task.id }}/log-time`, {
+    fetch(`{{ url_for('tasks.log_time', id=task.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitButton.innerHTML = '<i class="bi bi-hourglass-split mr-1"></i> Adding...';
         submitButton.disabled = true;
         
-        fetch(`/tasks/{{ task.id }}/comments`, {
+        fetch(`{{ url_for('tasks.add_comment', id=task.id) }}`, {
             method: 'POST',
             body: formData
         })
@@ -778,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Uploading...';
         
-        fetch('/upload', {
+        fetch('{{ url_for('attachments.upload') }}', {
             method: 'POST',
             body: formData
         })
@@ -839,7 +839,7 @@ function deleteAttachment(attachmentId) {
         return;
     }
     
-    fetch(`/attachments/${attachmentId}/delete`, {
+    fetch(`{{ url_for('attachments.delete_attachment', attachment_id='') }}${attachmentId}`, {
         method: 'POST'
     })
     .then(response => response.json())
@@ -881,7 +881,7 @@ function updateTimerDisplay(currentDuration = 0) {
 }
 
 function startTimer() {
-    fetch(`/tasks/{{ task.id }}/timer/start`, {
+    fetch(`{{ url_for('tasks.start_timer', id=task.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -910,7 +910,7 @@ function startTimer() {
 }
 
 function stopTimer() {
-    fetch(`/tasks/{{ task.id }}/timer/stop`, {
+    fetch(`{{ url_for('tasks.stop_timer', id=task.id) }}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -938,7 +938,7 @@ function stopTimer() {
 
 // Check timer status on page load
 document.addEventListener('DOMContentLoaded', function() {
-    fetch(`/tasks/{{ task.id }}/timer/status`)
+    fetch(`{{ url_for('tasks.timer_status', id=task.id) }}`)
     .then(response => response.json())
     .then(data => {
         if (data.timer_running) {

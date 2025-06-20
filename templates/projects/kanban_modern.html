@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateProjectStatus(projectId, statusId) {
     console.log('Moving project:', projectId, 'to column:', statusId);
     
-    fetch(`/projects/${projectId}/move-status`, {
+    fetch(`{{ url_for('projects.move_project_status', id='') }}${projectId}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ function updateProjectProgress(projectId, progressPercentage, completedTasks, to
 
 // Function to refresh a specific project card's data
 function refreshProjectCard(projectId) {
-    fetch(`/api/project/${projectId}/progress`)
+    fetch(`{{ url_for('api.get_project_progress', project_id='') }}${projectId}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {

@@ -273,5 +273,60 @@
     {% endif %}
 
     {% block scripts %}{% endblock %}
+    
+    <!-- Session persistence for browser navigation -->
+    <script>
+    // Maintain session during browser back/forward navigation
+    window.addEventListener('pageshow', function(event) {
+        // If page was loaded from cache (browser back/forward)
+        if (event.persisted) {
+            // Check if we're still authenticated
+            {% if session.get('firm_id') %}
+            // Session exists, we're authenticated
+            console.log('Page restored from cache - session maintained');
+            {% else %}
+            // No session, redirect to login if not on auth pages
+            if (!window.location.pathname.includes('/login') && 
+                !window.location.pathname.includes('/landing') &&
+                window.location.pathname !== '/') {
+                console.log('Session lost during navigation - redirecting to login');
+                window.location.href = '{{ url_for("auth.login") }}';
+            }
+            {% endif %}
+        }
+    });
+    
+    // Prevent session timeout during active use
+    let lastActivity = Date.now();
+    const ACTIVITY_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+    
+    // Track user activity
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(function(event) {
+        document.addEventListener(event, function() {
+            lastActivity = Date.now();
+        }, { passive: true });
+    });
+    
+    // Check session periodically
+    setInterval(function() {
+        const inactive = Date.now() - lastActivity;
+        if (inactive > ACTIVITY_THRESHOLD) {
+            // User has been inactive, check session validity
+            {% if session.get('firm_id') %}
+            fetch('{{ url_for("auth.auth_status") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.authenticated) {
+                        console.log('Session expired due to inactivity');
+                        window.location.href = '{{ url_for("auth.login") }}';
+                    }
+                })
+                .catch(error => {
+                    console.log('Session check failed - assuming logged out');
+                });
+            {% endif %}
+        }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+    </script>
 </body>
 </html>

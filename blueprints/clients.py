@@ -142,7 +142,7 @@ def delete_client(id):
         return jsonify({
             'success': True, 
             'message': f'Client "{client_name}" and all associated data deleted successfully',
-            'redirect': '/clients'
+            'redirect': url_for('clients.list_clients')
         })
     
     except Exception as e:
