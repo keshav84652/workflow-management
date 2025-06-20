@@ -401,7 +401,7 @@
                                    class="flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                     <i class="bi bi-folder mr-2"></i> View Full Project
                                 </a>
-                                <a href="{{ url_for('views.kanban_view') }}?work_type={{ task.project.template_origin.id if task.project.template_origin else '' }}" 
+                                <a href="{{ url_for('views.kanban_view') }}{% if task.project and task.project.template_origin %}?work_type={{ task.project.template_origin.id }}{% endif %}" 
                                    class="flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                     <i class="bi bi-kanban mr-2"></i> View on Kanban
                                 </a>

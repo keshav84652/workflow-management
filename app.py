@@ -46,11 +46,20 @@ from werkzeug.routing import BuildError
 @app.errorhandler(BuildError)
 def handle_build_error(e):
     """Handle URL build errors without clearing session"""
-    # Log the error for debugging
-    app.logger.error(f'BuildError: {e}')
+    import traceback
     
-    # Show user-friendly error message without losing session
-    flash(f'Page not found or URL error. Please try again.', 'error')
+    # Log detailed error for debugging
+    app.logger.error(f'BuildError: {e}')
+    app.logger.error(f'Endpoint: {e.endpoint}')
+    app.logger.error(f'Values: {e.values}')
+    app.logger.error(f'Method: {e.method}')
+    app.logger.error(f'Traceback: {traceback.format_exc()}')
+    
+    # Show more specific error message in development
+    if app.debug:
+        flash(f'URL Build Error: {e.endpoint} with values {e.values}', 'error')
+    else:
+        flash(f'Page not found or URL error. Please try again.', 'error')
     
     # Redirect to dashboard if user is logged in, otherwise to login
     if 'firm_id' in session and 'user_id' in session:
