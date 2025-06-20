@@ -108,9 +108,8 @@
             
             <!-- Minimized Sidebar Header -->
             <div class="flex h-16 shrink-0 flex-col items-center justify-center space-y-1" x-show="sidebarMinimized">
-                <div class="bg-white text-cpa-navy rounded px-1.5 py-0.5 font-bold text-xs">
-                    CTRL
-                </div>
+                <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" 
+                     alt="Ctrl Filing" class="h-6 w-auto">
                 <button @click="sidebarMinimized = false; localStorage.setItem('sidebarMinimized', false)"
                         class="text-gray-300 hover:text-white transition-colors p-1 rounded">
                     <i class="bi bi-chevron-right text-sm"></i>
