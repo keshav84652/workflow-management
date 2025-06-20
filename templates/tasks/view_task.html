@@ -778,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Uploading...';
         
-        fetch('{{ url_for('attachments.upload') }}', {
+        fetch('{{ url_for('attachments.upload_file') }}', {
             method: 'POST',
             body: formData
         })
