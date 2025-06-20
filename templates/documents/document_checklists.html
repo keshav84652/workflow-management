@@ -4,23 +4,30 @@
 {% block title %}Document Checklists{% endblock %}
 
 {% block content %}
-<!-- Header -->
-<div class="flex items-center justify-between mb-6">
-    <div>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Document Checklists</h1>
-        <p class="text-gray-600">Streamline client document collection with professional checklists and real-time tracking</p>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                <i class="bi bi-list-check text-cpa-blue mr-2"></i>
+                Document Checklists
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                Streamline client document collection with professional checklists and real-time tracking
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <a href="{{ url_for('documents.create_checklist') }}" 
+               class="block rounded-md bg-cpa-blue px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                <i class="bi bi-plus"></i> New Checklist
+            </a>
+        </div>
     </div>
-    <a href="{{ url_for('documents.create_checklist') }}" 
-       class="inline-flex items-center px-4 py-2 bg-cpa-blue text-white rounded-lg hover:bg-cpa-navy transition-colors">
-        <i class="bi bi-plus mr-2"></i>
-        Create New Checklist
-    </a>
-</div>
 
 <!-- Statistics Cards -->
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
     <!-- Active Checklists -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div class="flex items-center">
             <div class="flex-shrink-0">
                 <div class="w-10 h-10 bg-cpa-blue rounded-lg flex items-center justify-center">
@@ -35,7 +42,7 @@
     </div>
 
     <!-- Total Clients -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 ">
         <div class="flex items-center">
             <div class="flex-shrink-0">
                 <div class="w-10 h-10 bg-cpa-green rounded-lg flex items-center justify-center">
@@ -50,7 +57,7 @@
     </div>
 
     <!-- Portal Access Active -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 ">
         <div class="flex items-center">
             <div class="flex-shrink-0">
                 <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
@@ -75,7 +82,7 @@
     </div>
 
     <!-- Total Documents -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 ">
         <div class="flex items-center">
             <div class="flex-shrink-0">
                 <div class="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
@@ -109,7 +116,7 @@
         <div class="p-4">
             <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
                 {% for checklist in checklists %}
-                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-cpa-blue transition-all">
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm">
                         <div class="p-4">
                             <div class="flex items-center justify-between mb-3">
                                 <div>
@@ -168,28 +175,6 @@
     </div>
 {% endif %}
 
-<!-- Floating Refresh Button -->
-<div class="fixed bottom-6 right-6 z-50">
-    <button onclick="window.location.reload()" 
-            class="w-14 h-14 bg-gradient-to-r from-cpa-blue to-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110 flex items-center justify-center">
-        <i class="bi bi-arrow-repeat text-xl"></i>
-    </button>
-</div>
 
-<script>
-// Add smooth animations when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    // Animate cards on scroll
-    const cards = document.querySelectorAll('.grid > div');
-    cards.forEach((card, index) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
-        setTimeout(() => {
-            card.style.transition = 'all 0.5s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-});
-</script>
+</div>
 {% endblock %}
