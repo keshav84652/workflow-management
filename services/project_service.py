@@ -1,0 +1,306 @@
+"""
+Project service layer for business logic
+"""
+
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+from flask import session
+from core import db
+from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
+from utils import calculate_task_due_date, find_or_create_client, create_activity_log
+
+
+class ProjectService:
+    """Service class for project-related business operations"""
+    
+    @staticmethod
+    def get_projects_for_firm(firm_id: int) -> List[Project]:
+        """Get all projects for a firm"""
+        return Project.query.filter_by(firm_id=firm_id).all()
+    
+    @staticmethod
+    def get_project_by_id(project_id: int, firm_id: int) -> Optional[Project]:
+        """Get a project by ID, ensuring it belongs to the firm"""
+        return Project.query.filter_by(id=project_id, firm_id=firm_id).first()
+    
+    @staticmethod
+    def create_project_from_template(
+        template_id: int,
+        client_name: str,
+        project_name: Optional[str],
+        start_date: datetime.date,
+        due_date: Optional[datetime.date],
+        priority: str = 'Medium',
+        task_dependency_mode: bool = False,
+        firm_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new project from a template
+        
+        Returns:
+            Dict with 'success', 'project_id', 'message', and optionally 'new_client'
+        """
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        try:
+            # Find or create client
+            client = find_or_create_client(client_name, firm_id)
+            was_new_client = client.email is None
+            
+            # Get template to access work type
+            template = Template.query.get(template_id)
+            if not template:
+                return {'success': False, 'message': 'Template not found'}
+            
+            # Auto-create work type from template if needed
+            work_type_id = template.create_work_type_from_template()
+            
+            # Get the default (first) status for the work type
+            default_status = TaskStatus.query.filter_by(
+                work_type_id=work_type_id,
+                is_default=True
+            ).first()
+            
+            # Inherit sequential flag from template
+            inherited_task_dependency_mode = template.task_dependency_mode if template else task_dependency_mode
+            
+            # Create project
+            project = Project(
+                name=project_name or f"{client.name} - {template.name}",
+                client_id=client.id,
+                work_type_id=work_type_id,
+                current_status_id=default_status.id if default_status else None,
+                start_date=start_date,
+                due_date=due_date,
+                priority=priority,
+                task_dependency_mode=inherited_task_dependency_mode,
+                firm_id=firm_id,
+                template_origin_id=template_id
+            )
+            db.session.add(project)
+            db.session.flush()
+            
+            # Create tasks from template
+            tasks_created = ProjectService._create_tasks_from_template(
+                project, template, start_date, firm_id
+            )
+            
+            db.session.commit()
+            
+            # Create activity log
+            create_activity_log(
+                user_id=session.get('user_id'),
+                firm_id=firm_id,
+                action='create',
+                details=f'Created project "{project.name}" with {tasks_created} tasks'
+            )
+            
+            return {
+                'success': True,
+                'project_id': project.id,
+                'message': f'Project "{project.name}" created successfully',
+                'new_client': was_new_client,
+                'tasks_created': tasks_created
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error creating project: {str(e)}'}
+    
+    @staticmethod
+    def _create_tasks_from_template(
+        project: Project, 
+        template: Template, 
+        start_date: datetime.date,
+        firm_id: int
+    ) -> int:
+        """Create tasks from template for a project"""
+        tasks_created = 0
+        
+        for template_task in template.template_tasks:
+            # Calculate due date
+            task_due_date = calculate_task_due_date(start_date, template_task)
+            
+            # Determine status: use template status if available, otherwise work type default
+            status_id = None
+            if template_task.default_status_id:
+                status_id = template_task.default_status_id
+            elif template.work_type_id:
+                # Get default status for this work type
+                default_status = TaskStatus.query.filter_by(
+                    work_type_id=template.work_type_id,
+                    is_default=True
+                ).first()
+                if default_status:
+                    status_id = default_status.id
+            
+            task = Task(
+                title=template_task.title,
+                description=template_task.description,
+                due_date=task_due_date,
+                priority=template_task.default_priority or 'Medium',
+                estimated_hours=template_task.estimated_hours,
+                project_id=project.id,
+                assignee_id=template_task.default_assignee_id,
+                template_task_origin_id=template_task.id,
+                status_id=status_id,
+                dependencies=template_task.dependencies,
+                firm_id=firm_id
+            )
+            db.session.add(task)
+            tasks_created += 1
+            
+        return tasks_created
+    
+    @staticmethod
+    def update_project(
+        project_id: int,
+        name: str,
+        start_date: datetime.date,
+        due_date: Optional[datetime.date],
+        priority: str,
+        status: str,
+        firm_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Update an existing project"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        try:
+            project = ProjectService.get_project_by_id(project_id, firm_id)
+            if not project:
+                return {'success': False, 'message': 'Project not found'}
+            
+            # Update project fields
+            project.name = name
+            project.start_date = start_date
+            project.due_date = due_date
+            project.priority = priority
+            project.status = status
+            
+            db.session.commit()
+            
+            # Create activity log
+            create_activity_log(
+                user_id=session.get('user_id'),
+                firm_id=firm_id,
+                action='update',
+                details=f'Updated project "{project.name}"'
+            )
+            
+            return {'success': True, 'message': 'Project updated successfully'}
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error updating project: {str(e)}'}
+    
+    @staticmethod
+    def delete_project(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+        """Delete a project and all associated data"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        try:
+            project = ProjectService.get_project_by_id(project_id, firm_id)
+            if not project:
+                return {'success': False, 'message': 'Project not found'}
+            
+            project_name = project.name
+            client_name = project.client_name
+            
+            # Count tasks for logging
+            task_count = len(project.tasks)
+            
+            # Delete associated tasks (cascade should handle this but be explicit)
+            for task in project.tasks:
+                db.session.delete(task)
+            
+            # Delete the project
+            db.session.delete(project)
+            db.session.commit()
+            
+            # Create activity log
+            create_activity_log(
+                user_id=session.get('user_id'),
+                firm_id=firm_id,
+                action='delete',
+                details=f'Deleted project "{project_name}" for {client_name} with {task_count} tasks'
+            )
+            
+            return {
+                'success': True,
+                'message': f'Project "{project_name}" and {task_count} associated tasks deleted successfully'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error deleting project: {str(e)}'}
+    
+    @staticmethod
+    def move_project_status(
+        project_id: int, 
+        status_id: str, 
+        firm_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Move project to a different status (for Kanban)"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        try:
+            project = ProjectService.get_project_by_id(project_id, firm_id)
+            if not project:
+                return {'success': False, 'message': 'Project not found'}
+            
+            # Handle special "completed" status
+            if status_id == 'completed':
+                project.status = 'Completed'
+                project.current_status_id = None
+            else:
+                # Find the status
+                status = TaskStatus.query.get(status_id)
+                if not status:
+                    return {'success': False, 'message': 'Status not found'}
+                
+                project.current_status_id = status.id
+                project.status = 'Active'  # Set general status to active
+            
+            db.session.commit()
+            
+            # Create activity log
+            create_activity_log(
+                user_id=session.get('user_id'),
+                firm_id=firm_id,
+                action='update',
+                details=f'Moved project "{project.name}" to status: {status_id}'
+            )
+            
+            return {
+                'success': True,
+                'message': f'Project moved to {status_id}',
+                'project_progress': project.progress_percentage,
+                'completed_tasks': len([t for t in project.tasks if t.status == 'Completed']),
+                'total_tasks': len(project.tasks)
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error moving project: {str(e)}'}
+    
+    @staticmethod
+    def get_project_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
+        """Get project statistics for dashboard"""
+        if firm_id is None:
+            firm_id = session['firm_id']
+        
+        projects = ProjectService.get_projects_for_firm(firm_id)
+        
+        stats = {
+            'total': len(projects),
+            'active': len([p for p in projects if p.status == 'Active']),
+            'completed': len([p for p in projects if p.status == 'Completed']),
+            'on_hold': len([p for p in projects if p.status == 'On Hold']),
+            'overdue': len([p for p in projects if p.is_overdue]),
+        }
+        
+        return stats
