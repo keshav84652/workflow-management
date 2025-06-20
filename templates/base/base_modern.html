@@ -70,6 +70,17 @@
         }
         
         
+        /* Hide scrollbar in minimized state and adjust centering */
+        .sidebar-minimized .overflow-y-auto {
+            overflow-y: auto;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        .sidebar-minimized .overflow-y-auto::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+        
         /* Adjust padding for minimized sidebar */
         .sidebar-minimized .bg-cpa-navy {
             padding-left: 0 !important;
@@ -89,6 +100,9 @@
             padding-right: 0 !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
         }
         
         /* Ensure icons are perfectly centered */
