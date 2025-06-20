@@ -62,19 +62,32 @@
         }
         
         .sidebar-minimized .sidebar-text {
-            display: none;
+            display: none !important;
         }
         
         .sidebar-minimized .sidebar-logo {
-            display: none;
+            display: none !important;
         }
         
         .sidebar-minimized .sidebar-icon-only {
-            display: block;
+            display: block !important;
         }
         
         .sidebar-icon-only {
             display: none;
+        }
+        
+        /* Adjust padding for minimized sidebar */
+        .sidebar-minimized .bg-cpa-navy {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        
+        /* Center icons in minimized state */
+        .sidebar-minimized a {
+            justify-content: center !important;
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
         }
         
         /* Adjust main content when sidebar is minimized */
@@ -91,10 +104,21 @@
          :class="sidebarMinimized ? 'w-16 sidebar-minimized' : 'w-72'">
         <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-cpa-navy px-6 pb-4">
             <div class="flex h-16 shrink-0 items-center justify-between">
-                <h1 class="text-xl font-bold text-white sidebar-text sidebar-logo" x-show="!sidebarMinimized">CPA WorkflowPilot</h1>
-                <div class="sidebar-icon-only text-white text-center w-full" x-show="sidebarMinimized">
-                    <i class="bi bi-briefcase text-xl"></i>
+                <!-- Full Logo -->
+                <div class="flex items-center sidebar-text sidebar-logo" x-show="!sidebarMinimized">
+                    <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" 
+                         alt="Ctrl Filing" class="h-8 w-auto mr-3">
+                    <span class="text-xl font-bold text-white">Ctrl Filing</span>
                 </div>
+                
+                <!-- Minimized Logo -->
+                <div class="sidebar-icon-only text-white text-center w-full" x-show="sidebarMinimized">
+                    <div class="bg-white text-cpa-navy rounded px-2 py-1 font-bold text-sm mx-auto w-fit">
+                        CTRL
+                    </div>
+                </div>
+                
+                <!-- Toggle Button -->
                 <button @click="sidebarMinimized = !sidebarMinimized; localStorage.setItem('sidebarMinimized', sidebarMinimized)"
                         class="text-gray-300 hover:text-white transition-colors">
                     <i class="bi" :class="sidebarMinimized ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
@@ -115,64 +139,56 @@
                                 <a href="{{ url_for('tasks.list_tasks') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-list-task h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Tasks
+                                    <span class="sidebar-text">Tasks</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('projects.list_projects') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-folder h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Projects
+                                    <span class="sidebar-text">Projects</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('views.kanban_view') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-kanban h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Kanban
+                                    <span class="sidebar-text">Kanban</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('views.calendar_view') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-calendar h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Calendar
+                                    <span class="sidebar-text">Calendar</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('clients.list_clients') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-briefcase h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Clients
+                                    <span class="sidebar-text">Clients</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('contacts.list_contacts') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-person-lines-fill h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Contacts
+                                    <span class="sidebar-text">Contacts</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('admin.templates') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-diagram-3 h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Templates
+                                    <span class="sidebar-text">Templates</span>
                                 </a>
                             </li>
                             <li>
                                 <a href="{{ url_for('documents.document_checklists') }}" 
                                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                     <i class="bi bi-list-check h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                    Checklists
+                                    <span class="sidebar-text">Checklists</span>
                                 </a>
                             </li>
                         </ul>
@@ -185,8 +201,7 @@
                                     <a href="{{ url_for('views.time_tracking_report') }}" 
                                        class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                         <i class="bi bi-stopwatch h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                        Time Tracking
+                                        <span class="sidebar-text">Time Tracking</span>
                                     </a>
                                 </li>
                             </ul>
@@ -198,16 +213,14 @@
                                     <a href="{{ url_for('users.list_users') }}" 
                                        class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                         <i class="bi bi-people h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                        Users
+                                        <span class="sidebar-text">Users</span>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="{{ url_for('admin.admin_work_types') }}" 
                                        class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
                                         <i class="bi bi-gear h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                        Work Types
+                                        <span class="sidebar-text">Work Types</span>
                                     </a>
                                 </li>
                             </ul>
@@ -216,8 +229,7 @@
                             <a href="{{ url_for('auth.logout') }}" 
                                class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-red-600">
                                 <i class="bi bi-box-arrow-right h-6 w-6 shrink-0"></i>
-                                    <span class="sidebar-text"></span>
-                                Sign out
+                                <span class="sidebar-text">Sign out</span>
                             </a>
                         </div>
                     </li>
