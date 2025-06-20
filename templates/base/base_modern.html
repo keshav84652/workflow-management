@@ -72,15 +72,28 @@
         
         /* Adjust padding for minimized sidebar */
         .sidebar-minimized .bg-cpa-navy {
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* Perfect center alignment for minimized navigation */
+        .sidebar-minimized ul[role="list"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
         }
         
         /* Center icons in minimized state */
         .sidebar-minimized a {
             justify-content: center !important;
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        
+        /* Ensure icons are perfectly centered */
+        .sidebar-minimized .bi {
+            margin: 0 auto !important;
         }
         
         /* Adjust main content when sidebar is minimized */
