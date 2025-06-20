@@ -51,7 +51,7 @@ def main():
     completed_tasks = len([task for task in filtered_tasks if task.is_completed])
     
     # Count overdue tasks from filtered tasks (exclude completed)
-    overdue_tasks = len([task for task in filtered_tasks if task.is_overdue])
+    overdue_tasks = len([task for task in filtered_tasks if task.is_overdue and not task.is_completed])
     
     active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
     
