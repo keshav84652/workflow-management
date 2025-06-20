@@ -500,3 +500,54 @@ def public_checklist_status(token):
         db.session.rollback()
         flash(f'Error updating status: {str(e)}', 'error')
         return redirect(url_for('documents.public_checklist', token=token))
+
+@documents_bp.route("/api/checklists/refresh")
+def refresh_checklists_data():
+    """API endpoint to get refreshed checklist data"""
+    firm_id = session["firm_id"]
+    
+    # Get all checklists for the firm
+    checklists = DocumentChecklist.query.join(Client).filter(
+        Client.firm_id == firm_id,
+        DocumentChecklist.is_active == True
+    ).order_by(DocumentChecklist.created_at.desc()).all()
+    
+    # Get all clients for the firm
+    clients = Client.query.filter_by(firm_id=firm_id).all()
+    
+    # Calculate clients with access
+    clients_with_access = [c for c in clients if any(
+        checklist.public_access_enabled for checklist in c.document_checklists
+    )]
+    
+    # Prepare data for JSON response
+    data = {
+        "stats": {
+            "active_checklists": len(checklists),
+            "total_clients": len(clients),
+            "portal_access": len(clients_with_access),
+            "total_documents": sum(len(checklist.items) for checklist in checklists)
+        },
+        "checklists": []
+    }
+    
+    for checklist in checklists:
+        completed_items = sum(1 for item in checklist.items if item.client_documents)
+        total_items = len(checklist.items)
+        completion_rate = (completed_items / total_items * 100) if total_items > 0 else 0
+        
+        data["checklists"].append({
+            "id": checklist.id,
+            "client_name": checklist.client.name,
+            "name": checklist.name,
+            "description": checklist.description,
+            "completion_rate": round(completion_rate),
+            "completed_items": completed_items,
+            "total_items": total_items,
+            "public_access_enabled": checklist.public_access_enabled,
+            "view_url": url_for("documents.checklist_dashboard", checklist_id=checklist.id),
+            "edit_url": url_for("documents.edit_checklist", checklist_id=checklist.id)
+        })
+    
+    return jsonify(data)
+
