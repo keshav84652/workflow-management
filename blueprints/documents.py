@@ -20,6 +20,7 @@ documents_bp = Blueprint('documents', __name__)
 
 
 @documents_bp.route('/checklists')
+@documents_bp.route('/document_checklists')  # Legacy URL support
 def document_checklists():
     """CPA view to manage document checklists"""
     firm_id = session['firm_id']
