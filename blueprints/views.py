@@ -136,7 +136,7 @@ def search():
         ).filter(client_filters).limit(20).all()
     
     return render_template('admin/search.html', **results)
-EOF < /dev/null
+
 
 @views_bp.route('/reports/time-tracking')
 def time_tracking_report():
@@ -190,7 +190,7 @@ def time_tracking_report():
                          total_hours=total_hours,
                          billable_hours=billable_hours,
                          total_billable_amount=total_billable_amount)
-EOF < /dev/null
+
 
 @views_bp.route('/kanban')
 def kanban_view():
@@ -284,4 +284,3 @@ def kanban_view():
                          work_types=work_types,
                          users=users,
                          today=date.today())
-EOF < /dev/null

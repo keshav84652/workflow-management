@@ -34,7 +34,7 @@ def get_project_progress(project_id):
     project = Project.query.get_or_404(project_id)
     
     # Check access permission
-    if project.firm_id \!= session['firm_id']:
+    if project.firm_id != session['firm_id']:
         return jsonify({'error': 'Access denied'}), 403
     
     # Calculate progress
@@ -65,4 +65,3 @@ def api_clients():
         'phone': client.phone,
         'is_active': client.is_active
     } for client in clients])
-EOF < /dev/null

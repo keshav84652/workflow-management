@@ -484,7 +484,7 @@ def bulk_update_tasks():
             if 'status' in data:
                 old_status = task.status
                 task.status = data['status']
-                if old_status \!= task.status:
+                if old_status != task.status:
                     # Log status change
                     create_activity_log(
                         f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
@@ -498,7 +498,7 @@ def bulk_update_tasks():
                 old_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
                 task.assignee_id = data['assignee_id'] if data['assignee_id'] else None
                 new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
-                if old_assignee_name \!= new_assignee_name:
+                if old_assignee_name != new_assignee_name:
                     # Log assignee change
                     create_activity_log(
                         f'Task "{task.title}" assignee changed from "{old_assignee_name}" to "{new_assignee_name}" (bulk update)',
@@ -511,7 +511,7 @@ def bulk_update_tasks():
             if 'priority' in data:
                 old_priority = task.priority
                 task.priority = data['priority']
-                if old_priority \!= task.priority:
+                if old_priority != task.priority:
                     # Log priority change
                     create_activity_log(
                         f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
@@ -589,9 +589,9 @@ def bulk_delete_tasks():
 def update_task(id):
     task = Task.query.get_or_404(id)
     # Check access for both project tasks and independent tasks
-    if task.project and task.project.firm_id \!= session['firm_id']:
+    if task.project and task.project.firm_id != session['firm_id']:
         return jsonify({'error': 'Access denied'}), 403
-    elif not task.project and task.firm_id \!= session['firm_id']:
+    elif not task.project and task.firm_id != session['firm_id']:
         return jsonify({'error': 'Access denied'}), 403
     
     old_status = task.status
@@ -601,7 +601,7 @@ def update_task(id):
         task.status = new_status
         
         # Handle recurring task completion
-        if new_status == 'Completed' and old_status \!= 'Completed':
+        if new_status == 'Completed' and old_status != 'Completed':
             task.completed_at = datetime.utcnow()
             
             # If this is a recurring task, create next instance
@@ -619,7 +619,7 @@ def update_task(id):
         
         db.session.commit()
         
-        if old_status \!= new_status:
+        if old_status != new_status:
             create_activity_log(
                 f'Task "{task.title}" status changed from "{old_status}" to "{new_status}"',
                 session.get('user_id', 1),
@@ -636,9 +636,9 @@ def update_task(id):
 def start_timer(id):
     task = Task.query.get_or_404(id)
     # Check access
-    if task.project and task.project.firm_id \!= session['firm_id']:
+    if task.project and task.project.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id \!= session['firm_id']:
+    elif not task.project and task.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     if task.start_timer():
@@ -653,9 +653,9 @@ def start_timer(id):
 def stop_timer(id):
     task = Task.query.get_or_404(id)
     # Check access
-    if task.project and task.project.firm_id \!= session['firm_id']:
+    if task.project and task.project.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id \!= session['firm_id']:
+    elif not task.project and task.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     elapsed_hours = task.stop_timer()
@@ -676,9 +676,9 @@ def stop_timer(id):
 def timer_status(id):
     task = Task.query.get_or_404(id)
     # Check access
-    if task.project and task.project.firm_id \!= session['firm_id']:
+    if task.project and task.project.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id \!= session['firm_id']:
+    elif not task.project and task.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     return jsonify({
@@ -687,4 +687,3 @@ def timer_status(id):
         'total_hours': task.actual_hours or 0,
         'billable_amount': task.billable_amount
     })
-EOF < /dev/null

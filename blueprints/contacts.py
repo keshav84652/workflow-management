@@ -81,7 +81,7 @@ def edit_contact(id):
         
         db.session.commit()
         
-        flash('Contact updated successfully\!', 'success')
+        flash('Contact updated successfully!', 'success')
         return redirect(url_for('contacts.view_contact', id=contact.id))
     
     return render_template('clients/edit_contact.html', contact=contact)
@@ -179,4 +179,3 @@ def link_contact_client(contact_id):
     flash('Client linked successfully!', 'success')
     
     return redirect(url_for('contacts.view_contact', id=contact_id))
-EOF < /dev/null

@@ -176,7 +176,7 @@ def delete_project(id):
     project = Project.query.get_or_404(id)
     
     # Check access permission
-    if project.firm_id \!= session['firm_id']:
+    if project.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -213,4 +213,3 @@ def delete_project(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error deleting project: {str(e)}'}), 500
-EOF < /dev/null

@@ -340,140 +340,10 @@ def add_security_headers(response):
 # Kanban route moved to views blueprint
 
 # API clients search route moved to api blueprint
-        if not new_column_id:
-            return jsonify({'success': False, 'message': 'Column ID is required'}), 400
-        
-        # Handle special "completed" column
-        if new_column_id == 'completed':
-            # Mark all project tasks as completed
-            project_tasks = Task.query.filter_by(project_id=project.id).all()
-            for task in project_tasks:
-                if task.status != 'Completed':
-                    task.status = 'Completed'
-                    
-            # Log activity
-            activity_log = ActivityLog(
-                action=f"Project moved to Completed stage",
-                project_id=project.id,
-                user_id=session.get('user_id')
-            )
-            db.session.add(activity_log)
-            db.session.commit()
-            
-            # Calculate progress (should be 100%)
-            total_tasks = len(project_tasks)
-            
-            return jsonify({
-                'success': True, 
-                'message': 'Project moved to completed stage',
-                'project_progress': 100,
-                'completed_tasks': total_tasks,
-                'total_tasks': total_tasks
-            })
-        
-        # Verify the column (template task) exists
-        template_task = TemplateTask.query.get(new_column_id)
-        if not template_task:
-            return jsonify({'success': False, 'message': 'Invalid template task'}), 400
-        
-        # Get all template tasks for this project's template in order
-        template = project.template_origin
-        if not template:
-            return jsonify({'success': False, 'message': 'Project has no template'}), 400
-            
-        template_tasks = TemplateTask.query.filter_by(
-            template_id=template.id
-        ).order_by(TemplateTask.order.asc()).all()
-        
-        # Find the target template task position
-        target_position = None
-        for i, task in enumerate(template_tasks):
-            if task.id == int(new_column_id):
-                target_position = i
-                break
-        
-        if target_position is None:
-            return jsonify({'success': False, 'message': 'Invalid template task'}), 400
-        
-        # Update task statuses to reflect the new position
-        # This logic applies to ALL projects in Kanban - when moved to a column,
-        # all tasks up to that point should be completed
-        project_tasks = Task.query.filter_by(project_id=project.id).all()
-        
-        # Mark all tasks before the target position as completed
-        for i in range(target_position):
-            template_task_at_pos = template_tasks[i]
-            project_task = next(
-                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
-                None
-            )
-            if project_task and project_task.status != 'Completed':
-                project_task.status = 'Completed'
-                project_task.completed_at = datetime.utcnow()
-        
-        # Mark all tasks after the target position as not started (if they were completed)
-        for i in range(target_position + 1, len(template_tasks)):
-            template_task_at_pos = template_tasks[i]
-            project_task = next(
-                (t for t in project_tasks if t.template_task_origin_id == template_task_at_pos.id),
-                None
-            )
-            if project_task and project_task.status == 'Completed':
-                project_task.status = 'Not Started'
-                project_task.completed_at = None
-        
-        # Mark the target task as in progress
-        target_template_task = template_tasks[target_position]
-        target_project_task = next(
-            (t for t in project_tasks if t.template_task_origin_id == target_template_task.id),
-            None
-        )
-        if target_project_task:
-            if target_project_task.status == 'Completed':
-                target_project_task.status = 'In Progress'
-            elif target_project_task.status == 'Not Started':
-                target_project_task.status = 'In Progress'
-        
-        # Log activity
-        activity_log = ActivityLog(
-            action=f"Project moved to {target_template_task.title} stage",
-            project_id=project.id,
-            user_id=session.get('user_id')
-        )
-        db.session.add(activity_log)
-        db.session.commit()
-        
-        # Use Project model's progress calculation (single source of truth)
-        return jsonify({
-            'success': True,
-            'message': f'Project moved to {target_template_task.title} stage',
-            'project_progress': project.progress_percentage,
-            'completed_tasks': len([t for t in project_tasks if t.status == 'Completed']),
-            'total_tasks': len(project_tasks)
-        })
-            
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
 
 # API project progress route moved to api blueprint
 
 # Search route moved to views blueprint
-    if search_type in ['all', 'clients']:
-        client_query = Client.query.filter_by(firm_id=firm_id)
-        
-        # Search in client name, email, contact person, and notes
-        client_filters = db.or_(
-            Client.name.ilike(f'%{query}%'),
-            Client.email.ilike(f'%{query}%'),
-            Client.contact_person.ilike(f'%{query}%'),
-            Client.notes.ilike(f'%{query}%'),
-            Client.tax_id.ilike(f'%{query}%')
-        )
-        
-        results['clients'] = client_query.filter(client_filters).order_by(Client.created_at.desc()).limit(20).all()
-    
-    return render_template('admin/search.html', **results)
 
 # Export routes moved to export blueprint
 
@@ -482,22 +352,6 @@ def add_security_headers(response):
 # Admin work_types routes moved to admin blueprint
 # Admin work_types edit and status create routes moved to admin blueprint
 # Remaining admin status routes moved to admin blueprint
-    work_type = WorkType.query.filter_by(id=work_type_id, firm_id=session['firm_id']).first()
-    if not work_type:
-        return jsonify({'error': 'Work type not found'}), 404
-    
-    status_ids = request.json.get('status_ids', [])
-    
-    for i, status_id in enumerate(status_ids):
-        status = TaskStatus.query.filter_by(id=status_id, work_type_id=work_type_id).first()
-        if status:
-            status.position = i + 1
-    
-    db.session.commit()
-    
-    create_activity_log(f'Status order updated for work type "{work_type.name}"', session['user_id'])
-    
-    return jsonify({'success': True})
 
 # Contact routes moved to contacts blueprint
 

@@ -2,10 +2,12 @@
 Administrative functions blueprint
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify\nimport os
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
+import os
 from datetime import datetime
 from core import db
-from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project\nfrom utils import generate_access_code
+from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
+from utils import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -170,11 +172,10 @@ def generate_access_code_route():
     
     flash(f'Access code generated: {access_code}', 'success')
     return redirect(url_for('admin.dashboard'))
-EOF < /dev/null
 
 @admin_bp.route('/work_types', methods=['GET'])
 def admin_work_types():
-    if session.get('user_role') \!= 'Admin':
+    if session.get('user_role') != 'Admin':
         flash('Access denied', 'error')
         return redirect(url_for('dashboard.main'))
     
@@ -196,7 +197,7 @@ def admin_work_types():
 
 @admin_bp.route('/work_types/create', methods=['POST'])
 def admin_create_work_type():
-    if session.get('user_role') \!= 'Admin':
+    if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     try:
@@ -229,18 +230,17 @@ def admin_create_work_type():
         
         db.session.commit()
         
-        flash(f'Work type "{name}" created successfully with default statuses\!', 'success')
+        flash(f'Work type "{name}" created successfully with default statuses!', 'success')
         return redirect(url_for('admin.admin_work_types'))
     
     except Exception as e:
         db.session.rollback()
         flash(f'Error creating work type: {str(e)}', 'error')
         return redirect(url_for('admin.admin_work_types'))
-EOF < /dev/null
 
 @admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
-    if session.get('user_role') \!= 'Admin':
+    if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     try:
@@ -251,7 +251,7 @@ def admin_edit_work_type(work_type_id):
         
         db.session.commit()
         
-        flash(f'Work type "{work_type.name}" updated successfully\!', 'success')
+        flash(f'Work type "{work_type.name}" updated successfully!', 'success')
         return redirect(url_for('admin.admin_work_types'))
     
     except Exception as e:
@@ -262,7 +262,7 @@ def admin_edit_work_type(work_type_id):
 
 @admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
 def admin_create_status(work_type_id):
-    if session.get('user_role') \!= 'Admin':
+    if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     try:
@@ -282,7 +282,7 @@ def admin_create_status(work_type_id):
         db.session.add(status)
         db.session.commit()
         
-        flash(f'Status "{status.name}" created successfully\!', 'success')
+        flash(f'Status "{status.name}" created successfully!', 'success')
         return redirect(url_for('admin.admin_work_types'))
     
     except Exception as e:
@@ -303,4 +303,3 @@ def admin_process_recurring():
         return jsonify({'success': True, 'message': 'Recurring tasks processed successfully'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
-EOF < /dev/null

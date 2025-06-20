@@ -64,7 +64,7 @@ def view_client(id):
 @clients_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_client(id):
     client = Client.query.get_or_404(id)
-    if client.firm_id \!= session['firm_id']:
+    if client.firm_id != session['firm_id']:
         flash('Access denied', 'error')
         return redirect(url_for('clients.list_clients'))
     
@@ -83,7 +83,7 @@ def edit_client(id):
         # Activity log
         create_activity_log(f'Client "{client.name}" updated', session['user_id'])
         
-        flash('Client updated successfully\!', 'success')
+        flash('Client updated successfully!', 'success')
         return redirect(url_for('clients.view_client', id=client.id))
     
     return render_template('clients/edit_client.html', client=client)
@@ -94,7 +94,7 @@ def delete_client(id):
     client = Client.query.get_or_404(id)
     
     # Check access permission
-    if client.firm_id \!= session['firm_id']:
+    if client.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -155,7 +155,7 @@ def mark_client_inactive(id):
     client = Client.query.get_or_404(id)
     
     # Check access permission
-    if client.firm_id \!= session['firm_id']:
+    if client.firm_id != session['firm_id']:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -302,4 +302,3 @@ def client_access_setup(client_id):
             db.session.refresh(client_user)
     
     return render_template('clients/client_access_setup.html', client=client, client_user=client_user)
-EOF < /dev/null
