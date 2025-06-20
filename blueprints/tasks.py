@@ -11,6 +11,57 @@ from utils import create_activity_log
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
 
+def handle_sequential_task_dependencies(task, old_status, new_status):
+    """Handle sequential task dependencies when task status changes"""
+    if not task.project_id or not task.project:
+        return
+    
+    # Check if project has task dependency mode enabled
+    if not task.project.task_dependency_mode:
+        return
+    
+    # Get all tasks in the project ordered by creation/position
+    project_tasks = Task.query.filter_by(project_id=task.project_id).order_by(Task.id.asc()).all()
+    
+    # Find current task position
+    current_task_index = None
+    for i, t in enumerate(project_tasks):
+        if t.id == task.id:
+            current_task_index = i
+            break
+    
+    if current_task_index is None:
+        return
+    
+    # If task is marked as completed
+    if new_status == 'Completed' and old_status != 'Completed':
+        # Mark all previous tasks as completed
+        for i in range(current_task_index):
+            prev_task = project_tasks[i]
+            if prev_task.status != 'Completed':
+                prev_task.status = 'Completed'
+                create_activity_log(
+                    f'Task "{prev_task.title}" auto-completed due to sequential dependency',
+                    session.get('user_id', 1),
+                    task.project_id,
+                    prev_task.id
+                )
+    
+    # If task is marked as not started or in progress
+    elif new_status in ['Not Started', 'In Progress'] and old_status == 'Completed':
+        # Mark all subsequent tasks as not started
+        for i in range(current_task_index + 1, len(project_tasks)):
+            next_task = project_tasks[i]
+            if next_task.status == 'Completed':
+                next_task.status = 'Not Started'
+                create_activity_log(
+                    f'Task "{next_task.title}" reset due to sequential dependency',
+                    session.get('user_id', 1),
+                    task.project_id,
+                    next_task.id
+                )
+
+
 @tasks_bp.route('/')
 def list_tasks():
     firm_id = session['firm_id']
@@ -266,6 +317,7 @@ def edit_task(id):
         # Track original values for change detection
         original_assignee_id = task.assignee_id
         original_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+        original_status = task.status
         
         # Get form data
         task.title = request.form.get('title')
@@ -274,7 +326,11 @@ def edit_task(id):
         new_assignee_id = assignee_id if assignee_id else None
         task.assignee_id = new_assignee_id
         task.priority = request.form.get('priority', 'Medium')
-        task.status = request.form.get('status', task.status)
+        new_status = request.form.get('status', task.status)
+        task.status = new_status
+        
+        # Handle sequential task dependencies before committing
+        handle_sequential_task_dependencies(task, original_status, new_status)
         
         # Handle due date
         due_date = request.form.get('due_date')
@@ -599,6 +655,9 @@ def update_task(id):
     
     if new_status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
         task.status = new_status
+        
+        # Handle sequential task dependencies
+        handle_sequential_task_dependencies(task, old_status, new_status)
         
         # Handle recurring task completion
         if new_status == 'Completed' and old_status != 'Completed':

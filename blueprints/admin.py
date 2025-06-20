@@ -291,6 +291,32 @@ def admin_create_status(work_type_id):
         return redirect(url_for('admin.admin_work_types'))
 
 
+@admin_bp.route('/statuses/<int:status_id>/edit', methods=['POST'])
+def admin_edit_status(status_id):
+    """Edit a task status"""
+    if session.get('user_role') != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    try:
+        status = TaskStatus.query.filter_by(id=status_id, firm_id=session['firm_id']).first_or_404()
+        
+        status.name = request.form.get('name')
+        status.color = request.form.get('color')
+        status.position = int(request.form.get('position', status.position))
+        status.is_default = request.form.get('is_default') == 'true'
+        status.is_terminal = request.form.get('is_terminal') == 'true'
+        
+        db.session.commit()
+        
+        flash(f'Status "{status.name}" updated successfully!', 'success')
+        return redirect(url_for('admin.admin_work_types'))
+    
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating status: {str(e)}', 'error')
+        return redirect(url_for('admin.admin_work_types'))
+
+
 @admin_bp.route('/process-recurring', methods=['POST'])
 def admin_process_recurring():
     """Manual trigger for processing recurring tasks"""

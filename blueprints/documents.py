@@ -223,6 +223,25 @@ def download_document(document_id):
     )
 
 
+@documents_bp.route('/analysis/<int:client_id>')
+def view_document_analysis(client_id):
+    """View document analysis for a client"""
+    firm_id = session['firm_id']
+    
+    # Get client and verify access
+    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    
+    # Get all checklists and documents for this client
+    checklists = DocumentChecklist.query.filter_by(
+        client_id=client_id, 
+        firm_id=firm_id
+    ).all()
+    
+    return render_template('documents/document_analysis.html', 
+                         client=client, 
+                         checklists=checklists)
+
+
 @documents_bp.route('/uploaded-documents')
 def uploaded_documents():
     """View all uploaded documents across all checklists"""
