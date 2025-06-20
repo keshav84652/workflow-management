@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full bg-gray-50">
+<html lang="en" class="h-full bg-gray-100">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -114,10 +114,46 @@
         .main-content-minimized {
             margin-left: 4rem !important;
         }
+        
+        /* Enhanced UI improvements */
+        .card-hover {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .btn-hover {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .btn-hover:hover {
+            transform: translateY(-1px);
+        }
+        
+        .table-row-hover {
+            transition: background-color 0.15s ease-in-out;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .status-dot.green { background-color: #10b981; }
+        .status-dot.yellow { background-color: #f59e0b; }
+        .status-dot.red { background-color: #ef4444; }
+        .status-dot.blue { background-color: #3b82f6; }
+        .status-dot.gray { background-color: #6b7280; }
     </style>
     
 </head>
-<body class="h-full bg-gray-50" x-data="{ sidebarOpen: false, sidebarMinimized: localStorage.getItem('sidebarMinimized') === 'true' }" x-cloak>
+<body class="h-full bg-gray-100" x-data="{ sidebarOpen: false, sidebarMinimized: localStorage.getItem('sidebarMinimized') === 'true' }" x-cloak>
     {% if session.firm_id %}
     <!-- Sidebar for desktop -->
     <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300"

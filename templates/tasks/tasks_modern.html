@@ -16,7 +16,7 @@
         </div>
         <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
             <a href="/tasks/create" 
-               class="block rounded-md bg-cpa-blue px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+               class="block rounded-md bg-cpa-blue px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500 btn-hover">
                 <i class="bi bi-plus"></i> New Task
             </a>
         </div>
@@ -100,18 +100,18 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for task in tasks %}
-                    <tr class="{% if task.is_overdue %}bg-red-50{% elif task.due_date == today %}bg-amber-50{% else %}hover:bg-gray-50{% endif %}">
+                    <tr class="table-row-hover {% if task.is_overdue %}bg-red-50{% elif task.due_date == today %}bg-amber-50{% else %}hover:bg-gray-50{% endif %}">
                         <!-- Task -->
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center">
                                 <!-- Priority Indicator -->
                                 <div class="flex-shrink-0 mr-3">
                                     {% if task.priority == 'High' %}
-                                        <div class="h-3 w-3 rounded-full bg-red-400"></div>
+                                        <span class="status-dot red" title="High Priority"></span>
                                     {% elif task.priority == 'Medium' %}
-                                        <div class="h-3 w-3 rounded-full bg-yellow-400"></div>
+                                        <span class="status-dot yellow" title="Medium Priority"></span>
                                     {% else %}
-                                        <div class="h-3 w-3 rounded-full bg-green-400"></div>
+                                        <span class="status-dot green" title="Low Priority"></span>
                                     {% endif %}
                                 </div>
                                 <div class="min-w-0">
@@ -221,6 +221,15 @@
                                 {% elif task.status == 'In Progress' %}bg-blue-100 text-blue-800
                                 {% elif task.status == 'Needs Review' %}bg-yellow-100 text-yellow-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {% if task.status == 'Completed' %}
+                                    <span class="status-dot green mr-1"></span>
+                                {% elif task.status == 'In Progress' %}
+                                    <span class="status-dot blue mr-1"></span>
+                                {% elif task.status == 'Needs Review' %}
+                                    <span class="status-dot yellow mr-1"></span>
+                                {% else %}
+                                    <span class="status-dot gray mr-1"></span>
+                                {% endif %}
                                 {{ task.current_status }}
                             </span>
                         </td>
