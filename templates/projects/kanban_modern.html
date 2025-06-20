@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateProjectStatus(projectId, statusId) {
     console.log('Moving project:', projectId, 'to column:', statusId);
     
-    fetch(`{{ url_for('projects.move_project_status', id='') }}${projectId}`, {
+    fetch(`/projects/${projectId}/move-status`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

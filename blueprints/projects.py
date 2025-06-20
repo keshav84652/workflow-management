@@ -153,3 +153,18 @@ def delete_project(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error deleting project: {str(e)}'}), 500
+
+
+@projects_bp.route('/<int:id>/move-status', methods=['POST'])
+def move_project_status(id):
+    """Move project to different status for Kanban board"""
+    firm_id = session['firm_id']
+    data = request.get_json()
+    status_id = data.get('status_id')
+    
+    result = ProjectService.move_project_status(id, status_id, firm_id)
+    
+    if result['success']:
+        return jsonify(result)
+    else:
+        return jsonify({'success': False, 'message': result['message']}), 500
