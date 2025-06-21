@@ -248,21 +248,15 @@ class ProjectService:
             firm_id = session['firm_id']
         
         try:
-            print(f"DEBUG: Moving project {project_id} to status {status_id}")
-            
             project = ProjectService.get_project_by_id(project_id, firm_id)
             if not project:
-                print(f"DEBUG: Project {project_id} not found")
                 return {'success': False, 'message': 'Project not found'}
-            
-            print(f"DEBUG: Found project {project.name}")
             
             # Handle special "completed" status
             if status_id == 'completed':
                 project.status = 'Completed'
                 project.current_status_id = None
                 status_name = 'Completed'
-                print(f"DEBUG: Set project to completed status")
                 
                 # Mark ALL tasks as completed
                 tasks_updated = 0
@@ -272,18 +266,14 @@ class ProjectService:
                         task.completed_at = datetime.utcnow()
                         tasks_updated += 1
                 
-                print(f"DEBUG: Marked {tasks_updated} tasks as completed")
                 
             else:
-                print(f"DEBUG: Looking up TemplateTask {status_id}")
                 # The status_id is actually a TemplateTask ID, find the corresponding TaskStatus
                 from models import TemplateTask
                 template_task = TemplateTask.query.get(status_id)
                 if not template_task:
-                    print(f"DEBUG: TemplateTask {status_id} not found")
                     return {'success': False, 'message': f'Template task {status_id} not found'}
                 
-                print(f"DEBUG: Found TemplateTask {template_task.title}, order: {template_task.workflow_order}")
                 
                 # Calculate target progress based on template task position
                 # Get all template tasks for this work type, ordered by workflow_order
@@ -303,7 +293,6 @@ class ProjectService:
                 target_progress_percent = ((current_position + 1) / total_columns) * 100
                 target_progress_percent = min(target_progress_percent, 95)  # Cap at 95% for non-completed
                 
-                print(f"DEBUG: Target progress for column {current_position}/{total_columns}: {target_progress_percent}%")
                 
                 # Update tasks to match target progress
                 total_tasks = len(project.tasks)
@@ -326,7 +315,6 @@ class ProjectService:
                             task.completed_at = None
                             tasks_updated += 1
                     
-                    print(f"DEBUG: Updated {tasks_updated} tasks to achieve {target_progress_percent}% progress")
                 
                 # Set workflow status
                 if template_task.default_status_id:
@@ -342,20 +330,15 @@ class ProjectService:
                     status_name = template_task.title
                 
                 project.status = 'Active'
-                print(f"DEBUG: Set project workflow status to {status_name}")
             
-            print(f"DEBUG: About to commit changes")
             db.session.commit()
-            print(f"DEBUG: Changes committed successfully")
             
             # Create activity log
-            print(f"DEBUG: Creating activity log")
             create_activity_log(
                 action=f'Moved project "{project.name}" to status: {status_name}',
                 user_id=session.get('user_id'),
                 project_id=project.id
             )
-            print(f"DEBUG: Activity log created")
             
             return {
                 'success': True,

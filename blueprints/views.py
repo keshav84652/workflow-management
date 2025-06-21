@@ -266,13 +266,11 @@ def kanban_view():
         
         # Assign projects to columns based on their actual progress
         for project in projects:
-            print(f"DEBUG: Project {project.id} ({project.name}) - status: {project.status}, progress: {project.progress_percentage}%")
             
             if project.status == 'Completed' or project.progress_percentage == 100:
                 # Completed projects go to a special completed column
                 projects_by_column['completed'].append(project)
                 project_counts['completed'] += 1
-                print(f"DEBUG: Assigned project {project.id} to completed column (100% complete)")
             elif len(kanban_columns) > 0:
                 # Assign based on progress percentage across available columns
                 progress = project.progress_percentage
@@ -294,7 +292,6 @@ def kanban_view():
                 target_column = kanban_columns[target_column_index]
                 projects_by_column[target_column.id].append(project)
                 project_counts[target_column.id] += 1
-                print(f"DEBUG: Assigned project {project.id} ({progress}% complete) to column {target_column_index} ({target_column.title})")
     else:
         projects_by_column = {}
         project_counts = {}
