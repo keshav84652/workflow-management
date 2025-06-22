@@ -1,0 +1,101 @@
+{% extends "base/base_modern.html" %}
+
+{% block title %}Create User - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                <i class="bi bi-person-plus text-cpa-blue mr-2"></i>
+                Add Team Member
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                Add a new member to your CPA firm team
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <a href="{{ url_for('users.list_users') }}" 
+               class="block rounded-md bg-gray-600 px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
+                <i class="bi bi-arrow-left"></i> Back to Team
+            </a>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <div class="max-w-2xl">
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">
+                    <i class="bi bi-person text-cpa-blue mr-2"></i>
+                    User Information
+                </h3>
+            </div>
+            <div class="px-6 py-6">
+                <form method="POST" class="space-y-6">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">
+                            Full Name *
+                        </label>
+                        <input type="text" 
+                               id="name" 
+                               name="name" 
+                               required
+                               class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"
+                               placeholder="Enter the user's full name">
+                        <p class="mt-1 text-sm text-gray-500">This name will be displayed throughout the application</p>
+                    </div>
+                    
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700 mb-2">
+                            Role *
+                        </label>
+                        <select id="role" 
+                                name="role" 
+                                required
+                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                            <option value="Member">Member</option>
+                            <option value="Admin">Administrator</option>
+                        </select>
+                        <p class="mt-1 text-sm text-gray-500">
+                            <strong>Member:</strong> Can view and manage assigned tasks and projects<br>
+                            <strong>Administrator:</strong> Full access to all features and settings
+                        </p>
+                    </div>
+
+                    <!-- Role Information -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-info-circle text-blue-400"></i>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-blue-800">Role Permissions</h3>
+                                <div class="mt-2 text-sm text-blue-700">
+                                    <p><strong>Members</strong> can create and manage tasks, view assigned projects, and collaborate with team members.</p>
+                                    <p class="mt-1"><strong>Administrators</strong> have full access including user management, firm settings, and all projects.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                        <a href="{{ url_for('users.list_users') }}" 
+                           class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            <i class="bi bi-x-circle mr-1.5"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cpa-blue">
+                            <i class="bi bi-person-plus mr-1.5"></i>
+                            Add Team Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

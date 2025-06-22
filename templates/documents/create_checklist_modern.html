@@ -1,0 +1,171 @@
+{% extends "base/base_modern.html" %}
+{% set active_page = "checklists" %}
+
+{% block title %}Create Document Checklist{% endblock %}
+
+{% block extra_head %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+            <i class="bi bi-plus-circle text-cpa-blue mr-2"></i>
+            Create Document Checklist
+        </h1>
+        <p class="mt-2 text-sm text-gray-700">
+            Set up a new document checklist for professional client document collection
+        </p>
+    </div>
+    <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+        <a href="{{ url_for('documents.document_checklists') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
+            <i class="bi bi-arrow-left mr-2"></i> Back to Checklists
+        </a>
+    </div>
+</div>
+
+<!-- Form Container -->
+<div class="flex justify-center">
+    <div class="w-full lg:w-3/4 xl:w-2/3">
+        <div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200 animate__animated animate__fadeInUp">
+            <form action="{{ url_for('documents.create_checklist') }}" method="POST">
+                <div class="mb-4">
+                    <label for="client_id" class="block text-gray-700 text-sm font-semibold mb-1">
+                        <i class="bi bi-building text-cpa-blue mr-2"></i> Select Client
+                    </label>
+                    <select class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-cpa-blue focus:border-cpa-blue text-sm" id="client_id" name="client_id" required>
+                        <option value="">Choose a client...</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.name }}
+                                {% if client.entity_type %}
+                                    ({{ client.entity_type }})
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if not clients %}
+                        <div class="text-gray-500 text-xs mt-1 flex items-center">
+                            <i class="bi bi-info-circle mr-1"></i> 
+                            No clients found. <a href="{{ url_for('clients.create_client') }}" class="text-cpa-blue hover:underline font-medium">Create a client first</a>.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="name" class="block text-gray-700 text-sm font-semibold mb-1">
+                        <i class="bi bi-list-check text-cpa-blue mr-2"></i> Checklist Name
+                    </label>
+                    <input type="text" 
+                           class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-cpa-blue focus:border-cpa-blue text-sm" 
+                           id="name" 
+                           name="name" 
+                           placeholder="e.g., 2024 Tax Return Documents, Audit Preparation, etc."
+                           required>
+                </div>
+
+                <div class="mb-6">
+                    <label for="description" class="block text-gray-700 text-sm font-semibold mb-1">
+                        <i class="bi bi-text-paragraph text-cpa-blue mr-2"></i> Description (Optional)
+                    </label>
+                    <textarea class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-cpa-blue focus:border-cpa-blue text-sm" 
+                              id="description" 
+                              name="description" 
+                              rows="3" 
+                              placeholder="Describe what documents this checklist is for and any special instructions for the client..."></textarea>
+                </div>
+
+                <div class="flex flex-col sm:flex-row justify-end gap-2">
+                    <a href="{{ url_for('documents.document_checklists') }}" class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 font-semibold text-sm hover:bg-gray-100 transition duration-300 ease-in-out shadow-sm">
+                        <i class="bi bi-x mr-2"></i> Cancel
+                    </a>
+                    <button type="submit" class="inline-flex items-center justify-center px-4 py-2 bg-gradient-to-br from-cpa-green to-green-700 rounded-md text-white font-semibold text-sm hover:from-green-600 hover:to-green-800 transition duration-300 ease-in-out shadow-sm">
+                        <i class="bi bi-check mr-2"></i> Create Checklist
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Help Section -->
+<div class="flex justify-center mt-8">
+    <div class="w-full lg:w-3/4 xl:w-2/3">
+        <div class="bg-white rounded-xl p-4 shadow-lg border border-gray-200 animate__animated animate__fadeInUp">
+            <h5 class="text-lg font-bold mb-2 flex items-center">
+                <i class="bi bi-lightbulb text-cpa-amber mr-2"></i> Common Checklist Templates
+            </h5>
+            <p class="text-gray-600 mb-4 text-sm">
+                Get inspired by these common document collection scenarios for CPA firms
+            </p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 transition duration-300 ease-in-out hover:shadow-md hover:border-cpa-blue">
+                    <div class="text-base font-bold text-gray-800 mb-2">📊 Individual Tax Returns</div>
+                    <ul class="list-none p-0 m-0">
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> W-2 Forms from all employers</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> 1099 Forms (Interest, Dividends, etc.)</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Bank and investment statements</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Mortgage interest statements</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Charitable contribution receipts</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Medical expense receipts</li>
+                        <li class="text-gray-700 text-xs flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Business expense documentation</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 transition duration-300 ease-in-out hover:shadow-md hover:border-cpa-blue">
+                    <div class="text-base font-bold text-gray-800 mb-2">🏢 Business Tax Preparation</div>
+                    <ul class="list-none p-0 m-0">
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Profit & Loss statements</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Balance Sheet</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> General Ledger</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Bank reconciliations</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Accounts receivable aging</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Accounts payable aging</li>
+                        <li class="text-gray-700 text-xs flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Fixed asset schedules</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 transition duration-300 ease-in-out hover:shadow-md hover:border-cpa-blue">
+                    <div class="text-base font-bold text-gray-800 mb-2">🔍 Audit Preparation</div>
+                    <ul class="list-none p-0 m-0">
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Trial balance</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Adjusting journal entries</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Supporting schedules</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Internal control documentation</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Management representation letter</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Legal confirmations</li>
+                        <li class="text-gray-700 text-xs flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Subsequent events documentation</li>
+                    </ul>
+                </div>
+                
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 transition duration-300 ease-in-out hover:shadow-md hover:border-cpa-blue">
+                    <div class="text-base font-bold text-gray-800 mb-2">💼 Quarterly Reviews</div>
+                    <ul class="list-none p-0 m-0">
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Quarterly financial statements</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Payroll reports</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Sales tax returns</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Employment tax returns</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Cash flow statements</li>
+                        <li class="text-gray-700 text-xs mb-1 flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Budget vs actual reports</li>
+                        <li class="text-gray-700 text-xs flex items-center"><i class="bi bi-file-earmark-text mr-2 text-cpa-blue"></i> Key performance indicators</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h6 class="text-base font-bold mb-2 flex items-center text-cpa-blue">
+                    <i class="bi bi-info-circle mr-2"></i> What happens next?
+                </h6>
+                <p class="mb-0 text-gray-700 text-xs">
+                    After creating the checklist, you'll be able to add individual document items, 
+                    set up client portal access, and start collecting documents professionally.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

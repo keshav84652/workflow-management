@@ -18,10 +18,10 @@ class Settings(BaseSettings):
     
     # Azure Document Intelligence
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT: str = "https://cpa-flow.cognitiveservices.azure.com/"
-    AZURE_DOCUMENT_INTELLIGENCE_KEY: str  # No default - must be set via environment variable
+    AZURE_DOCUMENT_INTELLIGENCE_KEY: str = ""  # Optional - AI features disabled if not set
     
     # Google Gemini AI
-    GEMINI_API_KEY: str  # No default - must be set via environment variable
+    GEMINI_API_KEY: str = ""  # Optional - AI features disabled if not set
     GEMINI_MODEL: str = "gemini-2.5-flash-preview-05-20"
     
     # Application
@@ -64,10 +64,8 @@ class Settings(BaseSettings):
     def validate_azure_key(cls, v: str) -> str:
         """Validate Azure Document Intelligence API key."""
         if not v or not v.strip():
-            raise ValueError(
-                "AZURE_DOCUMENT_INTELLIGENCE_KEY is required. "
-                "Please set it in your .env file or environment variables."
-            )
+            print("WARNING: AZURE_DOCUMENT_INTELLIGENCE_KEY is not set. Azure AI features will be disabled.")
+            return ""
         return v.strip()
     
     @field_validator('GEMINI_API_KEY')

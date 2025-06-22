@@ -1,0 +1,197 @@
+{% extends "base/base_modern.html" %}
+{% set active_page = "checklists" %}
+
+{% block title %}Create Document Checklist{% endblock %}
+
+{% block extra_head %}
+<style>
+    .form-card {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        border: none;
+        padding: 2rem;
+    }
+    .form-label {
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+    .form-control, .form-select {
+        border-radius: 10px;
+        border: 2px solid #e5e7eb;
+        padding: 0.8rem 1rem;
+        transition: all 0.3s ease;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 0.2rem rgba(79, 70, 229, 0.25);
+    }
+    .btn-create {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        border: none;
+        border-radius: 10px;
+        padding: 0.8rem 2rem;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-create:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        color: white;
+    }
+    .btn-cancel {
+        background: #f8fafc;
+        border: 2px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 0.8rem 2rem;
+        color: #64748b;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel:hover {
+        background: #e2e8f0;
+        color: #475569;
+        text-decoration: none;
+    }
+    .help-text {
+        background: #f0f9ff;
+        border: 1px solid #7dd3fc;
+        border-radius: 10px;
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+    .help-text h6 {
+        color: #0369a1;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    .help-text p {
+        color: #0c4a6e;
+        margin-bottom: 0;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+            <i class="bi bi-plus-circle text-cpa-blue"></i> Create Document Checklist
+        </h1>
+        <p class="text-gray-600 mb-0">Set up a new document checklist for a client</p>
+    </div>
+    <a href="{{ url_for('documents.document_checklists') }}" class="btn-cancel">
+        <i class="bi bi-arrow-left"></i> Back to Checklists
+    </a>
+</div>
+
+<div class="max-w-4xl mx-auto">
+    <div class="w-full">
+        <div class="form-card">
+            <form action="{{ url_for('documents.create_checklist') }}" method="POST">
+                <div class="mb-4">
+                    <label for="client_id" class="form-label">
+                        <i class="bi bi-building"></i> Select Client
+                    </label>
+                    <select class="form-select" id="client_id" name="client_id" required>
+                        <option value="">Choose a client...</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">
+                                {{ client.name }}
+                                {% if client.entity_type %}
+                                    ({{ client.entity_type }})
+                                {% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if not clients %}
+                        <div class="text-muted small mt-2">
+                            <i class="bi bi-info-circle"></i> 
+                            No clients found. <a href="{{ url_for('clients.create_client') }}">Create a client first</a>.
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-4">
+                    <label for="name" class="form-label">
+                        <i class="bi bi-list-check"></i> Checklist Name
+                    </label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="name" 
+                           name="name" 
+                           placeholder="e.g., 2024 Tax Return Documents, Audit Preparation, etc."
+                           required>
+                </div>
+
+                <div class="mb-4">
+                    <label for="description" class="form-label">
+                        <i class="bi bi-text-paragraph"></i> Description (Optional)
+                    </label>
+                    <textarea class="form-control" 
+                              id="description" 
+                              name="description" 
+                              rows="3" 
+                              placeholder="Describe what documents this checklist is for and any special instructions..."></textarea>
+                </div>
+
+                <div class="flex gap-3 justify-end">
+                    <a href="{{ url_for('documents.document_checklists') }}" class="btn-cancel">
+                        <i class="bi bi-x"></i> Cancel
+                    </a>
+                    <button type="submit" class="btn-create">
+                        <i class="bi bi-check"></i> Create Checklist
+                    </button>
+                </div>
+            </form>
+
+            <div class="help-text">
+                <h6><i class="bi bi-lightbulb"></i> What happens next?</h6>
+                <p>
+                    After creating the checklist, you'll be able to add individual document items that the client needs to provide. 
+                    You can then set up portal access for the client so they can upload documents directly.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Common Checklist Templates -->
+<div class="max-w-4xl mx-auto mt-6">
+    <div class="w-full">
+        <div class="bg-white border-0 shadow-sm rounded-lg">
+            <div class="p-6">
+                <h5 class="text-lg font-bold mb-4">
+                    <i class="bi bi-lightbulb text-amber-500"></i> Common Checklist Templates
+                </h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h6 class="font-semibold">📊 Tax Return Preparation</h6>
+                        <ul class="text-sm text-gray-600 mt-2">
+                            <li>W-2 Forms</li>
+                            <li>1099 Forms</li>
+                            <li>Bank Statements</li>
+                            <li>Investment Statements</li>
+                            <li>Business Expenses</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h6 class="font-semibold">🏢 Business Audit</h6>
+                        <ul class="text-sm text-gray-600 mt-2">
+                            <li>General Ledger</li>
+                            <li>Trial Balance</li>
+                            <li>Bank Reconciliations</li>
+                            <li>Accounts Receivable Aging</li>
+                            <li>Fixed Asset Schedule</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

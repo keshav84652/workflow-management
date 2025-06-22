@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CtrlFiling - AI-Powered Workflow Management for CPA Firms</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #3730a3;
+            --secondary: #06b6d4;
+            --accent: #10b981;
+            --accent-dark: #059669;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.9);
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .header.scrolled {
+            background: rgba(15, 23, 42, 0.98);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            text-decoration: none;
+        }
+
+        .logo img {
+            height: 50px;
+            width: auto;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: white;
+        }
+
+        .cta-button {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+            color: white;
+        }
+
+        /* Hero Section */
+        .hero {
+            min-height: 100vh;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(16, 185, 129, 0.15) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .hero-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero-content {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 4rem;
+            align-items: center;
+            width: 100%;
+        }
+
+        .hero-text {
+            color: white;
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+            line-height: 1.6;
+            max-width: 600px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 3rem;
+        }
+
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(255, 255, 255, 0.3);
+            color: var(--primary);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: white;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        /* Workflow Diagram - FIXED */
+        .workflow-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 3rem 2rem;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .workflow-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .workflow-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .workflow-subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .workflow-separator {
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            margin: 0 auto;
+            border-radius: 2px;
+        }
+
+        .workflow-stages {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .workflow-stage {
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 1rem;
+            border-radius: 16px;
+            border: 2px solid transparent;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .workflow-stage:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .workflow-stage.active {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .workflow-stage.active .stage-icon {
+            background: var(--primary);
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .stage-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin: 0 auto 1rem;
+            transition: all 0.4s ease;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            z-index: 2;
+        }
+
+        .stage-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .stage-description {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+
+
+        /* AI Tools Section */
+        .ai-tools {
+            padding: 6rem 2rem;
+            background: #1a202c;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ai-tools-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.6) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.7);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .ai-tool-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .ai-tool-card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        .ai-tool-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .ai-tool-content.reverse {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .ai-tool-text h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .ai-tool-tagline {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+        }
+
+        .ai-tool-description {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 2rem;
+        }
+
+        .ai-tool-image {
+            width: 100%;
+            max-width: 400px;
+            height: auto;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .ai-tool-image.large {
+            max-width: 590px;
+        }
+
+        .ai-tool-image.extra-large {
+            max-width: 480px;
+        }
+
+        /* AI Transformation Section */
+        .ai-transformation {
+            padding: 6rem 2rem;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            position: relative;
+            overflow: hidden;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .ai-transformation::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .transformation-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .transformation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .transformation-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .transformation-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .transformation-card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .transformation-card:hover::before {
+            transform: scaleX(1);
+        }
+
+
+        .transformation-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .transformation-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .transformation-cta {
+            text-align: center;
+            margin-top: 4rem;
+            padding: 3rem 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .transformation-cta h3 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .transformation-cta p {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tool-btn {
+            background: var(--accent);
+            color: white;
+            padding: 0.875rem 2rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .tool-btn:hover {
+            background: var(--accent-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .tool-btn.danger {
+            background: var(--danger);
+        }
+
+        .tool-btn.warning {
+            background: var(--warning);
+        }
+
+        /* Features Grid */
+        .features {
+            padding: 6rem 2rem;
+            position: relative;
+            overflow: hidden;
+            background: #0f172a;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60"><defs><pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1.5" fill="rgba(59,130,246,0.15)"/></pattern></defs><rect width="100%" height="100%" fill="url(%23dots)"/></svg>'),
+                        radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .features .section-title {
+            color: white;
+        }
+
+        .features .section-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .feature-card.with-screenshot {
+            padding: 0;
+            text-align: left;
+        }
+
+        .feature-screenshot {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            object-position: top center;
+            border-radius: 16px 16px 0 0;
+            border-bottom: 1px solid var(--gray-200);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card.with-screenshot:hover .feature-screenshot {
+            transform: scale(1.02);
+        }
+
+        .feature-content {
+            padding: 2rem;
+        }
+
+        .feature-card.with-screenshot .feature-icon {
+            margin: 0 0 1rem 0;
+        }
+
+        .feature-card.with-screenshot .feature-title {
+            margin-bottom: 0.75rem;
+            text-align: left;
+        }
+
+        .feature-card.with-screenshot .feature-description {
+            text-align: left;
+        }
+
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin: 0 auto 1.5rem;
+        }
+
+        .feature-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: white;
+        }
+
+        .feature-description {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 6rem 2rem;
+            position: relative;
+            overflow: hidden;
+            background: #1e293b;
+        }
+
+        .how-it-works::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M 25 0 L 0 0 0 25" fill="none" stroke="rgba(16,185,129,0.1)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>'),
+                        radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .how-it-works-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .process-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 3rem;
+            margin-top: 3rem;
+        }
+
+        .process-step {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.25rem;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: white;
+            min-height: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .step-description {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+
+        /* User Stories */
+        .user-stories {
+            padding: 6rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-stories::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 30% 70%, rgba(16, 185, 129, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+
+
+        /* CTA Section */
+        .cta-section {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            color: white;
+            padding: 5rem 2rem;
+            text-align: center;
+            margin: 2rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .cta-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .cta-section p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 4rem 2rem 2rem;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand {
+            max-width: 400px;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .footer-logo img {
+            height: 50px;
+            width: auto;
+        }
+
+        .footer-description {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            font-size: 1rem;
+        }
+
+        .footer-links {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .footer-column h4 {
+            color: white;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .footer-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .footer-nav li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-nav a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-nav a:hover {
+            color: white;
+        }
+
+        .footer-contact-text {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        .footer-cta-button {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .footer-cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            color: white;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+        }
+
+        .footer-bottom-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.875rem;
+        }
+
+        .footer-bottom-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .footer-bottom-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .footer-bottom-links a:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* Footer Responsive */
+        @media (max-width: 1024px) {
+            .footer-main {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+            }
+            
+            .footer-links {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .footer {
+                padding: 3rem 1rem 2rem;
+            }
+            
+            .footer-links {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .footer-bottom-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+            
+            .footer-bottom-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 1rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .hero-content {
+                grid-template-columns: 1fr;
+                gap: 3rem;
+                text-align: center;
+            }
+
+            .workflow-container {
+                padding: 2rem;
+            }
+
+            .workflow-stages {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 2rem;
+            }
+
+            .ai-tool-content {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .workflow-connector {
+                display: none;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .nav {
+                padding: 1rem;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero {
+                padding: 6rem 1rem 3rem;
+            }
+
+            .workflow-stages {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .hero-stats {
+                justify-content: center;
+            }
+
+            .ai-tool-card {
+                padding: 2rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+        }
+
+        /* Icons */
+        .icon-intake::before { content: "📥"; }
+        .icon-ai::before { content: "🤖"; }
+        .icon-review::before { content: "👁️"; }
+        .icon-complete::before { content: "✅"; }
+        .icon-workflow::before { content: "🔄"; }
+        .icon-time::before { content: "⏱️"; }
+        .icon-client::before { content: "👥"; }
+        .icon-analytics::before { content: "📊"; }
+        .icon-security::before { content: "🔒"; }
+        .icon-integration::before { content: "🔌"; }
+        .icon-arrow::before { content: "→"; }
+        .icon-document::before { content: "📄"; }
+        .icon-ai-brain::before { content: "🧠"; }
+        .icon-template::before { content: "📋"; }
+        .icon-automation::before { content: "⚡"; }
+        .icon-portal::before { content: "🚪"; }
+
+        /* Additional responsive styles for feature screenshots */
+        @media (max-width: 768px) {
+            .feature-screenshot {
+                height: 160px;
+            }
+            
+            .feature-content {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .feature-screenshot {
+                height: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header" id="header">
+        <nav class="nav">
+            <a href="#" class="logo">
+                <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo">
+            </a>
+            <ul class="nav-links">
+                <li><a href="#ai-tools">AI Tools</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="mailto:keshav@ctrlfiling.com">Contact Us</a></li>
+            </ul>
+            <a href="{{ url_for('auth.login') }}" class="cta-button">Try Demo</a>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <!-- Left Side: Text Content -->
+                <div class="hero-text animate-in">
+                    <h1 class="hero-title">Transform Your CPA Practice with AI-Powered Automation</h1>
+                    <p class="hero-subtitle">
+                        From document intake to final delivery, CtrlFiling automates your entire workflow with intelligent AI processing, expert review tools, and seamless client collaboration.
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="{{ url_for('auth.login') }}" class="btn-primary">
+                            <span>See Demo Data</span>
+                            <span class="icon-arrow"></span>
+                        </a>
+                        <a href="#ai-tools" class="btn-secondary">See AI Tools</a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">80%</span>
+                            <span class="stat-label">Time Saved</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">99%</span>
+                            <span class="stat-label">Accuracy</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">500+</span>
+                            <span class="stat-label">CPA Firms</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">24/7</span>
+                            <span class="stat-label">Processing</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Side: Workflow Diagram -->
+                <div class="workflow-container" id="workflowDemo">
+                    <div class="workflow-header">
+                        <h3 class="workflow-title">Complete Workflow Automation</h3>
+                        <p class="workflow-subtitle">Watch how CtrlFiling transforms your process</p>
+                        <div class="workflow-separator"></div>
+                    </div>
+                    
+                    <div class="workflow-stages">
+                        <div class="workflow-stage" data-stage="1">
+                            <div class="stage-icon icon-intake"></div>
+                            <h4 class="stage-title">Smart Intake</h4>
+                            <p class="stage-description">Automated document collection through secure portals</p>
+                        </div>
+                        
+                        <div class="workflow-stage" data-stage="2">
+                            <div class="stage-icon icon-ai"></div>
+                            <h4 class="stage-title">AI Processing</h4>
+                            <p class="stage-description">Advanced AI extracts and categorizes data with 99% accuracy</p>
+                        </div>
+                        
+                        <div class="workflow-stage" data-stage="3">
+                            <div class="stage-icon icon-review"></div>
+                            <h4 class="stage-title">Expert Review</h4>
+                            <p class="stage-description">Organized presentation for professional review and approval</p>
+                        </div>
+                        
+                        <div class="workflow-stage" data-stage="4">
+                            <div class="stage-icon icon-complete"></div>
+                            <h4 class="stage-title">Complete</h4>
+                            <p class="stage-description">Finalized, delivered, filed, and automatically archived</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Tools Section -->
+    <section class="ai-tools" id="ai-tools">
+        <div class="ai-tools-container">
+            <div class="section-header">
+                <h2 class="section-title">Meet Your AI Tax Preparation Squad</h2>
+                <p class="section-subtitle">See what our AI creates - these are real AI-generated outputs from actual tax work</p>
+            </div>
+
+            <!-- TaxPrep Bot -->
+            <div class="ai-tool-card">
+                <div class="ai-tool-content">
+                    <div class="ai-tool-text">
+                        <h3>TaxPrep Bot</h3>
+                        <p class="ai-tool-tagline">"AI that prepares in CCH Axcess & Lacerte"</p>
+                        <p class="ai-tool-description">
+                            Export directly to tax software like <strong>CCH Axcess & Lacerte</strong>, extract data with AI, validate inputs with smart checks, and get client-ready returns in minutes—<strong>cutting prep time by up to 80%</strong>.
+                        </p>
+                        <button class="tool-btn">
+                            Learn More <span class="icon-arrow"></span>
+                        </button>
+                    </div>
+                    <div class="ai-tool-visual">
+                        <img src="{{ url_for('static', filename='images/screenshots/taxprep-bot.png') }}" alt="TaxPrep Bot Interface" class="ai-tool-image">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reconciliation Wizard -->
+            <div class="ai-tool-card">
+                <div class="ai-tool-content reverse">
+                    <div class="ai-tool-visual">
+                        <img src="{{ url_for('static', filename='images/screenshots/reconciliation-wizard.png') }}" alt="Reconciliation Wizard Interface" class="ai-tool-image large">
+                    </div>
+                    <div class="ai-tool-text">
+                        <h3>Reconciliation Wizard</h3>
+                        <p class="ai-tool-tagline" style="color: var(--danger);">"Magically matches. No wand required."</p>
+                        <p class="ai-tool-description">
+                            Automatically generate formatted <strong>reconciliation sheets</strong> on a per-client basis using previous year reconciliation data or custom templates. AI creates <strong>client-specific workflows tailored to each engagement</strong>, spots key year-over-year changes, and ties schedules to returns with precision.
+                        </p>
+                        <button class="tool-btn danger">
+                            Learn More <span class="icon-arrow"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tic Tie Slayer -->
+            <div class="ai-tool-card">
+                <div class="ai-tool-content">
+                    <div class="ai-tool-text">
+                        <h3>Tic Tie Slayer</h3>
+                        <p class="ai-tool-tagline" style="color: var(--warning);">"Destroying busywork, one tie at a time."</p>
+                        <p class="ai-tool-description">
+                            Easily navigate tax files with <strong>auto-generated bookmarks</strong>, verify all calculations instantly, and streamline your review process with intelligent organization—<strong>all fully automated</strong>.
+                        </p>
+                        <button class="tool-btn warning">
+                            Learn More <span class="icon-arrow"></span>
+                        </button>
+                    </div>
+                    <div class="ai-tool-visual">
+                        <img src="{{ url_for('static', filename='images/screenshots/tic-tie-slayer.png') }}" alt="Tic Tie Slayer Interface" class="ai-tool-image extra-large">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Transformation Section -->
+    <section class="ai-transformation">
+        <div class="transformation-container">
+            <div class="section-header">
+                <h2 class="section-title">The AI Revolution in CPA Firms</h2>
+                <p class="section-subtitle">How generative AI is transforming accounting practices forever</p>
+            </div>
+            
+            <div class="transformation-grid">
+                <div class="transformation-card">
+                    <h3>From Manual to Automated</h3>
+                    <p>AI eliminates 60-80% of repetitive data entry, document processing, and routine calculations. Your team focuses on analysis, strategy, and client relationships instead of mundane tasks.</p>
+                </div>
+                
+                <div class="transformation-card">
+                    <h3>From Reactive to Proactive</h3>
+                    <p>AI identifies patterns, flags anomalies, and suggests optimizations before issues arise. Turn your firm into a strategic advisor that prevents problems rather than just solving them.</p>
+                </div>
+                
+                <div class="transformation-card">
+                    <h3>From Seasonal to Year-Round</h3>
+                    <p>AI-powered workflows enable consistent revenue streams beyond tax season. Offer ongoing advisory services, automated bookkeeping, and real-time financial insights to clients.</p>
+                </div>
+                
+                <div class="transformation-card">
+                    <h3>From Commodity to Premium</h3>
+                    <p>AI handles the routine work, allowing your firm to deliver higher-value services. Charge premium rates for strategic insights, complex analysis, and personalized advisory services.</p>
+                </div>
+                
+                <div class="transformation-card">
+                    <h3>From Limited to Scalable</h3>
+                    <p>Process 3x more clients without hiring 3x more staff. AI scales your capacity while maintaining quality, enabling rapid growth without proportional overhead increases.</p>
+                </div>
+                
+                <div class="transformation-card">
+                    <h3>From Error-Prone to Accurate</h3>
+                    <p>AI reduces human errors by 95%+ through automated validation, cross-referencing, and compliance checking. Deliver consistently accurate work while reducing liability risks.</p>
+                </div>
+            </div>
+            
+            <div class="transformation-cta">
+                <h3>Don't Get Left Behind</h3>
+                <p>Firms that embrace AI today will dominate tomorrow's market. Those that don't will struggle to compete on speed, accuracy, and value.</p>
+                <a href="mailto:keshav@ctrlfiling.com" class="cta-button primary">Get Started</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-header">
+                <h2 class="section-title">Your Complete CPA Command Center</h2>
+                <p class="section-subtitle">Nine powerful tools that transform chaos into organized, profitable operations. Because running a CPA firm shouldn't feel like herding cats 🐱</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3 class="feature-title">Smart Document Processing</h3>
+                    <p class="feature-description">
+                        Automatic recognition and categorization of tax documents, with AI-powered data extraction and validation for faster processing.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Workflow Templates</h3>
+                    <p class="feature-description">
+                        Pre-built templates for tax returns, audits, and compliance tasks. Customize and automate your firm's standard processes.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Client Portal</h3>
+                    <p class="feature-description">
+                        Branded client portals with secure document sharing, real-time progress tracking, and automated status notifications.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Team Collaboration</h3>
+                    <p class="feature-description">
+                        Multi-user workflows with role-based permissions, task assignments, and real-time communication tools.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Time Tracking & Billing</h3>
+                    <p class="feature-description">
+                        Built-in time tracking with billing integration. Accurate project costing and automated client invoicing.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Performance Analytics</h3>
+                    <p class="feature-description">
+                        Real-time dashboards showing client data, tax calculations, and firm KPIs for data-driven decisions.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Bank-Grade Security</h3>
+                    <p class="feature-description">
+                        SOC 2 compliant with end-to-end encryption and comprehensive audit trails for regulatory compliance.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Smart Scheduling</h3>
+                    <p class="feature-description">
+                        Intelligent calendar management with deadline tracking, recurring tasks, and automated reminders for critical dates.
+                    </p>
+                </div>
+                <div class="feature-card">
+                    <h3 class="feature-title">Tax Software Integration</h3>
+                    <p class="feature-description">
+                        Direct export to CCH Axcess and Lacerte with AI-prepared data, eliminating manual data entry and reducing errors.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="how-it-works-container">
+            <div class="section-header">
+                <h2 class="section-title">From Overwhelmed to Organized in 4 Steps</h2>
+                <p class="section-subtitle">Streamline your practice with our systematic approach to tax preparation ✨</p>
+            </div>
+            <div class="process-steps">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <h4 class="step-title">Personal Setup & Configuration</h4>
+                    <p class="step-description">
+                        Our team provides personalized setup tailored to your firm's unique processes and workflows. No generic configurations—everything is customized for you.
+                    </p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <h4 class="step-title">Seamless Client Onboarding</h4>
+                    <p class="step-description">
+                        Effortless client integration with intuitive portals for document uploads. Our AI automatically categorizes and validates all submissions with zero friction.
+                    </p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <h4 class="step-title">AI Processing &<br>Analysis</h4>
+                    <p class="step-description">
+                        Advanced AI extracts data, generates reconciliation sheets, and prepares comprehensive workpapers with 99% accuracy—all automatically.
+                    </p>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">4</div>
+                    <h4 class="step-title">Professional Review & Delivery</h4>
+                    <p class="step-description">
+                        Review perfectly organized, validated data and make final adjustments. Complete returns faster than ever with AI-prepared foundations.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Ready to Make Tax Season Your Friend? 🤝</h2>
+            <p>Join 500+ CPA firms who've already discovered the secret to stress-free tax preparation. Your future self will thank you!</p>
+            <div class="hero-buttons">
+                <a href="{{ url_for('auth.login') }}" class="btn-primary">
+                    <span>Try a Demo</span>
+                    <span class="icon-arrow"></span>
+                </a>
+                <a href="mailto:keshav@ctrlfiling.com" class="btn-secondary">Contact Us</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo">
+                    </div>
+                    <p class="footer-description">AI-powered workflow management for modern CPA firms. Transform your practice with intelligent automation and seamless client collaboration.</p>
+                </div>
+                
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4 class="footer-title">Product</h4>
+                        <ul class="footer-nav">
+                            <li><a href="#ai-tools">AI Tools</a></li>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                            <li><a href="{{ url_for('auth.login') }}">Try Demo</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4 class="footer-title">Company</h4>
+                        <ul class="footer-nav">
+                            <li><a href="mailto:keshav@ctrlfiling.com">Contact Us</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Support</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Partnership</a></li>
+                            <li><a href="mailto:keshav@ctrlfiling.com">Careers</a></li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer-column">
+                        <h4 class="footer-title">Get Started</h4>
+                        <p class="footer-contact-text">Ready to transform your CPA practice?</p>
+                        <a href="mailto:keshav@ctrlfiling.com" class="footer-cta-button">
+                            Contact Us Today
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="footer-bottom-content">
+                    <p>&copy; 2024 CtrlFiling. All rights reserved.</p>
+                    <div class="footer-bottom-links">
+                        <a href="mailto:keshav@ctrlfiling.com">Privacy Policy</a>
+                        <a href="mailto:keshav@ctrlfiling.com">Terms of Service</a>
+                        <a href="mailto:keshav@ctrlfiling.com">Security</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Header scroll effect
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Workflow animation
+        function animateWorkflow() {
+            const stages = document.querySelectorAll('.workflow-stage');
+            let currentStage = 0;
+            let animationInterval = null;
+            let isInitialized = false;
+
+            function activateStage(index) {
+                // Remove active from all stages
+                stages.forEach(stage => stage.classList.remove('active'));
+                
+                // Activate only the current stage
+                if (stages[index]) {
+                    stages[index].classList.add('active');
+                }
+            }
+
+            function nextStage() {
+                activateStage(currentStage);
+                currentStage = (currentStage + 1) % stages.length;
+            }
+
+            function startAnimation() {
+                if (animationInterval) {
+                    clearInterval(animationInterval);
+                }
+                animationInterval = setInterval(nextStage, 3000);
+            }
+
+            function stopAnimation() {
+                if (animationInterval) {
+                    clearInterval(animationInterval);
+                    animationInterval = null;
+                }
+            }
+
+            // Start animation when workflow section is visible
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !isInitialized) {
+                        isInitialized = true;
+                        
+                        // Start the animation
+                        nextStage();
+                        startAnimation();
+                        
+                        // Stop observing after starting
+                        observer.disconnect();
+                        
+                        // Add click handlers for manual control
+                        stages.forEach((stage, index) => {
+                            stage.addEventListener('click', () => {
+                                stopAnimation();
+                                currentStage = index;
+                                activateStage(index);
+                                
+                                // Resume auto-animation after a brief pause
+                                setTimeout(() => {
+                                    startAnimation();
+                                }, 2000);
+                            });
+                        });
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            if (document.getElementById('workflowDemo')) {
+                observer.observe(document.getElementById('workflowDemo'));
+            }
+        }
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+
+        // Initialize animations
+        document.addEventListener('DOMContentLoaded', () => {
+            animateWorkflow();
+        });
+    </script>
+</body>
+</html>

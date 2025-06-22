@@ -1,0 +1,188 @@
+{% extends "base/base_modern.html" %}
+{% set active_page = "uploaded_documents" %}
+
+{% block title %}Uploaded Documents{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">Uploaded Documents</h1>
+        <p class="text-gray-600">All documents uploaded by clients across all checklists</p>
+    </div>
+    <div class="flex space-x-3">
+        <a href="{{ url_for('documents.document_checklists') }}" 
+           class="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-lg hover:bg-gray-50 transition-colors">
+            <i class="bi bi-list-check mr-2"></i>
+            View Checklists
+        </a>
+    </div>
+</div>
+
+<!-- Statistics -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-cpa-blue rounded-lg flex items-center justify-center">
+                <i class="bi bi-files text-white"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Total Documents</p>
+                <p class="text-xl font-bold text-gray-900">{{ documents|length }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
+                <i class="bi bi-people text-white"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Clients</p>
+                <p class="text-xl font-bold text-gray-900">
+                    {% set unique_clients = [] %}
+                    {% for doc in documents %}
+                        {% if doc.checklist_item.checklist.client not in unique_clients %}
+                            {% set _ = unique_clients.append(doc.checklist_item.checklist.client) %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ unique_clients|length }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
+                <i class="bi bi-calendar text-white"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Recent</p>
+                <p class="text-xl font-bold text-gray-900">
+                    {% set recent = documents[:10]|length %}
+                    {{ recent }}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
+                <i class="bi bi-hdd text-white"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-gray-600">Total Size</p>
+                <p class="text-xl font-bold text-gray-900">
+                    {% set total_size = documents|sum(attribute='file_size') %}
+                    {{ "%.1f"|format(total_size / 1024 / 1024) }} MB
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Documents List -->
+{% if documents %}
+<div class="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div class="px-6 py-4 border-b border-gray-200">
+        <h2 class="text-lg font-semibold text-gray-900">Document List</h2>
+        <p class="text-sm text-gray-600 mt-1">{{ documents|length }} documents uploaded</p>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Document</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Checklist Item</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% for document in documents %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                {% if document.mime_type.startswith('image/') %}
+                                <i class="bi bi-image text-cpa-blue"></i>
+                                {% elif document.mime_type == 'application/pdf' %}
+                                <i class="bi bi-file-pdf text-red-500"></i>
+                                {% elif document.mime_type.startswith('application/') %}
+                                <i class="bi bi-file-spreadsheet text-green-500"></i>
+                                {% else %}
+                                <i class="bi bi-file-earmark text-cpa-blue"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900">{{ document.original_filename }}</p>
+                                <p class="text-sm text-gray-600">{{ document.mime_type }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div>
+                            <p class="font-medium text-gray-900">{{ document.checklist_item.checklist.client.name }}</p>
+                            <p class="text-sm text-gray-600">{{ document.checklist_item.checklist.name }}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            {{ document.checklist_item.title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <div>
+                            <p>{{ document.uploaded_at.strftime('%b %d, %Y') }}</p>
+                            <p class="text-xs text-gray-500">{{ document.uploaded_at.strftime('%I:%M %p') }}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {{ "%.1f"|format(document.file_size / 1024 / 1024) }} MB
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('documents.download_document', document_id=document.id) }}" 
+                               class="inline-flex items-center px-3 py-1 bg-cpa-blue text-white rounded text-xs hover:bg-cpa-navy transition-colors">
+                                <i class="bi bi-download mr-1"></i>
+                                Download
+                            </a>
+                            <a href="{{ url_for('documents.view_document_analysis', client_id=document.checklist_item.checklist.client.id) }}" 
+                               class="inline-flex items-center px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors">
+                                <i class="bi bi-cpu mr-1"></i>
+                                AI Analysis
+                            </a>
+                            <a href="{{ url_for('documents.checklist_dashboard', checklist_id=document.checklist_item.checklist.id) }}" 
+                               class="inline-flex items-center px-3 py-1 border border-gray-300 text-gray-700 rounded text-xs hover:bg-gray-50 transition-colors">
+                                <i class="bi bi-eye mr-1"></i>
+                                View Checklist
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow-sm border border-gray-200 text-center py-12">
+    <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="bi bi-inbox text-2xl text-gray-400"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">No Documents Yet</h3>
+    <p class="text-gray-600 mb-6">No documents have been uploaded by clients yet.</p>
+    <a href="{{ url_for('documents.document_checklists') }}" 
+       class="inline-flex items-center px-4 py-2 bg-cpa-blue text-white rounded-lg hover:bg-cpa-navy transition-colors">
+        <i class="bi bi-plus mr-2"></i>
+        Create Your First Checklist
+    </a>
+</div>
+{% endif %}
+{% endblock %}

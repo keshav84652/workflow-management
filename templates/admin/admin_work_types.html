@@ -1,0 +1,531 @@
+{% extends "base/base_modern.html" %}
+
+{% block title %}Work Types Management - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="workTypesManager()">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                <i class="bi bi-gear"></i> Work Types & Status Management
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                Configure work types and their workflow statuses
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button @click="showCreateWorkTypeModal = true"
+                    class="block rounded-md bg-cpa-blue px-3 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                <i class="bi bi-plus-circle"></i> Add Work Type
+            </button>
+        </div>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-cpa-blue">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-diagram-3 h-8 w-8 text-cpa-blue"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Work Types</dt>
+                            <dd class="text-lg font-medium text-cpa-blue">{{ work_types|length }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-cpa-green">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-tags h-8 w-8 text-cpa-green"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Custom Statuses</dt>
+                            <dd class="text-lg font-medium text-cpa-green">{{ total_statuses }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-cpa-amber">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-folder h-8 w-8 text-cpa-amber"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Active Projects</dt>
+                            <dd class="text-lg font-medium text-cpa-amber">{{ active_projects }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white overflow-hidden shadow rounded-lg border-l-4 border-blue-500">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <i class="bi bi-list-task h-8 w-8 text-blue-500"></i>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Tasks</dt>
+                            <dd class="text-lg font-medium text-blue-500">{{ total_tasks }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Work Types List -->
+    <div class="space-y-6">
+        {% for work_type in work_types %}
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <!-- Work Type Header -->
+            <div class="px-4 py-5 sm:px-6" style="background-color: {{ work_type.color }}20;">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium text-white" 
+                              style="background-color: {{ work_type.color }};">
+                            {{ work_type.name }}
+                        </span>
+                        <span class="ml-3 text-sm text-gray-600">{{ work_type.description }}</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button @click="editWorkType({{ work_type.id }}, '{{ work_type.name }}', '{{ work_type.description }}', '{{ work_type.color }}')"
+                                class="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-cpa-blue shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                            <i class="bi bi-pencil mr-1"></i> Edit
+                        </button>
+                        <button @click="addStatus({{ work_type.id }}, '{{ work_type.name }}')"
+                                class="inline-flex items-center rounded-md bg-cpa-green px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-600">
+                            <i class="bi bi-plus mr-1"></i> Add Status
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Work Type Content -->
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                    Status Workflow ({{ work_type.task_statuses|length }} statuses)
+                </h3>
+                
+                {% if work_type.task_statuses %}
+                <div class="flex flex-wrap items-center gap-4 mb-6">
+                    {% for status in work_type.task_statuses|sort(attribute='position') %}
+                    <div class="bg-white rounded-lg shadow-sm border min-w-48">
+                        <div class="px-3 py-2 text-white text-sm font-medium flex items-center justify-between"
+                             style="background-color: {{ status.color }};">
+                            <div class="flex items-center">
+                                {% if status.is_default %}
+                                    <i class="bi bi-star-fill mr-2"></i>
+                                {% elif status.is_terminal %}
+                                    <i class="bi bi-check-circle mr-2"></i>
+                                {% else %}
+                                    <i class="bi bi-arrow-right mr-2"></i>
+                                {% endif %}
+                                {{ status.name }}
+                            </div>
+                            <div class="relative" x-data="{ open: false }">
+                                <button @click="open = !open" class="text-white hover:text-gray-200">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <div class="absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5"
+                                     x-show="open" @click.away="open = false" x-cloak>
+                                    <button @click="editStatus({{ status.id }}, '{{ status.name }}', '{{ status.color }}', {{ status.position }}, {{ status.is_default|lower }}, {{ status.is_terminal|lower }}); open = false"
+                                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="bi bi-pencil mr-2"></i> Edit
+                                    </button>
+                                    <button @click="deleteStatus({{ status.id }}, '{{ status.name }}'); open = false"
+                                            class="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                        <i class="bi bi-trash mr-2"></i> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-3 py-2 text-xs text-gray-500">
+                            Position: {{ status.position }}
+                            {% if status.is_default %} • Default{% endif %}
+                            {% if status.is_terminal %} • Terminal{% endif %}
+                            <br>
+                            Tasks: {{ status.tasks|length }}
+                        </div>
+                    </div>
+                    {% if not loop.last %}
+                        <i class="bi bi-arrow-right text-gray-400"></i>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="rounded-md bg-blue-50 p-4 mb-6">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="bi bi-info-circle h-5 w-5 text-blue-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h3 class="text-sm font-medium text-blue-800">
+                                No custom statuses defined for this work type.
+                            </h3>
+                            <div class="mt-2">
+                                <button @click="addStatus({{ work_type.id }}, '{{ work_type.name }}')"
+                                        class="inline-flex items-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                                    Add First Status
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Usage Statistics -->
+                <div class="mt-6">
+                    <h4 class="text-sm font-medium text-gray-900 mb-3">Usage Statistics</h4>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="text-center">
+                            <dt class="text-sm font-medium text-gray-500">Templates</dt>
+                            <dd class="mt-1 text-lg font-semibold text-gray-900">{{ work_type.templates|length }}</dd>
+                        </div>
+                        <div class="text-center">
+                            <dt class="text-sm font-medium text-gray-500">Active Projects</dt>
+                            <dd class="mt-1 text-lg font-semibold text-gray-900">{{ work_type.projects|selectattr('status', 'equalto', 'Active')|list|length }}</dd>
+                        </div>
+                        <div class="text-center">
+                            <dt class="text-sm font-medium text-gray-500">Total Projects</dt>
+                            <dd class="mt-1 text-lg font-semibold text-gray-900">{{ work_type.projects|length }}</dd>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Create Work Type Modal -->
+    <div class="fixed inset-0 z-50 overflow-y-auto" x-show="showCreateWorkTypeModal" x-cloak>
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showCreateWorkTypeModal = false"></div>
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <form method="POST" action="{{ url_for('admin.admin_create_work_type') }}">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900 mb-4">Create New Work Type</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="name" class="block text-sm font-medium text-gray-900">Work Type Name *</label>
+                                        <input type="text" id="name" name="name" required
+                                               placeholder="e.g., Business Consulting"
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="description" class="block text-sm font-medium text-gray-900">Description</label>
+                                        <textarea id="description" name="description" rows="2"
+                                                  placeholder="Brief description of this service line"
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="color" class="block text-sm font-medium text-gray-900">Color</label>
+                                        <input type="color" id="color" name="color" value="#3b82f6"
+                                               class="mt-1 h-10 w-20 rounded-md border border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="submit"
+                                class="inline-flex w-full justify-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:ml-3 sm:w-auto">
+                            Create Work Type
+                        </button>
+                        <button type="button" @click="showCreateWorkTypeModal = false"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Work Type Modal -->
+    <div class="fixed inset-0 z-50 overflow-y-auto" x-show="showEditWorkTypeModal" x-cloak>
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showEditWorkTypeModal = false"></div>
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <form method="POST" :action="`{{ url_for('admin.admin_edit_work_type', work_type_id='__ID__') }}`.replace('__ID__', editWorkTypeData.id)">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900 mb-4">Edit Work Type</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit_name" class="block text-sm font-medium text-gray-900">Work Type Name *</label>
+                                        <input type="text" id="edit_name" name="name" required x-model="editWorkTypeData.name"
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_description" class="block text-sm font-medium text-gray-900">Description</label>
+                                        <textarea id="edit_description" name="description" rows="2" x-model="editWorkTypeData.description"
+                                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm"></textarea>
+                                    </div>
+                                    <div>
+                                        <label for="edit_color" class="block text-sm font-medium text-gray-900">Color</label>
+                                        <input type="color" id="edit_color" name="color" x-model="editWorkTypeData.color"
+                                               class="mt-1 h-10 w-20 rounded-md border border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="submit"
+                                class="inline-flex w-full justify-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:ml-3 sm:w-auto">
+                            Update Work Type
+                        </button>
+                        <button type="button" @click="showEditWorkTypeModal = false"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Status Modal -->
+    <div class="fixed inset-0 z-50 overflow-y-auto" x-show="showAddStatusModal" x-cloak>
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showAddStatusModal = false"></div>
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <form method="POST" :action="`{{ url_for('admin.admin_create_status', work_type_id='__ID__') }}`.replace('__ID__', addStatusData.workTypeId)">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900 mb-4">
+                                    Add Status to <span x-text="addStatusData.workTypeName"></span>
+                                </h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="status_name" class="block text-sm font-medium text-gray-900">Status Name *</label>
+                                        <input type="text" id="status_name" name="name" required
+                                               placeholder="e.g., Awaiting Documents"
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="status_color" class="block text-sm font-medium text-gray-900">Color</label>
+                                        <input type="color" id="status_color" name="color" value="#6b7280"
+                                               class="mt-1 h-10 w-20 rounded-md border border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="status_position" class="block text-sm font-medium text-gray-900">Position</label>
+                                            <input type="number" id="status_position" name="position" min="1" value="1"
+                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="block text-sm font-medium text-gray-900">Status Type</label>
+                                            <div class="space-y-2">
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" name="is_default" class="rounded border-gray-300 text-cpa-blue focus:ring-cpa-blue">
+                                                    <span class="ml-2 text-sm text-gray-700">Default for new tasks</span>
+                                                </label>
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" name="is_terminal" class="rounded border-gray-300 text-cpa-blue focus:ring-cpa-blue">
+                                                    <span class="ml-2 text-sm text-gray-700">Terminal (completion) status</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="submit"
+                                class="inline-flex w-full justify-center rounded-md bg-cpa-green px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-600 sm:ml-3 sm:w-auto">
+                            Add Status
+                        </button>
+                        <button type="button" @click="showAddStatusModal = false"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Status Modal -->
+    <div class="fixed inset-0 z-50 overflow-y-auto" x-show="showEditStatusModal" x-cloak>
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showEditStatusModal = false"></div>
+            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <form method="POST" :action="`{{ url_for('admin.admin_edit_status', status_id='__ID__') }}`.replace('__ID__', editStatusData.id)">
+                    <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                                <h3 class="text-base font-semibold leading-6 text-gray-900 mb-4">Edit Status</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="edit_status_name" class="block text-sm font-medium text-gray-900">Status Name *</label>
+                                        <input type="text" id="edit_status_name" name="name" required x-model="editStatusData.name"
+                                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_status_color" class="block text-sm font-medium text-gray-900">Color</label>
+                                        <input type="color" id="edit_status_color" name="color" x-model="editStatusData.color"
+                                               class="mt-1 h-10 w-20 rounded-md border border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue">
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="edit_status_position" class="block text-sm font-medium text-gray-900">Position</label>
+                                            <input type="number" id="edit_status_position" name="position" min="1" x-model="editStatusData.position"
+                                                   class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cpa-blue focus:ring-cpa-blue sm:text-sm">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label class="block text-sm font-medium text-gray-900">Status Type</label>
+                                            <div class="space-y-2">
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" name="is_default" x-model="editStatusData.isDefault" class="rounded border-gray-300 text-cpa-blue focus:ring-cpa-blue">
+                                                    <span class="ml-2 text-sm text-gray-700">Default for new tasks</span>
+                                                </label>
+                                                <label class="flex items-center">
+                                                    <input type="checkbox" name="is_terminal" x-model="editStatusData.isTerminal" class="rounded border-gray-300 text-cpa-blue focus:ring-cpa-blue">
+                                                    <span class="ml-2 text-sm text-gray-700">Terminal (completion) status</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                        <button type="submit"
+                                class="inline-flex w-full justify-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 sm:ml-3 sm:w-auto">
+                            Update Status
+                        </button>
+                        <button type="button" @click="showEditStatusModal = false"
+                                class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.status-workflow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.status-item {
+    flex-shrink: 0;
+}
+
+/* Hover effects for cards */
+.shadow:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+}
+</style>
+
+<script>
+function workTypesManager() {
+    return {
+        showCreateWorkTypeModal: false,
+        showEditWorkTypeModal: false,
+        showAddStatusModal: false,
+        showEditStatusModal: false,
+        
+        editWorkTypeData: {
+            id: '',
+            name: '',
+            description: '',
+            color: ''
+        },
+        
+        addStatusData: {
+            workTypeId: '',
+            workTypeName: ''
+        },
+        
+        editStatusData: {
+            id: '',
+            name: '',
+            color: '',
+            position: '',
+            isDefault: false,
+            isTerminal: false
+        },
+        
+        editWorkType(id, name, description, color) {
+            this.editWorkTypeData = {
+                id: id,
+                name: name,
+                description: description,
+                color: color
+            };
+            this.showEditWorkTypeModal = true;
+        },
+        
+        addStatus(workTypeId, workTypeName) {
+            this.addStatusData = {
+                workTypeId: workTypeId,
+                workTypeName: workTypeName
+            };
+            this.showAddStatusModal = true;
+        },
+        
+        editStatus(id, name, color, position, isDefault, isTerminal) {
+            this.editStatusData = {
+                id: id,
+                name: name,
+                color: color,
+                position: position,
+                isDefault: isDefault,
+                isTerminal: isTerminal
+            };
+            this.showEditStatusModal = true;
+        },
+        
+        deleteStatus(id, name) {
+            if (confirm(`Are you sure you want to delete the status "${name}"? This action cannot be undone and may affect existing tasks.`)) {
+                // Create a form and submit
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/statuses/${id}/delete`;
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'status_id';
+                input.value = id;
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

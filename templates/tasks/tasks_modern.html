@@ -1,0 +1,277 @@
+{% extends "base/base_modern.html" %}
+
+{% block title %}Tasks - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                Tasks
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                Manage and track all your workflow tasks
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <a href="/tasks/create" 
+               class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                New Task
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Filters -->
+    <div class="border-b border-gray-200 pb-5">
+        <div class="sm:flex sm:items-center sm:justify-between">
+            <div class="sm:flex-auto">
+                <div class="flex flex-wrap gap-2">
+                    <a href="/tasks" 
+                       class="inline-flex items-center rounded-full bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-900 hover:bg-gray-200">
+                        All Tasks
+                    </a>
+                    <a href="/tasks?overdue=true" 
+                       class="inline-flex items-center rounded-full bg-red-100 px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-200">
+                        <i class="bi bi-exclamation-triangle mr-1.5 h-4 w-4"></i>
+                        Overdue
+                    </a>
+                    <a href="/tasks?due_date=today" 
+                       class="inline-flex items-center rounded-full bg-amber-100 px-3 py-1.5 text-sm font-medium text-amber-800 hover:bg-amber-200">
+                        <i class="bi bi-calendar-event mr-1.5 h-4 w-4"></i>
+                        Due Today
+                    </a>
+                    <a href="/tasks?due_date=soon" 
+                       class="inline-flex items-center rounded-full bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-800 hover:bg-blue-200">
+                        <i class="bi bi-clock mr-1.5 h-4 w-4"></i>
+                        Due Soon
+                    </a>
+                </div>
+            </div>
+            <div class="mt-4 sm:mt-0">
+                <div class="flex items-center space-x-2">
+                    {% if request.args.get('show_completed') == 'true' %}
+                    <a href="{{ url_for('tasks.list_tasks') }}" 
+                       class="inline-flex items-center px-3 py-1.5 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700">
+                        <i class="bi bi-eye-slash mr-1.5"></i>
+                        Hide Completed
+                    </a>
+                    {% else %}
+                    <a href="{{ url_for('tasks.list_tasks', show_completed='true') }}" 
+                       class="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200">
+                        <i class="bi bi-eye mr-1.5"></i>
+                        Show Completed
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks Table -->
+    {% if tasks %}
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Task
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Project
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Assignee
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Due Date
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Priority
+                        </th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th scope="col" class="relative px-6 py-3">
+                            <span class="sr-only">Actions</span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for task in tasks %}
+                    <tr class="table-row-hover {% if task.is_overdue %}bg-red-50{% elif task.due_date == today %}bg-amber-50{% else %}hover:bg-gray-50{% endif %}">
+                        <!-- Task -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <!-- Priority Indicator -->
+                                <div class="flex-shrink-0 mr-3">
+                                    {% if task.priority == 'High' %}
+                                        <span class="status-dot red" title="High Priority"></span>
+                                    {% elif task.priority == 'Medium' %}
+                                        <span class="status-dot yellow" title="Medium Priority"></span>
+                                    {% else %}
+                                        <span class="status-dot green" title="Low Priority"></span>
+                                    {% endif %}
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="text-sm font-medium text-gray-900">
+                                        <a href="{{ url_for('tasks.view_task', id=task.id) }}" class="hover:text-cpa-blue">
+                                            {{ task.title }}
+                                        </a>
+                                    </div>
+                                    <!-- Task badges -->
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        {% if task.is_recurring %}
+                                            <span class="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                                <i class="bi bi-arrow-repeat mr-1"></i>
+                                                Recurring
+                                            </span>
+                                        {% endif %}
+                                        
+                                        {% if task.is_blocked %}
+                                            <span class="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                                                <i class="bi bi-lock mr-1"></i>
+                                                Blocked
+                                            </span>
+                                        {% endif %}
+                                        
+                                        {% if task.timer_running %}
+                                            <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                                                <i class="bi bi-play-fill mr-1"></i>
+                                                Timer Running
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        <!-- Project -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                {% if task.project %}
+                                    <div class="flex items-center">
+                                        <i class="bi bi-folder mr-2 text-gray-400"></i>
+                                        <span>{{ task.project.client_name }}</span>
+                                        {% if task.project.task_dependency_mode %}
+                                            <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                <i class="bi bi-arrow-right mr-1"></i>
+                                                Sequential
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-xs text-gray-500">{{ task.project.name }}</div>
+                                {% else %}
+                                    <div class="flex items-center text-gray-500">
+                                        <i class="bi bi-file-text mr-2"></i>
+                                        <span>Independent Task</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        <!-- Assignee -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                {% if task.assignee %}
+                                    <div class="flex items-center">
+                                        <i class="bi bi-person mr-2 text-gray-400"></i>
+                                        {{ task.assignee.name }}
+                                    </div>
+                                {% else %}
+                                    <span class="text-gray-500 italic">Unassigned</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        
+                        <!-- Due Date -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if task.due_date %}
+                                <div class="text-sm {% if task.is_overdue %}text-red-600 font-medium{% elif task.due_date == today %}text-amber-600 font-medium{% else %}text-gray-900{% endif %}">
+                                    <div class="flex items-center">
+                                        <i class="bi bi-calendar mr-2 {% if task.is_overdue %}text-red-400{% elif task.due_date == today %}text-amber-400{% else %}text-gray-400{% endif %}"></i>
+                                        {{ task.due_date.strftime('%m/%d/%Y') }}
+                                    </div>
+                                    {% if task.is_overdue %}
+                                        <div class="text-xs text-red-500">Overdue</div>
+                                    {% elif task.due_date == today %}
+                                        <div class="text-xs text-amber-500">Due Today</div>
+                                    {% endif %}
+                                </div>
+                            {% else %}
+                                <span class="text-gray-500 italic">No due date</span>
+                            {% endif %}
+                        </td>
+                        
+                        <!-- Priority -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if task.priority == 'High' %}bg-red-100 text-red-800
+                                {% elif task.priority == 'Medium' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-green-100 text-green-800{% endif %}">
+                                {{ task.priority }}
+                            </span>
+                        </td>
+                        
+                        <!-- Status -->
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if task.status == 'Completed' %}bg-green-100 text-green-800
+                                {% elif task.status == 'In Progress' %}bg-blue-100 text-blue-800
+                                {% elif task.status == 'Needs Review' %}bg-yellow-100 text-yellow-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {% if task.status == 'Completed' %}
+                                    <span class="status-dot green mr-1"></span>
+                                {% elif task.status == 'In Progress' %}
+                                    <span class="status-dot blue mr-1"></span>
+                                {% elif task.status == 'Needs Review' %}
+                                    <span class="status-dot yellow mr-1"></span>
+                                {% else %}
+                                    <span class="status-dot gray mr-1"></span>
+                                {% endif %}
+                                {{ task.current_status }}
+                            </span>
+                        </td>
+                        
+                        <!-- Actions -->
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div class="flex items-center justify-end space-x-2">
+                                <a href="{{ url_for('tasks.view_task', id=task.id) }}" 
+                                   class="text-cpa-blue hover:text-cpa-navy">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('tasks.edit_task', id=task.id) }}" 
+                                   class="text-gray-600 hover:text-gray-900">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white shadow sm:rounded-lg">
+        <div class="text-center py-12">
+            <i class="bi bi-list-task text-4xl text-gray-400 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+            <p class="text-sm text-gray-500 mb-4">
+                {% if request.args.get('show_completed') != 'true' %}
+                No active tasks found. Try showing completed tasks or create a new task.
+                {% else %}
+                No tasks found with the current filters.
+                {% endif %}
+            </p>
+            <a href="{{ url_for('tasks.create_task') }}" 
+               class="inline-flex items-center rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                <i class="bi bi-plus mr-2"></i>
+                Create Task
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,996 @@
+{% extends "base/base_modern.html" %}
+
+{% block title %}{% if task.project %}{{ task.project.client_name }} - {% endif %}{{ task.title }} - CPA WorkflowPilot{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+                {% if task.project %}
+                    {{ task.project.client_name }} - {{ task.title }}
+                {% else %}
+                    {{ task.title }}
+                {% endif %}
+            </h1>
+            <p class="mt-2 text-sm text-gray-700">
+                {% if task.project %}Project Task{% else %}Independent Task{% endif %}
+            </p>
+        </div>
+        <div class="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <div class="flex gap-3">
+                <a href="{{ url_for('tasks.edit_task', id=task.id) }}" 
+                   class="rounded-md bg-cpa-blue px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500">
+                    <i class="bi bi-pencil"></i> Edit Task
+                </a>
+                <a href="{{ url_for('tasks.list_tasks') }}" 
+                   class="rounded-md bg-gray-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-500">
+                    <i class="bi bi-arrow-left"></i> Back to Tasks
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Task Details Card -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-5">
+                    <div class="flex justify-between items-start mb-6">
+                        <h3 class="text-xl font-semibold text-gray-900">{{ task.title }}</h3>
+                        <div>
+                            {% if task.priority == 'High' %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">{{ task.priority }} Priority</span>
+                            {% elif task.priority == 'Medium' %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">{{ task.priority }} Priority</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">{{ task.priority }} Priority</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if task.description %}
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-900 mb-2">Description</h4>
+                        <p class="text-gray-600">{{ task.description }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Task Dependencies -->
+                    {% if task.project and (task.dependency_list or task.blocking_tasks) %}
+                    <div class="mb-6">
+                        <h4 class="text-lg font-medium text-gray-900 mb-4">Dependencies</h4>
+                        
+                        {% if task.dependency_list %}
+                        <div class="mb-6">
+                            <h5 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">DEPENDS ON</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {% for dep_id in task.dependency_list %}
+                                    {% for project_task in task.project.tasks %}
+                                        {% if project_task.id == dep_id %}
+                                        <div class="border rounded-lg p-3 {% if project_task.is_completed %}border-green-200 bg-green-50{% else %}border-yellow-200 bg-yellow-50{% endif %}">
+                                            <div class="flex items-center">
+                                                <span class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium {% if project_task.is_completed %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                                    {% if project_task.is_completed %}✓{% else %}⏳{% endif %}
+                                                </span>
+                                                <div class="ml-3">
+                                                    <a href="{{ url_for('tasks.view_task', id=project_task.id) }}" class="font-medium text-gray-900 hover:text-cpa-blue">
+                                                        {{ project_task.title }}
+                                                    </a>
+                                                    {% if project_task.assignee %}
+                                                    <p class="text-sm text-gray-500">{{ project_task.assignee.name }}</p>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                            {% if task.is_blocked %}
+                            <div class="mt-3 p-3 bg-yellow-50 border-l-4 border-yellow-400">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="bi bi-exclamation-triangle text-yellow-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-yellow-700">
+                                            <strong>Blocked:</strong> This task cannot start until all dependencies above are completed.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if task.blocking_tasks %}
+                        <div class="mb-6">
+                            <h5 class="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">BLOCKING</h5>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {% for blocked_task in task.blocking_tasks %}
+                                <div class="border border-blue-200 bg-blue-50 rounded-lg p-3">
+                                    <div class="flex items-center">
+                                        <span class="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-medium">
+                                            🔒
+                                        </span>
+                                        <div class="ml-3">
+                                            <a href="{{ url_for('tasks.view_task', id=blocked_task.id) }}" class="font-medium text-gray-900 hover:text-cpa-blue">
+                                                {{ blocked_task.title }}
+                                            </a>
+                                            {% if blocked_task.assignee %}
+                                            <p class="text-sm text-gray-500">{{ blocked_task.assignee.name }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="mt-3 p-3 bg-blue-50 border-l-4 border-blue-400">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        <i class="bi bi-info-circle text-blue-400"></i>
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm text-blue-700">
+                                            <strong>Note:</strong> These tasks are waiting for this task to be completed.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Task Status Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">STATUS</label>
+                            {% if task.status == 'Completed' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ task.status }}</span>
+                            {% elif task.status == 'In Progress' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ task.status }}</span>
+                            {% elif task.status == 'Needs Review' %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">{{ task.status }}</span>
+                            {% else %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{ task.status }}</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">ASSIGNEE</label>
+                            {% if task.assignee %}
+                                <div class="flex items-center">
+                                    <i class="bi bi-person-circle mr-1 text-gray-400"></i>
+                                    <div>
+                                        <div class="text-sm font-medium text-gray-900">{{ task.assignee.name }}</div>
+                                        <div class="text-xs text-gray-500">{{ task.assignee.role }}</div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <span class="text-sm text-gray-500">Unassigned</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">DUE DATE</label>
+                            {% if task.due_date %}
+                                <div class="text-sm text-gray-900">{{ task.due_date.strftime('%m/%d/%Y') }}</div>
+                                {% if task.is_overdue %}
+                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800 mt-1">Overdue</span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-sm text-gray-500">No due date</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">HOURS</label>
+                            <div class="text-sm text-gray-900">
+                                {% if task.estimated_hours %}
+                                    <i class="bi bi-clock mr-1"></i> {{ task.estimated_hours }}h est.
+                                {% endif %}
+                                {% if task.actual_hours %}
+                                    <br><i class="bi bi-stopwatch mr-1"></i> {{ task.actual_hours }}h actual
+                                {% endif %}
+                                {% if not task.estimated_hours and not task.actual_hours %}
+                                    <span class="text-gray-500">No hours logged</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- File Attachments -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-5">
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">File Attachments</h4>
+                    
+                    <!-- Upload Form -->
+                    <div class="border border-gray-200 rounded-lg p-4 mb-4">
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <div class="flex gap-3">
+                                <div class="flex-1">
+                                    <input type="file" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                                           name="file" id="file-input" 
+                                           accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.zip,.rar,.7z,.mp4,.avi,.mov,.mp3,.wav" required>
+                                    <input type="hidden" name="entity_type" value="task">
+                                    <input type="hidden" name="entity_id" value="{{ task.id }}">
+                                </div>
+                                <button type="submit" class="px-4 py-2 bg-cpa-blue text-white text-sm font-medium rounded-md hover:bg-blue-600">
+                                    <i class="bi bi-upload mr-1"></i> Upload
+                                </button>
+                            </div>
+                            <p class="mt-2 text-xs text-gray-500">
+                                Max file size: 16MB. Supported types: Documents, Images, Archives, Media files
+                            </p>
+                        </form>
+                    </div>
+                    
+                    <!-- Attachments List -->
+                    <div id="attachments-list">
+                        {% if task.attachments %}
+                            <div class="space-y-3">
+                                {% for attachment in task.attachments %}
+                                <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg" data-attachment-id="{{ attachment.id }}">
+                                    <div class="flex items-center">
+                                        {% if attachment.is_image %}
+                                            <i class="bi bi-image text-green-500 text-xl mr-3"></i>
+                                        {% elif attachment.is_document %}
+                                            <i class="bi bi-file-earmark-text text-blue-500 text-xl mr-3"></i>
+                                        {% else %}
+                                            <i class="bi bi-file-earmark text-gray-500 text-xl mr-3"></i>
+                                        {% endif %}
+                                        <div>
+                                            <div class="font-medium text-gray-900">{{ attachment.original_filename }}</div>
+                                            <div class="text-sm text-gray-500">
+                                                {{ attachment.file_size_formatted }} • 
+                                                {{ attachment.uploader.name }} • 
+                                                {{ attachment.uploaded_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <a href="{{ url_for('attachments.download_attachment', attachment_id=attachment.id) }}" 
+                                           class="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded hover:bg-blue-50">
+                                            <i class="bi bi-download"></i> Download
+                                        </a>
+                                        <button onclick="deleteAttachment({{ attachment.id }})"
+                                                class="px-3 py-1 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-8" id="no-attachments">
+                                <i class="bi bi-paperclip text-4xl text-gray-300 mb-2"></i>
+                                <p class="text-gray-500">No files attached yet. Upload files to share with your team!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Comments -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-5">
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Comments</h4>
+                    
+                    <!-- Add Comment Form -->
+                    <div class="border border-gray-200 rounded-lg p-4 mb-4">
+                        <form id="comment-form">
+                            <textarea class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                      name="comment" rows="3" placeholder="Add a comment..." required></textarea>
+                            <div class="mt-3 flex justify-end">
+                                <button type="submit" class="px-4 py-2 bg-cpa-blue text-white text-sm font-medium rounded-md hover:bg-blue-600">
+                                    <i class="bi bi-chat-dots mr-1"></i> Add Comment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Comments List -->
+                    <div id="comments-list">
+                        {% if comments %}
+                            <div class="space-y-4">
+                                {% for comment in comments %}
+                                <div class="border border-gray-200 rounded-lg p-4">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <div class="flex items-center">
+                                            <span class="font-medium text-gray-900">{{ comment.user.name }}</span>
+                                            <span class="ml-2 text-sm text-gray-500">
+                                                {{ comment.created_at.strftime('%m/%d/%Y %I:%M %p') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p class="text-gray-700">{{ comment.comment }}</p>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-8" id="no-comments">
+                                <i class="bi bi-chat text-4xl text-gray-300 mb-2"></i>
+                                <p class="text-gray-500">No comments yet. Be the first to comment!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Project Tasks (only show if task is part of a project) -->
+            {% if task.project %}
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-gray-900">
+                        <i class="bi bi-list-task mr-2"></i>
+                        All Project Tasks
+                    </h4>
+                    <p class="text-sm text-gray-600 mt-1">
+                        View all tasks in this project to understand workflow dependencies
+                    </p>
+                </div>
+                <div class="px-6 py-5">
+                    {% if task.project.tasks %}
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full">
+                                <thead>
+                                    <tr class="border-b border-gray-200">
+                                        <th class="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                                        <th class="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Due Date</th>
+                                        <th class="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Assignee</th>
+                                        <th class="text-left py-2 text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Status</th>
+                                        <th class="text-right py-2 text-xs font-medium text-gray-500 uppercase tracking-wider w-20">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for project_task in task.project.tasks %}
+                                    <tr class="border-b border-gray-100 {% if project_task.id == task.id %}bg-blue-50{% else %}hover:bg-gray-50{% endif %}">
+                                        <td class="py-3">
+                                            <div class="flex items-center space-x-3">
+                                                <!-- Status indicator -->
+                                                <div class="flex-shrink-0">
+                                                    {% if project_task.status == 'Completed' %}
+                                                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                                                    {% elif project_task.status == 'In Progress' %}
+                                                    <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                                                    {% elif project_task.status == 'Needs Review' %}
+                                                    <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                                    {% else %}
+                                                    <div class="w-3 h-3 rounded-full bg-gray-300"></div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <div>
+                                                    {% if project_task.id == task.id %}
+                                                    <div class="font-medium text-cpa-blue">{{ project_task.title }}</div>
+                                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800 mt-1">
+                                                        Current Task
+                                                    </span>
+                                                    {% else %}
+                                                    <div class="font-medium text-gray-900">{{ project_task.title }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="py-3 text-sm text-gray-600">
+                                            {% if project_task.due_date %}
+                                                {{ project_task.due_date.strftime('%m/%d/%Y') }}
+                                            {% else %}
+                                                <span class="text-gray-400">No date</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3 text-sm text-gray-600">
+                                            {% if project_task.assignee %}
+                                                {{ project_task.assignee.name }}
+                                            {% else %}
+                                                <span class="text-gray-400">Unassigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-3">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                                                {% if project_task.status == 'Completed' %}bg-green-100 text-green-800
+                                                {% elif project_task.status == 'In Progress' %}bg-blue-100 text-blue-800
+                                                {% elif project_task.status == 'Needs Review' %}bg-yellow-100 text-yellow-800
+                                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                                {{ project_task.status }}
+                                            </span>
+                                        </td>
+                                        <td class="py-3 text-right">
+                                            {% if project_task.id != task.id %}
+                                            <a href="{{ url_for('tasks.view_task', id=project_task.id) }}" 
+                                               class="text-sm text-cpa-blue hover:text-blue-600 font-medium">
+                                                View Task →
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Project actions -->
+                        <div class="mt-6 pt-4 border-t border-gray-200">
+                            <div class="flex gap-3">
+                                <a href="{{ url_for('projects.view_project', id=task.project.id) }}" 
+                                   class="flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    <i class="bi bi-folder mr-2"></i> View Full Project
+                                </a>
+                                <a href="{{ url_for('views.kanban_view') }}{% if task.project and task.project.template_origin %}?work_type={{ task.project.template_origin.id }}{% endif %}" 
+                                   class="flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                    <i class="bi bi-kanban mr-2"></i> View on Kanban
+                                </a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8">
+                            <i class="bi bi-list-task text-4xl text-gray-300 mb-2"></i>
+                            <p class="text-gray-500">No other tasks in this project</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Activity Log -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-gray-900">Activity History</h4>
+                </div>
+                <div class="px-6 py-5">
+                    {% if activity_logs %}
+                        <div class="flow-root">
+                            <ul class="-mb-8">
+                                {% for log in activity_logs %}
+                                <li>
+                                    <div class="relative pb-8">
+                                        {% if not loop.last %}
+                                        <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"></span>
+                                        {% endif %}
+                                        <div class="relative flex space-x-3">
+                                            <div>
+                                                <span class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
+                                                    <i class="bi bi-circle-fill text-white text-xs"></i>
+                                                </span>
+                                            </div>
+                                            <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                                <div>
+                                                    <p class="text-sm text-gray-900">{{ log.action }}</p>
+                                                    {% if log.user %}
+                                                    <p class="text-xs text-gray-500">by {{ log.user.name }}</p>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="text-right text-sm whitespace-nowrap text-gray-500">
+                                                    {{ log.timestamp.strftime('%m/%d/%Y %I:%M %p') }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-8">
+                            <i class="bi bi-clock-history text-4xl text-gray-300 mb-2"></i>
+                            <p class="text-gray-500">No activity recorded yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Project Information -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-gray-900">
+                        {% if task.project %}Project Information{% else %}Task Information{% endif %}
+                    </h4>
+                </div>
+                <div class="px-6 py-5 space-y-4">
+                    {% if task.project %}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">CLIENT</label>
+                            <a href="{{ url_for('clients.view_client', id=task.project.client_id) }}" 
+                               class="flex items-center text-cpa-blue hover:text-blue-600">
+                                <i class="bi bi-building mr-2"></i>
+                                {{ task.project.client_name }}
+                            </a>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">PROJECT</label>
+                            <a href="{{ url_for('projects.view_project', id=task.project.id) }}" 
+                               class="text-gray-900 hover:text-cpa-blue font-medium">
+                                {{ task.project.name }}
+                            </a>
+                            <p class="text-sm text-gray-500">{{ task.project.status }}</p>
+                        </div>
+                        
+                        {% if task.project.template_origin %}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">TEMPLATE</label>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {{ task.project.template_origin.name }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">PROJECT PROGRESS</label>
+                            {% set completed_tasks = task.project.tasks|selectattr('status', 'equalto', 'Completed')|list|length %}
+                            {% set total_tasks = task.project.tasks|length %}
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-green-600 h-2 rounded-full" style="width: {{ (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0 }}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">{{ completed_tasks }}/{{ total_tasks }} tasks completed</p>
+                        </div>
+                    {% else %}
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">TYPE</label>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Independent Task
+                            </span>
+                            <p class="text-sm text-gray-500 mt-1">Not associated with any project</p>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">FIRM</label>
+                            <p class="text-sm text-gray-900">{{ session.firm_name }}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-gray-900">Quick Actions</h4>
+                </div>
+                <div class="px-6 py-5 space-y-3">
+                    <button onclick="updateTaskStatus('Completed')" 
+                            class="w-full flex items-center justify-center px-4 py-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100">
+                        <i class="bi bi-check-circle mr-2"></i> Mark Complete
+                    </button>
+                    <button onclick="updateTaskStatus('In Progress')" 
+                            class="w-full flex items-center justify-center px-4 py-2 border border-blue-300 text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100">
+                        <i class="bi bi-play-circle mr-2"></i> Mark In Progress
+                    </button>
+                    
+                    <!-- Time Tracking -->
+                    <div class="border border-blue-200 rounded-lg p-4 mt-4">
+                        <div class="flex items-center mb-3">
+                            <i class="bi bi-stopwatch mr-2 text-blue-600"></i>
+                            <h5 class="font-medium text-gray-900">Time Tracking</h5>
+                        </div>
+                        
+                        <!-- Timer Display -->
+                        <div class="text-center mb-4">
+                            <div class="text-2xl font-mono font-bold text-gray-900" id="timer-display">00:00:00</div>
+                            <p class="text-sm text-gray-500">Current Session</p>
+                        </div>
+                        
+                        <!-- Timer Controls -->
+                        <div class="space-y-2 mb-4">
+                            <button id="start-timer-btn" onclick="startTimer()" 
+                                    class="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700">
+                                <i class="bi bi-play-fill mr-1"></i> Start Timer
+                            </button>
+                            <button id="stop-timer-btn" onclick="stopTimer()" style="display: none;"
+                                    class="w-full px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700">
+                                <i class="bi bi-stop-fill mr-1"></i> Stop Timer
+                            </button>
+                        </div>
+                        
+                        <!-- Manual Time Entry -->
+                        <div class="border-t pt-3">
+                            <label class="block text-xs font-medium text-gray-700 mb-2">Manual Time Entry</label>
+                            <div class="flex gap-2">
+                                <input type="number" id="time-input" placeholder="Hours" step="0.25" min="0"
+                                       class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <button onclick="logTime()" 
+                                        class="px-3 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Total: <span id="total-hours">{{ task.actual_hours or 0 }}</span>h
+                                {% if task.billable_amount > 0 %}
+                                    • Billable: $<span id="billable-amount">{{ "%.2f"|format(task.billable_amount) }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Links -->
+                    {% if task.project %}
+                        <a href="{{ url_for('projects.view_project', id=task.project.id) }}" 
+                           class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="bi bi-folder mr-2"></i> View Project
+                        </a>
+                        <a href="{{ url_for('clients.view_client', id=task.project.client_id) }}" 
+                           class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="bi bi-building mr-2"></i> View Client
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('projects.create_project') }}" 
+                           class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="bi bi-plus-circle mr-2"></i> Create Project
+                        </a>
+                        <a href="{{ url_for('clients.list_clients') }}" 
+                           class="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="bi bi-building mr-2"></i> View Clients
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Task Metadata -->
+            <div class="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h4 class="text-lg font-medium text-gray-900">Task Details</h4>
+                </div>
+                <div class="px-6 py-5 space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">CREATED</label>
+                        <p class="text-sm text-gray-900">{{ task.created_at.strftime('%m/%d/%Y %I:%M %p') if task.created_at else 'N/A' }}</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">ORIGIN</label>
+                        {% if task.template_task_origin_id %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Template Task</span>
+                        {% elif task.recurring_task_origin_id %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Recurring Task</span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Manual Entry</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateTaskStatus(newStatus) {
+    fetch(`{{ url_for('tasks.update_task', id=task.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({status: newStatus})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // If this task belongs to a project, update the Kanban progress
+            {% if task.project %}
+            if (typeof window.updateKanbanProgress === 'function') {
+                window.updateKanbanProgress({{ task.project.id }});
+            }
+            {% endif %}
+            location.reload();
+        } else {
+            alert('Error updating task status');
+        }
+    })
+    .catch(error => {
+        alert('Error updating task status');
+        console.error('Error:', error);
+    });
+}
+
+// Time logging functionality
+function logTime() {
+    const timeInput = document.getElementById('time-input');
+    const hours = parseFloat(timeInput.value);
+    
+    if (!hours || hours <= 0) {
+        showToast('Please enter a valid number of hours', 'error');
+        return;
+    }
+    
+    fetch(`{{ url_for('tasks.log_time', id=task.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({hours: hours})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            timeInput.value = '';
+            showToast(`Logged ${hours}h successfully`, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Error logging time: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Network error occurred', 'error');
+        console.error('Error:', error);
+    });
+}
+
+// Comment functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const commentForm = document.getElementById('comment-form');
+    
+    commentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(commentForm);
+        const submitButton = commentForm.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        
+        submitButton.innerHTML = '<i class="bi bi-hourglass-split mr-1"></i> Adding...';
+        submitButton.disabled = true;
+        
+        fetch(`{{ url_for('tasks.add_task_comment', id=task.id) }}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                commentForm.reset();
+                const noComments = document.getElementById('no-comments');
+                if (noComments) {
+                    noComments.style.display = 'none';
+                }
+                
+                const commentsList = document.getElementById('comments-list');
+                const newComment = document.createElement('div');
+                newComment.className = 'border border-gray-200 rounded-lg p-4';
+                newComment.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center">
+                            <span class="font-medium text-gray-900">${data.comment.user_name}</span>
+                            <span class="ml-2 text-sm text-gray-500">
+                                ${new Date(data.comment.created_at).toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-gray-700">${data.comment.comment}</p>
+                `;
+                
+                if (noComments) {
+                    commentsList.insertBefore(newComment, noComments);
+                } else {
+                    commentsList.insertBefore(newComment, commentsList.firstChild);
+                }
+                
+                showToast('Comment added successfully', 'success');
+            } else {
+                showToast('Error adding comment: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Network error occurred', 'error');
+            console.error('Error:', error);
+        })
+        .finally(() => {
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        });
+    });
+    
+    // File upload functionality
+    const uploadForm = document.getElementById('upload-form');
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="animate-spin bi bi-arrow-clockwise mr-1"></i> Uploading...';
+        
+        fetch('{{ url_for('attachments.upload_file') }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const noAttachments = document.getElementById('no-attachments');
+                if (noAttachments) {
+                    noAttachments.style.display = 'none';
+                }
+                
+                const attachment = data.attachment;
+                const attachmentHtml = `
+                    <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg" data-attachment-id="${attachment.id}">
+                        <div class="flex items-center">
+                            <i class="bi bi-file-earmark text-gray-500 text-xl mr-3"></i>
+                            <div>
+                                <div class="font-medium text-gray-900">${attachment.original_filename}</div>
+                                <div class="text-sm text-gray-500">
+                                    ${attachment.file_size_formatted} • 
+                                    ${attachment.uploader_name} • 
+                                    ${attachment.uploaded_at}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <a href="/attachments/${attachment.id}/download" 
+                               class="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded hover:bg-blue-50">
+                                <i class="bi bi-download"></i> Download
+                            </a>
+                            <button onclick="deleteAttachment(${attachment.id})"
+                                    class="px-3 py-1 text-sm text-red-600 border border-red-200 rounded hover:bg-red-50">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('attachments-list').insertAdjacentHTML('beforeend', attachmentHtml);
+                document.getElementById('file-input').value = '';
+                showToast('File uploaded successfully!', 'success');
+            } else {
+                showToast('Upload failed: ' + data.message, 'error');
+            }
+        })
+        .catch(error => {
+            showToast('Upload failed: ' + error.message, 'error');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+});
+
+function deleteAttachment(attachmentId) {
+    if (!confirm('Are you sure you want to delete this file? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/attachments/${attachmentId}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`[data-attachment-id="${attachmentId}"]`).remove();
+            
+            const attachmentsList = document.getElementById('attachments-list');
+            if (!attachmentsList.querySelector('[data-attachment-id]')) {
+                attachmentsList.innerHTML = `
+                    <div class="text-center py-8" id="no-attachments">
+                        <i class="bi bi-paperclip text-4xl text-gray-300 mb-2"></i>
+                        <p class="text-gray-500">No files attached yet. Upload files to share with your team!</p>
+                    </div>
+                `;
+            }
+            
+            showToast('File deleted successfully!', 'success');
+        } else {
+            showToast('Delete failed: ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Delete failed: ' + error.message, 'error');
+    });
+}
+
+// Timer functionality
+let timerInterval = null;
+let timerStartTime = null;
+
+function updateTimerDisplay(currentDuration = 0) {
+    const hours = Math.floor(currentDuration);
+    const minutes = Math.floor((currentDuration - hours) * 60);
+    const seconds = Math.floor(((currentDuration - hours) * 60 - minutes) * 60);
+    
+    const display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    document.getElementById('timer-display').textContent = display;
+}
+
+function startTimer() {
+    fetch(`{{ url_for('tasks.start_timer', id=task.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('start-timer-btn').style.display = 'none';
+            document.getElementById('stop-timer-btn').style.display = 'block';
+            
+            timerStartTime = Date.now();
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - timerStartTime) / 1000 / 3600;
+                updateTimerDisplay(elapsed);
+            }, 1000);
+            
+            showToast('Timer started', 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error starting timer', 'error');
+    });
+}
+
+function stopTimer() {
+    fetch(`{{ url_for('tasks.stop_timer', id=task.id) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('start-timer-btn').style.display = 'block';
+            document.getElementById('stop-timer-btn').style.display = 'none';
+            
+            clearInterval(timerInterval);
+            updateTimerDisplay(0);
+            
+            document.getElementById('total-hours').textContent = data.total_hours.toFixed(2);
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error stopping timer', 'error');
+    });
+}
+
+// Check timer status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetch(`{{ url_for('tasks.timer_status', id=task.id) }}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.timer_running) {
+            document.getElementById('start-timer-btn').style.display = 'none';
+            document.getElementById('stop-timer-btn').style.display = 'block';
+            
+            timerStartTime = Date.now() - (data.current_duration * 3600 * 1000);
+            timerInterval = setInterval(() => {
+                const elapsed = (Date.now() - timerStartTime) / 1000 / 3600;
+                updateTimerDisplay(elapsed);
+            }, 1000);
+        }
+    });
+});
+
+// Toast notification function
+function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-50 max-w-sm p-4 text-sm text-white rounded-lg shadow-lg ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+    toast.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-3 text-white hover:text-gray-200">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 3000);
+}
+</script>
+{% endblock %}

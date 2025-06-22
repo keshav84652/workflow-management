@@ -1,0 +1,66 @@
+<div class="kanban-card priority-{{ task.priority.lower() }} {% if task.is_overdue %}overdue{% elif task.is_due_soon %}due-soon{% endif %}" data-task-id="{{ task.id }}">
+    <div class="task-title">
+        <a href="{{ url_for('tasks.view_task', id=task.id) }}" class="text-decoration-none text-dark">
+            {{ task.title }}
+        </a>
+    </div>
+    
+    {% if task.description %}
+    <div class="task-meta">
+        {{ task.description[:80] }}{% if task.description|length > 80 %}...{% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="task-meta">
+        {% if task.project %}
+            <i class="bi bi-folder"></i> {{ task.project.client_name }}
+        {% else %}
+            <i class="bi bi-star"></i> Independent Task
+        {% endif %}
+    </div>
+    
+    {% if task.due_date %}
+    <div class="task-meta">
+        <i class="bi bi-calendar-event"></i> Due {{ task.due_date.strftime('%m/%d/%Y') }}
+    </div>
+    {% endif %}
+    
+    {% if task.assignee %}
+    <div class="task-meta">
+        <i class="bi bi-person"></i> {{ task.assignee.name }}
+    </div>
+    {% endif %}
+    
+    <div class="task-badges">
+        {% if task.priority == 'High' %}
+            <span class="badge bg-danger">High Priority</span>
+        {% elif task.priority == 'Medium' %}
+            <span class="badge bg-warning">Medium</span>
+        {% elif task.priority == 'Low' %}
+            <span class="badge bg-success">Low</span>
+        {% endif %}
+        
+        {% if task.is_overdue %}
+            <span class="badge bg-danger">
+                <i class="bi bi-exclamation-triangle"></i> Overdue
+            </span>
+        {% elif task.is_due_soon %}
+            <span class="badge bg-warning">
+                <i class="bi bi-clock"></i> Due Soon
+            </span>
+        {% endif %}
+        
+        {% if task.estimated_hours %}
+            <span class="badge bg-info">{{ task.estimated_hours }}h</span>
+        {% endif %}
+    </div>
+    
+    <div class="task-actions mt-2">
+        <a href="{{ url_for('tasks.edit_task', id=task.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil"></i>
+        </a>
+        <a href="{{ url_for('tasks.view_task', id=task.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-eye"></i>
+        </a>
+    </div>
+</div>

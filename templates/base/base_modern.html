@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-100">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}CPA WorkflowPilot{% endblock %}</title>
+    
+    <!-- Tailwind CSS - Using the Play CDN -->
+    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cpa-navy': '#1e3a8a',
+                        'cpa-blue': '#3b82f6',
+                        'cpa-green': '#10b981',
+                        'cpa-amber': '#f59e0b',
+                        'cpa-red': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Bootstrap Icons (keeping for icon consistency) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Alpine.js for reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
+    
+    
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Fallback critical styles if Tailwind fails to load */
+        .fallback-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .fallback-nav {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 1rem;
+        }
+        
+        .fallback-btn {
+            background-color: #3b82f6;
+            color: white;
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+        
+        /* Sidebar minimization styles */
+        .sidebar-minimized {
+            width: 4rem !important;
+        }
+        
+        .sidebar-minimized .sidebar-text {
+            display: none !important;
+        }
+        
+        .sidebar-minimized .sidebar-logo {
+            display: none !important;
+        }
+        
+        
+        /* Hide scrollbar in minimized state and adjust centering */
+        .sidebar-minimized .overflow-y-auto {
+            overflow-y: auto;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+        
+        .sidebar-minimized .overflow-y-auto::-webkit-scrollbar {
+            display: none; /* Chrome, Safari and Opera */
+        }
+        
+        /* Adjust padding for minimized sidebar */
+        .sidebar-minimized .bg-cpa-navy {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* Perfect center alignment for minimized navigation */
+        .sidebar-minimized ul[role="list"] {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* Center icons in minimized state */
+        .sidebar-minimized a {
+            justify-content: center !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+        }
+        
+        /* Ensure icons are perfectly centered */
+        .sidebar-minimized .bi {
+            margin: 0 auto !important;
+        }
+        
+        /* Adjust main content when sidebar is minimized */
+        .main-content-minimized {
+            margin-left: 4rem !important;
+        }
+        
+        /* Enhanced UI improvements */
+        .card-hover {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .btn-hover {
+            transition: all 0.2s ease-in-out;
+        }
+        
+        .btn-hover:hover {
+            transform: translateY(-1px);
+        }
+        
+        .table-row-hover {
+            transition: background-color 0.15s ease-in-out;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .status-dot.green { background-color: #10b981; }
+        .status-dot.yellow { background-color: #f59e0b; }
+        .status-dot.red { background-color: #ef4444; }
+        .status-dot.blue { background-color: #3b82f6; }
+        .status-dot.gray { background-color: #6b7280; }
+    </style>
+    
+</head>
+<body class="h-full bg-gray-100" x-data="{ sidebarOpen: false, sidebarMinimized: localStorage.getItem('sidebarMinimized') === 'true' }" x-cloak>
+    {% if session.firm_id %}
+    <!-- Sidebar for desktop -->
+    <div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:flex-col transition-all duration-300"
+         :class="sidebarMinimized ? 'w-16 sidebar-minimized' : 'w-72'">
+        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-cpa-navy px-6 pb-4">
+            <!-- Full Sidebar Header -->
+            <div class="flex h-16 shrink-0 items-center justify-between" x-show="!sidebarMinimized">
+                <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" 
+                     alt="Ctrl Filing" class="h-8 w-auto">
+                <button @click="sidebarMinimized = true; localStorage.setItem('sidebarMinimized', true)"
+                        class="text-gray-300 hover:text-white transition-colors p-1">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+            </div>
+            
+            <!-- Minimized Sidebar Header -->
+            <div class="flex h-16 shrink-0 flex-col items-center justify-center space-y-1" x-show="sidebarMinimized">
+                <!-- Just the CTRL part from the logo -->
+                <svg width="32" height="24" viewBox="0 0 63 55" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="8" y="15" width="55" height="40" rx="5" ry="5" fill="none" stroke="white" stroke-width="2.5" />
+                    <text x="35.5" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white" letter-spacing="0.5px">Ctrl</text>
+                </svg>
+                <button @click="sidebarMinimized = false; localStorage.setItem('sidebarMinimized', false)"
+                        class="text-gray-300 hover:text-white transition-colors p-1 rounded">
+                    <i class="bi bi-chevron-right text-sm"></i>
+                </button>
+            </div>
+            <nav class="flex flex-1 flex-col">
+                <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                    <li>
+                        <ul role="list" class="-mx-2 space-y-1">
+                            <li>
+                                <a href="{{ url_for('dashboard.main') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-house h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('tasks.list_tasks') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-list-task h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Tasks</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('projects.list_projects') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-folder h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Projects</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('views.kanban_view') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-kanban h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Kanban</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('views.calendar_view') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-calendar h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Calendar</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('clients.list_clients') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-briefcase h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Clients</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('contacts.list_contacts') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-person-lines-fill h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Contacts</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('admin.templates') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-diagram-3 h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Templates</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{{ url_for('documents.document_checklists') }}" 
+                                   class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                    <i class="bi bi-list-check h-6 w-6 shrink-0"></i>
+                                    <span class="sidebar-text">Checklists</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="mt-auto">
+                        <div class="border-t border-gray-700 pt-4">
+                            <div class="text-xs font-semibold leading-6 text-gray-400 uppercase tracking-wide">Reports</div>
+                            <ul role="list" class="-mx-2 mt-2 space-y-1">
+                                <li>
+                                    <a href="{{ url_for('views.time_tracking_report') }}" 
+                                       class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                        <i class="bi bi-stopwatch h-6 w-6 shrink-0"></i>
+                                        <span class="sidebar-text">Time Tracking</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="border-t border-gray-700 pt-4 mt-4">
+                            <div class="text-xs font-semibold leading-6 text-gray-400 uppercase tracking-wide">Admin</div>
+                            <ul role="list" class="-mx-2 mt-2 space-y-1">
+                                <li>
+                                    <a href="{{ url_for('users.list_users') }}" 
+                                       class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                        <i class="bi bi-people h-6 w-6 shrink-0"></i>
+                                        <span class="sidebar-text">Users</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('admin.admin_work_types') }}" 
+                                       class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                        <i class="bi bi-gear h-6 w-6 shrink-0"></i>
+                                        <span class="sidebar-text">Work Types</span>
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="border-t border-gray-700 pt-4 mt-4">
+                            <a href="{{ url_for('auth.logout') }}" 
+                               class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-red-600">
+                                <i class="bi bi-box-arrow-right h-6 w-6 shrink-0"></i>
+                                <span class="sidebar-text">Sign out</span>
+                            </a>
+                        </div>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Mobile sidebar -->
+    <div class="lg:hidden" x-show="sidebarOpen" x-cloak>
+        <div class="fixed inset-0 z-50 flex">
+            <div class="fixed inset-0 bg-gray-900/80" @click="sidebarOpen = false"></div>
+            <div class="relative mr-16 flex w-full max-w-xs flex-1">
+                <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-cpa-navy px-6 pb-4">
+                    <div class="flex h-16 shrink-0 items-center">
+                        <h1 class="text-xl font-bold text-white">CPA WorkflowPilot</h1>
+                    </div>
+                    <!-- Same navigation as desktop -->
+                    <nav class="flex flex-1 flex-col">
+                        <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                            <!-- Copy same navigation structure -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="transition-all duration-300" :class="sidebarMinimized ? 'lg:pl-16' : 'lg:pl-72'">
+        <!-- Mobile menu button (only visible on mobile) -->
+        <div class="lg:hidden sticky top-0 z-40 flex h-12 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm">
+            <button type="button" class="-m-2.5 p-2.5 text-gray-700" @click="sidebarOpen = true">
+                <span class="sr-only">Open sidebar</span>
+                <i class="bi bi-list h-6 w-6"></i>
+            </button>
+        </div>
+
+        <!-- Page content -->
+        <main class="py-6">
+            <div class="px-4 sm:px-6 lg:px-8">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="rounded-md {% if category == 'error' %}bg-red-50 border border-red-200{% else %}bg-green-50 border border-green-200{% endif %} p-4 mb-4">
+                                <div class="flex">
+                                    <div class="flex-shrink-0">
+                                        {% if category == 'error' %}
+                                            <i class="bi bi-exclamation-circle h-5 w-5 text-red-400"></i>
+                                        {% else %}
+                                            <i class="bi bi-check-circle h-5 w-5 text-green-400"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium {% if category == 'error' %}text-red-800{% else %}text-green-800{% endif %}">
+                                            {{ message }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    {% endif %}
+
+    {% block scripts %}{% endblock %}
+    
+    <!-- Session persistence for browser navigation -->
+    <script>
+    // Maintain session during browser back/forward navigation
+    window.addEventListener('pageshow', function(event) {
+        // If page was loaded from cache (browser back/forward)
+        if (event.persisted) {
+            // Check if we're still authenticated
+            {% if session.get('firm_id') %}
+            // Session exists, we're authenticated
+            console.log('Page restored from cache - session maintained');
+            {% else %}
+            // No session, redirect to login if not on auth pages
+            if (!window.location.pathname.includes('/login') && 
+                !window.location.pathname.includes('/landing') &&
+                window.location.pathname !== '/') {
+                console.log('Session lost during navigation - redirecting to login');
+                window.location.href = '{{ url_for("auth.login") }}';
+            }
+            {% endif %}
+        }
+    });
+    
+    // Prevent session timeout during active use
+    let lastActivity = Date.now();
+    const ACTIVITY_THRESHOLD = 30 * 60 * 1000; // 30 minutes
+    
+    // Track user activity
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(function(event) {
+        document.addEventListener(event, function() {
+            lastActivity = Date.now();
+        }, { passive: true });
+    });
+    
+    // Check session periodically
+    setInterval(function() {
+        const inactive = Date.now() - lastActivity;
+        if (inactive > ACTIVITY_THRESHOLD) {
+            // User has been inactive, check session validity
+            {% if session.get('firm_id') %}
+            fetch('{{ url_for("auth.auth_status") }}')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.authenticated) {
+                        console.log('Session expired due to inactivity');
+                        window.location.href = '{{ url_for("auth.login") }}';
+                    }
+                })
+                .catch(error => {
+                    console.log('Session check failed - assuming logged out');
+                });
+            {% endif %}
+        }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+    </script>
+</body>
+</html>
