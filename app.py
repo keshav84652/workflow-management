@@ -155,14 +155,12 @@ def perform_checklist_ai_analysis(checklist):
         except:
             pass
 # AI Document Analysis Integration
-# Note: Requires environment setup (.env file with API keys)
-# Temporarily disabled AI imports to resolve dependency issues
-AI_SERVICES_AVAILABLE = False
-print("⚠️  AI Services temporarily disabled")
-print("💡 To enable AI features:")
-print("   1. Copy .env.template to .env")
-print("   2. Add your Azure and Gemini API keys")
-print("   3. Install dependencies: pip install -r requirements.txt")
+# AI services are now auto-detected based on available API keys in config
+with app.app_context():
+    print("💡 AI Services status determined by configuration:")
+    print("   Azure Document Intelligence:", "✅" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "❌")
+    print("   Gemini API:", "✅" if app.config.get('GEMINI_API_KEY') else "❌")
+    print("   Overall AI Services:", "✅ Available" if config_class().AI_SERVICES_AVAILABLE else "❌ Not configured")
 
 # try:
 #     from backend.services.document_processor import DocumentProcessor
@@ -189,56 +187,7 @@ def allowed_file_local(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def save_uploaded_file(file, firm_id, entity_type, entity_id):
-    """Save uploaded file and create attachment record"""
-    if not file or not allowed_file_local(file.filename):
-        return None, "Invalid file type"
-    
-    # Generate unique filename
-    original_filename = secure_filename(file.filename)
-    file_extension = original_filename.rsplit('.', 1)[1].lower()
-    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-    
-    # Create firm-specific subdirectory
-    firm_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], str(firm_id))
-    os.makedirs(firm_upload_dir, exist_ok=True)
-    
-    file_path = os.path.join(firm_upload_dir, unique_filename)
-    
-    try:
-        # Save file
-        file.save(file_path)
-        file_size = os.path.getsize(file_path)
-        
-        # Detect MIME type
-        mime_type, _ = mimetypes.guess_type(original_filename)
-        
-        # Create attachment record
-        attachment = Attachment(
-            filename=unique_filename,
-            original_filename=original_filename,
-            file_path=file_path,
-            file_size=file_size,
-            mime_type=mime_type,
-            uploaded_by=session['user_id'],
-            firm_id=firm_id
-        )
-        
-        if entity_type == 'task':
-            attachment.task_id = entity_id
-        elif entity_type == 'project':
-            attachment.project_id = entity_id
-        
-        db.session.add(attachment)
-        db.session.commit()
-        
-        return attachment, None
-        
-    except Exception as e:
-        # Clean up file if database operation fails
-        if os.path.exists(file_path):
-            os.remove(file_path)
-        return None, str(e)
+# Note: save_uploaded_file function moved to blueprints/attachments.py
 
 def would_create_circular_dependency(task_id, dependency_id):
     """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""

@@ -17,24 +17,14 @@ from utils import create_activity_log
 
 ai_bp = Blueprint('ai', __name__)
 
-# Check if AI services are available
-AI_SERVICES_AVAILABLE = False
-
-try:
-    # Import would be here for production
-    # from backend.services.document_processor import DocumentProcessor
-    # from backend.services.azure_service import AzureDocumentService  
-    # from backend.services.gemini_service import GeminiDocumentService
-    # AI_SERVICES_AVAILABLE = True
-    pass
-except Exception:
-    AI_SERVICES_AVAILABLE = False
+# AI services availability is now determined by configuration
+from flask import current_app
 
 
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
-    if not AI_SERVICES_AVAILABLE:
+    if not current_app.config.AI_SERVICES_AVAILABLE:
         return jsonify({
             'success': False,
             'error': 'AI services not available. Please configure environment and install dependencies.'
