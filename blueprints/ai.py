@@ -133,20 +133,47 @@ def get_document_analysis(document_id):
                 'confidence_score': 0.5,
                 'analysis_timestamp': datetime.utcnow().isoformat(),
                 'status': 'mock',
-                'reason': 'Document file not found - using mock data'
+                'services_used': ['mock'],
+                'reason': 'Document file not found - using mock data',
+                'extracted_data': {},
+                'azure_result': None,
+                'gemini_result': None,
+                'combined_analysis': None
             }
         else:
             # Perform real AI analysis
-            mock_results = ai_service.analyze_document(document_path, document_id)
+            analysis_results = ai_service.analyze_document(document_path, document_id)
+            
+            # Convert to frontend-expected format
+            response_data = {
+                'document_type': analysis_results.get('document_type', 'general_document'),
+                'confidence_score': analysis_results.get('confidence_score', 0.0),
+                'analysis_timestamp': analysis_results.get('analysis_timestamp'),
+                'status': analysis_results.get('status', 'completed'),
+                'services_used': analysis_results.get('services_used', []),
+                'extracted_data': {},
+                'azure_result': analysis_results.get('azure_results'),
+                'gemini_result': analysis_results.get('gemini_results'),
+                'combined_analysis': analysis_results.get('combined_analysis')
+            }
+            
+            # Add extracted data from combined analysis
+            if 'combined_analysis' in analysis_results:
+                combined = analysis_results['combined_analysis']
+                response_data['extracted_data'] = combined.get('structured_data', {})
+                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
+                response_data['document_type'] = combined.get('document_type', 'general_document')
         
-        # Save results to database
-        ai_service.save_analysis_results(document_id, mock_results)
-        
-        return jsonify(mock_results)
+        # Save results to database and return response
+        if 'analysis_results' in locals():
+            ai_service.save_analysis_results(document_id, analysis_results)
+            return jsonify(response_data)
+        else:
+            ai_service.save_analysis_results(document_id, mock_results)
+            return jsonify(mock_results)
         
     except Exception as e:
         return jsonify({
-            'success': False,
             'error': f'Analysis failed: {str(e)}'
         }), 500
 
