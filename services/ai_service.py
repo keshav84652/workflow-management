@@ -40,7 +40,7 @@ class AIService:
         """Initialize AI service with configuration"""
         self.config = config
         self.azure_client = None
-        self.gemini_model = None
+        self.gemini_client = None
         
         # Initialize Azure if available and configured (exact copy from working version)
         if (AZURE_AVAILABLE and config and 
@@ -114,7 +114,7 @@ class AIService:
                 results['azure_error'] = str(e)
         
         # Try Gemini analysis
-        if self.gemini_model:
+        if self.gemini_client:
             try:
                 gemini_results = self._analyze_with_gemini(document_path)
                 results['gemini_results'] = gemini_results
@@ -258,9 +258,8 @@ class AIService:
             return {'model_id': 'unknown', 'documents': [], 'tables': []}
     
     def _analyze_with_gemini(self, document_path: str) -> Dict[str, Any]:
-        """Analyze document with Google Gemini"""
-        # For now, we'll analyze text-based documents
-        # Future enhancement: Add image analysis for PDFs/images
+        """Analyze document with Google Gemini - based on working implementation"""
+        start_time = time.time()
         
         try:
             # Read text content (for text files)
@@ -272,44 +271,60 @@ class AIService:
                 # For now, return basic analysis
                 content = f"Document analysis for file: {os.path.basename(document_path)}"
             
-            prompt = f"""
-            Analyze this document and extract key information:
+            logging.info(f"Starting Gemini analysis for: {os.path.basename(document_path)}")
             
-            Document content:
-            {content[:2000]}  # Limit content to avoid token limits
+            # Prepare the content for Gemini (from working version)
+            # For text documents, we add the content and prompt as text
+            parts = []
             
-            Please provide:
-            1. Document type classification
-            2. Key entities and values
-            3. Summary of main content
-            4. Confidence score (0-1)
+            # Add document content as text
+            parts.append(f"Document content:\n{content[:2000]}")
             
-            Return response in JSON format.
-            """
+            # Add analysis prompt
+            parts.append(f"""Analyze this document and extract key tax-relevant information:
+
+Please provide:
+1. Document type classification (tax_document, invoice, receipt, contract, etc.)
+2. Key entities and values found in the document  
+3. Summary of main content
+4. Confidence score (0.0-1.0)
+
+Provide a detailed analysis focusing on tax-relevant information.""")
             
-            response = self.gemini_model.generate_content(prompt)
+            # Use the correct API call from working version
+            response = self.gemini_client.models.generate_content(
+                model="gemini-1.5-flash",  # Use working model
+                contents=parts,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    top_p=0.95,
+                    top_k=32,
+                    max_output_tokens=2048
+                )
+            )
             
-            # Try to parse JSON response, fallback to structured text
-            try:
-                analysis_text = response.text
-                # Basic parsing if Gemini doesn't return pure JSON
-                return {
-                    'service': 'gemini',
-                    'analysis_text': analysis_text,
-                    'document_type': self._extract_document_type(analysis_text),
-                    'confidence_score': 0.85,
-                    'summary': analysis_text[:500] + "..." if len(analysis_text) > 500 else analysis_text
-                }
-            except Exception as parse_error:
-                logging.warning(f"Failed to parse Gemini response: {parse_error}")
-                return {
-                    'service': 'gemini',
-                    'analysis_text': response.text if response.text else "Analysis completed",
-                    'confidence_score': 0.7
-                }
+            # Calculate response time
+            response_time_ms = (time.time() - start_time) * 1000
+            
+            # Parse the response
+            if not response.text:
+                raise ValueError("Empty response from Gemini API")
+            
+            analysis_text = response.text
+            logging.info(f"Gemini analysis completed in {response_time_ms:.2f}ms")
+            
+            return {
+                'service': 'gemini',
+                'analysis_text': analysis_text,
+                'document_type': self._extract_document_type(analysis_text),
+                'confidence_score': 0.85,
+                'summary': analysis_text[:500] + "..." if len(analysis_text) > 500 else analysis_text,
+                'response_time_ms': response_time_ms
+            }
                 
         except Exception as e:
-            raise Exception(f"Gemini analysis failed: {e}")
+            logging.error(f"Gemini analysis failed: {str(e)}")
+            raise Exception(f"Gemini analysis failed: {str(e)}")
     
     def _extract_document_type(self, text: str) -> str:
         """Extract document type from analysis text"""
