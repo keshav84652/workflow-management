@@ -2,7 +2,7 @@
 AI Document Analysis blueprint
 """
 
-from flask import Blueprint, request, session, jsonify, send_file, render_template
+from flask import Blueprint, request, session, jsonify, send_file, render_template, current_app
 from datetime import datetime
 import os
 import json
@@ -11,25 +11,17 @@ from pathlib import Path
 from core import db
 from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
-    IncomeWorksheet, User
+    IncomeWorksheet, User, Attachment
 )
 from utils import create_activity_log
+from services.ai_service import AIService
 
 ai_bp = Blueprint('ai', __name__)
-
-# AI services availability is now determined by configuration
-from flask import current_app
 
 
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
-    if not current_app.config.AI_SERVICES_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'AI services not available. Please configure environment and install dependencies.'
-        }), 503
-    
     firm_id = session['firm_id']
     
     try:
@@ -42,13 +34,40 @@ def analyze_document(document_id):
         if not document:
             return jsonify({'success': False, 'error': 'Document not found'}), 404
         
-        # For now, return success to show the UI works
-        return jsonify({
-            'success': True,
-            'message': 'Document analysis started',
-            'document_id': document_id,
-            'status': 'processing'
-        })
+        # Initialize AI service with current config
+        ai_service = AIService(current_app.config)
+        
+        # Find the actual file path
+        document_path = None
+        if hasattr(document, 'attachment') and document.attachment:
+            document_path = document.attachment.file_path
+        elif hasattr(document, 'file_path') and document.file_path:
+            document_path = document.file_path
+        
+        if not document_path or not os.path.exists(document_path):
+            return jsonify({
+                'success': False,
+                'error': 'Document file not found on server'
+            }), 404
+        
+        # Perform AI analysis
+        results = ai_service.analyze_document(document_path, document_id)
+        
+        # Save results to database
+        if ai_service.save_analysis_results(document_id, results):
+            return jsonify({
+                'success': True,
+                'message': 'Document analysis completed',
+                'document_id': document_id,
+                'status': results.get('status', 'completed'),
+                'services_used': results.get('services_used', []),
+                'confidence_score': results.get('confidence_score', 0.0)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save analysis results'
+            }), 500
         
     except Exception as e:
         return jsonify({
@@ -95,26 +114,33 @@ def get_document_analysis(document_id):
             # If cached results are corrupted, proceed with new analysis
             pass
     
-    # Placeholder for AI analysis implementation
+    # Use real AI analysis implementation
     try:
-        # This would contain the actual AI analysis logic
-        mock_results = {
-            'document_type': 'tax_document',
-            'confidence_score': 0.95,
-            'extracted_data': {
-                'total_income': 50000,
-                'deductions': 5000,
-                'tax_year': 2024
-            },
-            'analysis_timestamp': datetime.utcnow().isoformat(),
-            'status': 'completed'
-        }
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
+        
+        # Find document file path
+        document_path = None
+        if hasattr(document, 'attachment') and document.attachment:
+            document_path = document.attachment.file_path
+        elif hasattr(document, 'file_path') and document.file_path:
+            document_path = document.file_path
+        
+        if not document_path or not os.path.exists(document_path):
+            # Return mock results if file not found
+            mock_results = {
+                'document_type': 'general_document',
+                'confidence_score': 0.5,
+                'analysis_timestamp': datetime.utcnow().isoformat(),
+                'status': 'mock',
+                'reason': 'Document file not found - using mock data'
+            }
+        else:
+            # Perform real AI analysis
+            mock_results = ai_service.analyze_document(document_path, document_id)
         
         # Save results to database
-        document.ai_analysis_completed = True
-        document.ai_analysis_results = json.dumps(mock_results)
-        document.ai_analysis_timestamp = datetime.utcnow()
-        db.session.commit()
+        ai_service.save_analysis_results(document_id, mock_results)
         
         return jsonify(mock_results)
         
@@ -137,7 +163,10 @@ def analyze_checklist(checklist_id):
     ).first_or_404()
     
     try:
-        # Mock analysis of all documents in checklist
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
+        
+        # Real analysis of all documents in checklist
         analyzed_count = 0
         total_documents = 0
         
@@ -145,18 +174,29 @@ def analyze_checklist(checklist_id):
             for document in item.client_documents:
                 total_documents += 1
                 if not document.ai_analysis_completed:
-                    # Mock analysis
-                    mock_results = {
-                        'document_type': 'general_document',
-                        'confidence_score': 0.85,
-                        'analysis_timestamp': datetime.utcnow().isoformat(),
-                        'status': 'completed'
-                    }
+                    # Find document file path
+                    document_path = None
+                    if hasattr(document, 'attachment') and document.attachment:
+                        document_path = document.attachment.file_path
+                    elif hasattr(document, 'file_path') and document.file_path:
+                        document_path = document.file_path
                     
-                    document.ai_analysis_completed = True
-                    document.ai_analysis_results = json.dumps(mock_results)
-                    document.ai_analysis_timestamp = datetime.utcnow()
-                    analyzed_count += 1
+                    if document_path and os.path.exists(document_path):
+                        # Perform real AI analysis
+                        results = ai_service.analyze_document(document_path, document.id)
+                        ai_service.save_analysis_results(document.id, results)
+                        analyzed_count += 1
+                    else:
+                        # Use mock results if file not found
+                        mock_results = {
+                            'document_type': 'general_document',
+                            'confidence_score': 0.5,
+                            'analysis_timestamp': datetime.utcnow().isoformat(),
+                            'status': 'mock',
+                            'reason': 'Document file not found'
+                        }
+                        ai_service.save_analysis_results(document.id, mock_results)
+                        analyzed_count += 1
         
         db.session.commit()
         

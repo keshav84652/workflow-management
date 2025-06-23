@@ -156,11 +156,17 @@ def perform_checklist_ai_analysis(checklist):
             pass
 # AI Document Analysis Integration
 # AI services are now auto-detected based on available API keys in config
+from services.ai_service import AIService
+
 with app.app_context():
     print("💡 AI Services status determined by configuration:")
     print("   Azure Document Intelligence:", "✅" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "❌")
     print("   Gemini API:", "✅" if app.config.get('GEMINI_API_KEY') else "❌")
     print("   Overall AI Services:", "✅ Available" if config_class().AI_SERVICES_AVAILABLE else "❌ Not configured")
+    
+    # Test AI service initialization
+    ai_service = AIService(app.config)
+    print(f"   AI Service Status: {'✅ Ready' if ai_service.is_available() else '❌ Not available'}")
 
 # try:
 #     from backend.services.document_processor import DocumentProcessor
