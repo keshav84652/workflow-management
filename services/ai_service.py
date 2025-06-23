@@ -262,34 +262,54 @@ class AIService:
         start_time = time.time()
         
         try:
-            # Read text content (for text files)
-            if document_path.lower().endswith('.txt'):
-                with open(document_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-            else:
-                # For other file types, we'd need document conversion
-                # For now, return basic analysis
-                content = f"Document analysis for file: {os.path.basename(document_path)}"
-            
             logging.info(f"Starting Gemini analysis for: {os.path.basename(document_path)}")
             
-            # Prepare the content for Gemini (from working version)
-            # For text documents, we add the content and prompt as text
+            # Read document content as bytes (from working version)
+            with open(document_path, 'rb') as f:
+                document_content = f.read()
+            
+            # Determine content type
+            file_ext = document_path.lower().split('.')[-1]
+            if file_ext in ['png', 'jpg', 'jpeg']:
+                content_type = f"image/{file_ext}"
+            elif file_ext == 'pdf':
+                content_type = "application/pdf"
+            elif file_ext == 'txt':
+                content_type = "text/plain"
+            else:
+                content_type = "application/octet-stream"
+            
+            # Prepare the content for Gemini (exact copy from working version)
             parts = []
             
-            # Add document content as text
-            parts.append(f"Document content:\n{content[:2000]}")
+            if content_type.startswith('image/') or content_type == 'application/pdf':
+                # Handle image/PDF formats - send actual binary data (from working version)
+                parts.append(types.Part.from_bytes(
+                    data=document_content,
+                    mime_type=content_type
+                ))
+            else:
+                # Handle text files
+                content_text = document_content.decode('utf-8', errors='ignore')
+                parts.append(f"Document content:\n{content_text[:2000]}")
             
-            # Add analysis prompt
-            parts.append(f"""Analyze this document and extract key tax-relevant information:
+            # Add analysis prompt (from working version)
+            prompt = f"""Analyze this tax document and extract key information.
 
-Please provide:
-1. Document type classification (tax_document, invoice, receipt, contract, etc.)
-2. Key entities and values found in the document  
-3. Summary of main content
-4. Confidence score (0.0-1.0)
+**Requirements:**
+1. Identify document type (W-2, 1099-DIV, 1099-G, 1098-T, etc.)
+2. Extract payer/recipient names and TINs
+3. Extract all numbered box amounts (Box1, Box1a, Box2, etc.)
+4. Identify tax withholdings (federal, state)
+5. Note if document is corrected
 
-Provide a detailed analysis focusing on tax-relevant information.""")
+**Important:**
+- Extract amounts exactly as shown, including $0.00
+- Only include visible information
+- Use "Unknown" for missing fields
+- Keep analysis summary under 200 words"""
+            
+            parts.append(prompt)
             
             # Use the correct API call from working version
             response = self.gemini_client.models.generate_content(
