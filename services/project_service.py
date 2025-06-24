@@ -274,13 +274,7 @@ class ProjectService:
                 if not template_task:
                     return {'success': False, 'message': f'Template task {status_id} not found'}
                 
-                
-                # Note: Removed artificial task completion logic
-                # Column position changes should not manipulate individual task statuses
-                # Let users control task completion naturally, which drives progress percentage
-                    
-                
-                # Set workflow status
+                # Update project workflow status to reflect the new kanban column
                 if template_task.default_status_id:
                     status = TaskStatus.query.get(template_task.default_status_id)
                     if status:
@@ -292,6 +286,18 @@ class ProjectService:
                 else:
                     project.current_status_id = None
                     status_name = template_task.title
+                
+                # Update the project-level task that corresponds to this workflow stage
+                # Find the project task that corresponds to this template task
+                corresponding_task = None
+                for task in project.tasks:
+                    if task.template_task_origin_id == template_task.id:
+                        corresponding_task = task
+                        break
+                
+                # If there's a corresponding task, mark it as "In Progress" to indicate the project is at this stage
+                if corresponding_task and corresponding_task.status == 'Not Started':
+                    corresponding_task.status = 'In Progress'
                 
                 project.status = 'Active'
             
