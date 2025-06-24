@@ -148,11 +148,12 @@ class AIService:
             
             logging.info(f"Starting Azure document analysis for: {document_path}")
             
-            # Try multiple models in order of preference
+            # Use tax-specific models first, then fallback to generic models
             models_to_try = [
-                "prebuilt-layout",           # Basic layout analysis (most widely available)
-                "prebuilt-document",         # General document model
-                "prebuilt-read",            # Text extraction only
+                "prebuilt-tax.us.1099",      # Tax form 1099 variants
+                "prebuilt-tax.us.w2",        # W-2 tax forms  
+                "prebuilt-document",         # Generic document with fields
+                "prebuilt-layout"            # Layout-only fallback
             ]
             
             result = None
@@ -184,13 +185,13 @@ class AIService:
             # Calculate response time
             response_time_ms = (time.time() - start_time) * 1000
             
-            # Extract key information from Azure results (enhanced from working version)
+            # Extract key information from Azure results (format for frontend)
             extracted_data = {
                 'service': 'azure',
-                'model_id': successful_model or result_dict.get('model_id', 'unknown'),
+                'model_id': successful_model or 'unknown',
                 'documents_found': len(result_dict.get('documents', [])),
                 'tables': [],
-                'key_value_pairs': {},
+                'key_value_pairs': [],  # Array format for frontend
                 'text_content': '',
                 'confidence_score': 0.9,
                 'response_time_ms': response_time_ms
@@ -202,11 +203,28 @@ class AIService:
                 doc = documents[0]
                 extracted_data['text_content'] = doc.get('content', '')
                 
-                # Extract fields as key-value pairs
+                # Extract fields as key-value pairs (as array)
                 if 'fields' in doc:
                     for field_name, field_data in doc['fields'].items():
-                        if isinstance(field_data, dict) and 'value' in field_data:
-                            extracted_data['key_value_pairs'][field_name] = str(field_data['value'])
+                        if isinstance(field_data, dict):
+                            # Handle different Azure field value formats
+                            value = None
+                            if 'value' in field_data:
+                                value = field_data['value']
+                            elif 'content' in field_data:
+                                value = field_data['content']
+                            elif 'valueString' in field_data:
+                                value = field_data['valueString']
+                            elif 'valueNumber' in field_data:
+                                value = field_data['valueNumber']
+                            elif 'valueDate' in field_data:
+                                value = field_data['valueDate']
+                            
+                            if value is not None:
+                                extracted_data['key_value_pairs'].append({
+                                    'key': field_name,
+                                    'value': str(value)
+                                })
             
             # Extract tables from result
             if 'tables' in result_dict:
