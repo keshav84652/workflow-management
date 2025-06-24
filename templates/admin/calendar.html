@@ -152,6 +152,13 @@
 const calendarData = {{ calendar_data|tojson }};
 let currentDate = new Date({{ current_date.year }}, {{ current_date.month - 1 }}, {{ current_date.day }});
 
+// Helper function to format date as YYYY-MM-DD without timezone issues
+function formatDateString(date) {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
+}
+
 // Initialize calendar
 function initCalendar() {
     generateCalendar(currentDate);
@@ -228,8 +235,8 @@ function generateCalendar(date) {
                 dayNumberDiv.classList.add('text-cpa-blue', 'font-bold');
             }
             
-            // Add tasks for this day
-            const dateStr = cellDate.toISOString().split('T')[0];
+            // Add tasks for this day (fix timezone issue)
+            const dateStr = formatDateString(cellDate);
             if (calendarData[dateStr]) {
                 const tasks = calendarData[dateStr];
                 let visibleTasks = 0;
@@ -278,7 +285,7 @@ function generateCalendar(date) {
 
 // Show tasks for selected date
 function showTasksForDate(date) {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateString(date);
     const tasks = calendarData[dateStr] || [];
     
     document.getElementById('modal-date').textContent = 

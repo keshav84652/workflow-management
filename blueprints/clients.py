@@ -14,7 +14,9 @@ clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
 @clients_bp.route('/')
 def list_clients():
     firm_id = session['firm_id']
-    clients = Client.query.filter_by(firm_id=firm_id).order_by(Client.name.asc()).all()
+    # Use service layer to get clients
+    from services.client_service import ClientService
+    clients = ClientService.get_clients_for_firm(firm_id)
     return render_template('clients/clients.html', clients=clients)
 
 
@@ -23,7 +25,8 @@ def create_client():
     if request.method == 'POST':
         firm_id = session['firm_id']
         
-        client = Client(
+        # Use service layer to create client
+        result = ClientService.create_client(
             name=request.form.get('name'),
             email=request.form.get('email'),
             phone=request.form.get('phone'),
@@ -34,23 +37,25 @@ def create_client():
             notes=request.form.get('notes'),
             firm_id=firm_id
         )
-        db.session.add(client)
-        db.session.commit()
         
-        # Activity log
-        create_activity_log(f'Client "{client.name}" created', session['user_id'])
-        
-        flash('Client created successfully!', 'success')
-        return redirect(url_for('clients.list_clients'))
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('clients.list_clients'))
+        else:
+            flash(result['message'], 'error')
+            return redirect(url_for('clients.create_client'))
     
     return render_template('clients/create_client.html')
 
 
 @clients_bp.route('/<int:id>')
 def view_client(id):
-    client = Client.query.get_or_404(id)
-    if client.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
+    firm_id = session['firm_id']
+    
+    # Use service layer to get client
+    client = ClientService.get_client_by_id(id, firm_id)
+    if not client:
+        flash('Client not found or access denied', 'error')
         return redirect(url_for('clients.list_clients'))
     
     projects = Project.query.filter_by(client_id=id).order_by(Project.created_at.desc()).all()
@@ -63,91 +68,59 @@ def view_client(id):
 
 @clients_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_client(id):
-    client = Client.query.get_or_404(id)
-    if client.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
+    firm_id = session['firm_id']
+    
+    # Use service layer to get client
+    from services.client_service import ClientService
+    client = ClientService.get_client_by_id(id, firm_id)
+    if not client:
+        flash('Client not found or access denied', 'error')
         return redirect(url_for('clients.list_clients'))
     
     if request.method == 'POST':
-        client.name = request.form.get('name')
-        client.email = request.form.get('email')
-        client.phone = request.form.get('phone')
-        client.address = request.form.get('address')
-        client.contact_person = request.form.get('contact_person')
-        client.entity_type = request.form.get('entity_type')
-        client.tax_id = request.form.get('tax_id')
-        client.notes = request.form.get('notes')
+        # Use service layer to update client
+        result = ClientService.update_client(
+            client_id=id,
+            name=request.form.get('name'),
+            email=request.form.get('email'),
+            phone=request.form.get('phone'),
+            address=request.form.get('address'),
+            contact_person=request.form.get('contact_person'),
+            entity_type=request.form.get('entity_type'),
+            tax_id=request.form.get('tax_id'),
+            notes=request.form.get('notes'),
+            firm_id=firm_id
+        )
         
-        db.session.commit()
-        
-        # Activity log
-        create_activity_log(f'Client "{client.name}" updated', session['user_id'])
-        
-        flash('Client updated successfully!', 'success')
-        return redirect(url_for('clients.view_client', id=client.id))
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('clients.view_client', id=id))
+        else:
+            flash(result['message'], 'error')
+            return redirect(url_for('clients.edit_client', id=id))
     
     return render_template('clients/edit_client.html', client=client)
 
 
 @clients_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_client(id):
-    client = Client.query.get_or_404(id)
+    firm_id = session['firm_id']
     
-    # Check access permission
-    if client.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    # Use service layer to delete client
+    result = ClientService.delete_client(id, firm_id)
     
-    try:
-        client_name = client.name
-        
-        # Get counts for confirmation message
-        project_count = Project.query.filter_by(client_id=id).count()
-        task_count = Task.query.join(Project).filter_by(client_id=id).count()
-        contact_count = len(client.contacts)
-        
-        # Create activity log before deletion
-        create_activity_log(f'Client "{client_name}" deleted (with {project_count} projects, {task_count} tasks, {contact_count} contacts)', session['user_id'])
-        
-        # Delete all associated projects (which will cascade delete tasks and attachments)
-        projects = Project.query.filter_by(client_id=id).all()
-        for project in projects:
-            # Delete project attachments
-            Attachment.query.filter_by(project_id=project.id).delete()
-            
-            # Delete all tasks and their comments for this project
-            tasks = Task.query.filter_by(project_id=project.id).all()
-            for task in tasks:
-                TaskComment.query.filter_by(task_id=task.id).delete()
-                db.session.delete(task)
-            
-            # Delete the project
-            db.session.delete(project)
-        
-        # Delete any independent tasks for this client
-        independent_tasks = Task.query.filter_by(client_id=id, project_id=None).all()
-        for task in independent_tasks:
-            TaskComment.query.filter_by(task_id=task.id).delete()
-            db.session.delete(task)
-        
-        # Delete client-contact associations
-        ClientContact.query.filter_by(client_id=id).delete()
-        
-        # Delete client attachments
-        Attachment.query.filter_by(client_id=id).delete()
-        
-        # Delete the client itself
-        db.session.delete(client)
-        db.session.commit()
-        
+    if result['success']:
         return jsonify({
-            'success': True, 
-            'message': f'Client "{client_name}" and all associated data deleted successfully',
+            'success': True,
+            'message': result['message'],
             'redirect': url_for('clients.list_clients')
         })
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error deleting client: {str(e)}'}), 500
+    else:
+        status_code = 403 if 'access' in result['message'].lower() else 500
+        return jsonify({
+            'success': False,
+            'message': result['message']
+        }), status_code
 
 
 @clients_bp.route('/<int:id>/mark_inactive', methods=['POST'])

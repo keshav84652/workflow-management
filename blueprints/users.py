@@ -11,7 +11,10 @@ users_bp = Blueprint('users', __name__, url_prefix='/users')
 
 @users_bp.route('/')
 def list_users():
+    from services.admin_service import AdminService
+    
     firm_id = session['firm_id']
+    # Note: AdminService doesn't have get_users_for_firm yet, using direct query for now
     users = User.query.filter_by(firm_id=firm_id).all()
     return render_template('admin/users.html', users=users)
 
@@ -19,17 +22,19 @@ def list_users():
 @users_bp.route('/create', methods=['GET', 'POST'])
 def create_user():
     if request.method == 'POST':
+        from services.admin_service import AdminService
+        
         firm_id = session['firm_id']
+        name = request.form.get('name')
+        role = request.form.get('role', 'Member')
         
-        user = User(
-            name=request.form.get('name'),
-            role=request.form.get('role', 'Member'),
-            firm_id=firm_id
-        )
-        db.session.add(user)
-        db.session.commit()
+        result = AdminService.create_user(name, role, firm_id)
         
-        flash('User created successfully!', 'success')
+        if result['success']:
+            flash(result['message'], 'success')
+        else:
+            flash(result['message'], 'error')
+        
         return redirect(url_for('users.list_users'))
     
     return render_template('admin/create_user.html')

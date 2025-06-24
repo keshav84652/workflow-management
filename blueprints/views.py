@@ -196,42 +196,20 @@ def time_tracking_report():
 def kanban_view():
     firm_id = session['firm_id']
     
-    # Get filter parameters
-    work_type_filter = request.args.get('work_type')
+    # Get filter parameters (simplified for MVP - removed work type filtering)
     priority_filter = request.args.get('priority')
     due_filter = request.args.get('due_filter')
     
-    # Get work types for filtering
-    work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
-    
-    # If no work type is selected and work types exist, redirect to the first one
-    if not work_type_filter and work_types:
-        return redirect(url_for('views.kanban_view', work_type=work_types[0].id))
-    
-    current_work_type = None
-    kanban_columns = []
-    
-    if work_type_filter:
-        current_work_type = WorkType.query.filter_by(id=work_type_filter, firm_id=firm_id).first()
-        if current_work_type:
-            # Get the template associated with this work type
-            template = Template.query.filter_by(
-                work_type_id=current_work_type.id,
-                firm_id=firm_id
-            ).first()
-            
-            if template:
-                # Use template tasks as Kanban columns
-                kanban_columns = TemplateTask.query.filter_by(
-                    template_id=template.id
-                ).order_by(TemplateTask.order.asc()).all()
+    # Simplified kanban columns for MVP (standard project statuses)
+    kanban_columns = [
+        {'id': 'not_started', 'name': 'Not Started', 'color': '#6b7280'},
+        {'id': 'in_progress', 'name': 'In Progress', 'color': '#3b82f6'},
+        {'id': 'review', 'name': 'Review', 'color': '#f59e0b'},
+        {'id': 'completed', 'name': 'Completed', 'color': '#10b981'}
+    ]
     
     # Base query for projects (not individual tasks)
     query = Project.query.filter_by(firm_id=firm_id, status='Active')
-    
-    # Apply work type filter
-    if work_type_filter and current_work_type:
-        query = query.filter(Project.work_type_id == current_work_type.id)
     
     # Apply priority filter
     if priority_filter:
@@ -250,51 +228,29 @@ def kanban_view():
     # Get all projects
     projects = query.order_by(Project.created_at.desc()).all()
     
-    # Organize projects by current task progress (simplified version)
+    # Organize projects by status (simplified for MVP)
     projects_by_column = {}
     project_counts = {}
     
-    if kanban_columns:
-        # Initialize columns
-        for column in kanban_columns:
-            projects_by_column[column.id] = []
-            project_counts[column.id] = 0
-        
-        # Add a "Completed" column for finished projects
-        projects_by_column['completed'] = []
-        project_counts['completed'] = 0
-        
-        # Assign projects to columns based on their actual progress
-        for project in projects:
-            
-            if project.status == 'Completed' or project.progress_percentage == 100:
-                # Completed projects go to a special completed column
-                projects_by_column['completed'].append(project)
-                project_counts['completed'] += 1
-            elif len(kanban_columns) > 0:
-                # Assign based on progress percentage across available columns
-                progress = project.progress_percentage
-                column_count = len(kanban_columns)
-                
-                # Calculate which column based on progress
-                if progress == 0:
-                    # 0% progress - first column
-                    target_column_index = 0
-                elif progress >= 100:
-                    # Should be in completed already, but fallback to last column
-                    target_column_index = column_count - 1
-                else:
-                    # Distribute projects across columns based on progress ranges
-                    # Example: 0-33% = column 0, 34-66% = column 1, 67-99% = column 2
-                    progress_per_column = 100 / column_count
-                    target_column_index = min(int(progress / progress_per_column), column_count - 1)
-                
-                target_column = kanban_columns[target_column_index]
-                projects_by_column[target_column.id].append(project)
-                project_counts[target_column.id] += 1
-    else:
-        projects_by_column = {}
-        project_counts = {}
+    # Initialize columns
+    for column in kanban_columns:
+        projects_by_column[column['id']] = []
+        project_counts[column['id']] = 0
+    
+    # Assign projects to columns based on their status and progress
+    for project in projects:
+        if project.status == 'Completed' or project.progress_percentage >= 100:
+            projects_by_column['completed'].append(project)
+            project_counts['completed'] += 1
+        elif project.progress_percentage == 0:
+            projects_by_column['not_started'].append(project)
+            project_counts['not_started'] += 1
+        elif project.progress_percentage < 75:
+            projects_by_column['in_progress'].append(project)
+            project_counts['in_progress'] += 1
+        else:
+            projects_by_column['review'].append(project)
+            project_counts['review'] += 1
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
@@ -303,7 +259,7 @@ def kanban_view():
                          projects_by_column=projects_by_column,
                          project_counts=project_counts,
                          kanban_columns=kanban_columns,
-                         current_work_type=current_work_type,
-                         work_types=work_types,
+                         current_work_type=None,  # No work type filtering for MVP
+                         work_types=[],  # Empty for MVP
                          users=users,
                          today=date.today())

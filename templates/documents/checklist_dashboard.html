@@ -1014,7 +1014,7 @@ async function showDocumentVisualization(documentId) {
     vizDiv.classList.remove('hidden');
     
     try {
-        const response = await fetch(`/create-document-visualization/${documentId}`, {
+        const response = await fetch(`/ai/create-document-visualization/${documentId}`, {
             method: 'POST'
         });
         
@@ -1031,7 +1031,7 @@ async function showDocumentVisualization(documentId) {
                                 <i class="bi bi-x-lg"></i>
                             </button>
                         </div>
-                        <img src="/document-visualization/${documentId}?t=${Date.now()}" 
+                        <img src="/ai/document-visualization/${documentId}?t=${Date.now()}" 
                              alt="Document with tick mark annotations" 
                              class="max-w-full h-auto rounded border"
                              onerror="this.parentElement.innerHTML='<p class=&quot;text-red-600&quot;>Failed to load visualization image</p>'" />
