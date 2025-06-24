@@ -148,14 +148,35 @@ class AIService:
             
             logging.info(f"Starting Azure document analysis for: {document_path}")
             
-            # Start the analysis - use BytesIO for stable SDK (from working version)
-            poller = self.azure_client.begin_analyze_document(
-                model_id="prebuilt-document",  # Use general document model
-                body=BytesIO(document_content)
-            )
+            # Try multiple models in order of preference
+            models_to_try = [
+                "prebuilt-layout",           # Basic layout analysis (most widely available)
+                "prebuilt-document",         # General document model
+                "prebuilt-read",            # Text extraction only
+            ]
             
-            # Wait for completion
-            result = poller.result()
+            result = None
+            successful_model = None
+            last_error = None
+            
+            for model_id in models_to_try:
+                try:
+                    logging.info(f"Trying Azure model: {model_id}")
+                    poller = self.azure_client.begin_analyze_document(
+                        model_id=model_id,
+                        body=BytesIO(document_content)
+                    )
+                    result = poller.result()
+                    successful_model = model_id
+                    logging.info(f"Successfully used Azure model: {model_id}")
+                    break
+                except Exception as e:
+                    last_error = e
+                    logging.warning(f"Azure model {model_id} failed: {str(e)}")
+                    continue
+            
+            if not result:
+                raise Exception(f"All Azure models failed. Last error: {str(last_error)}")
             
             # Convert to dictionary (from working version)
             result_dict = result.as_dict() if hasattr(result, 'as_dict') else self._serialize_azure_result(result)
@@ -166,7 +187,7 @@ class AIService:
             # Extract key information from Azure results (enhanced from working version)
             extracted_data = {
                 'service': 'azure',
-                'model_id': result_dict.get('model_id', 'prebuilt-document'),
+                'model_id': successful_model or result_dict.get('model_id', 'unknown'),
                 'documents_found': len(result_dict.get('documents', [])),
                 'tables': [],
                 'key_value_pairs': {},
