@@ -275,45 +275,9 @@ class ProjectService:
                     return {'success': False, 'message': f'Template task {status_id} not found'}
                 
                 
-                # Calculate target progress based on template task position
-                # Get all template tasks for this work type, ordered by workflow_order
-                all_template_tasks = TemplateTask.query.filter_by(
-                    template_id=template_task.template_id
-                ).order_by(TemplateTask.workflow_order.asc()).all()
-                
-                # Find position of current template task
-                current_position = 0
-                for i, tt in enumerate(all_template_tasks):
-                    if tt.id == template_task.id:
-                        current_position = i
-                        break
-                
-                # Calculate target progress (each column represents a portion of completion)
-                total_columns = len(all_template_tasks)
-                target_progress_percent = ((current_position + 1) / total_columns) * 100
-                target_progress_percent = min(target_progress_percent, 95)  # Cap at 95% for non-completed
-                
-                
-                # Update tasks to match target progress
-                total_tasks = len(project.tasks)
-                if total_tasks > 0:
-                    target_completed_tasks = int((target_progress_percent / 100) * total_tasks)
-                    
-                    # Sort tasks by creation order for consistent completion
-                    sorted_tasks = sorted(project.tasks, key=lambda t: t.id)
-                    
-                    tasks_updated = 0
-                    for i, task in enumerate(sorted_tasks):
-                        should_be_completed = i < target_completed_tasks
-                        
-                        if should_be_completed and task.status != 'Completed':
-                            task.status = 'Completed'
-                            task.completed_at = datetime.utcnow()
-                            tasks_updated += 1
-                        elif not should_be_completed and task.status == 'Completed':
-                            task.status = 'In Progress'
-                            task.completed_at = None
-                            tasks_updated += 1
+                # Note: Removed artificial task completion logic
+                # Column position changes should not manipulate individual task statuses
+                # Let users control task completion naturally, which drives progress percentage
                     
                 
                 # Set workflow status
