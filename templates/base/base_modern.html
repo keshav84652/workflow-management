@@ -273,7 +273,13 @@
                                         <span class="sidebar-text">Users</span>
                                     </a>
                                 </li>
-                                <!-- Work Types removed for MVP simplification -->
+                                <li>
+                                    <a href="{{ url_for('admin.admin_work_types') }}" 
+                                       class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold text-gray-300 hover:text-white hover:bg-cpa-blue">
+                                        <i class="bi bi-gear h-6 w-6 shrink-0"></i>
+                                        <span class="sidebar-text">Work Types</span>
+                                    </a>
+                                </li>
                             </ul>
                         </div>
                         <div class="border-t border-gray-700 pt-4 mt-4">
