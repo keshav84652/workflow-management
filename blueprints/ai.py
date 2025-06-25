@@ -25,50 +25,26 @@ def analyze_document(document_id):
     firm_id = session['firm_id']
     
     try:
-        # Get the document and verify access
-        document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-            ClientDocument.id == document_id,
-            Client.firm_id == firm_id
-        ).first()
-        
-        if not document:
-            return jsonify({'success': False, 'error': 'Document not found'}), 404
-        
-        # Initialize AI service with current config
+        # Initialize AI service
         ai_service = AIService(current_app.config)
         
-        # Find the actual file path
-        document_path = None
-        if hasattr(document, 'attachment') and document.attachment:
-            document_path = document.attachment.file_path
-        elif hasattr(document, 'file_path') and document.file_path:
-            document_path = document.file_path
+        # Perform analysis
+        results = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis=True)
         
-        if not document_path or not os.path.exists(document_path):
-            return jsonify({
-                'success': False,
-                'error': 'Document file not found on server'
-            }), 404
+        return jsonify({
+            'success': True,
+            'message': 'Document analysis completed',
+            'document_id': document_id,
+            'status': results.get('status', 'completed'),
+            'services_used': results.get('services_used', []),
+            'confidence_score': results.get('confidence_score', 0.0)
+        })
         
-        # Perform AI analysis
-        results = ai_service.analyze_document(document_path, document_id)
-        
-        # Save results to database
-        if ai_service.save_analysis_results(document_id, results):
-            return jsonify({
-                'success': True,
-                'message': 'Document analysis completed',
-                'document_id': document_id,
-                'status': results.get('status', 'completed'),
-                'services_used': results.get('services_used', []),
-                'confidence_score': results.get('confidence_score', 0.0)
-            })
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Failed to save analysis results'
-            }), 500
-        
+    except ValueError as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 404
     except Exception as e:
         return jsonify({
             'success': False,
@@ -87,126 +63,22 @@ def get_document_analysis(document_id):
     except Exception as session_error:
         return jsonify({'error': f'Session error: {str(session_error)}'}), 500
     
-    # Get the document and verify access
-    try:
-        document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-            ClientDocument.id == document_id,
-            Client.firm_id == firm_id
-        ).first()
-        
-        if not document:
-            return jsonify({'error': 'Document not found'}), 404
-            
-    except Exception as db_error:
-        return jsonify({'error': f'Database error: {str(db_error)}'}), 500
-    
     # Check for force_reanalysis parameter
     force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
     
-    # If forcing re-analysis, reset analysis status to ensure fresh analysis
-    if force_reanalysis:
-        document.ai_analysis_completed = False
-        document.ai_analysis_results = None
-        document.ai_analysis_timestamp = None
-        db.session.commit()
-    
-    # Check if AI analysis has already been completed (unless forcing re-analysis)
-    if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
-        try:
-            cached_results = json.loads(document.ai_analysis_results)
-            
-            # Convert cached results to frontend-expected format (same as fresh analysis)
-            response_data = {
-                'document_type': cached_results.get('document_type', 'general_document'),
-                'confidence_score': cached_results.get('confidence_score', 0.0),
-                'analysis_timestamp': document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None,
-                'status': cached_results.get('status', 'completed'),
-                'services_used': cached_results.get('services_used', []),
-                'extracted_data': {},
-                'azure_result': cached_results.get('azure_results'),  # Map plural to singular 
-                'gemini_result': cached_results.get('gemini_results'),  # Map plural to singular
-                'combined_analysis': cached_results.get('combined_analysis'),
-                'cached': True
-            }
-            
-            # Add extracted data from combined analysis
-            if 'combined_analysis' in cached_results:
-                combined = cached_results['combined_analysis']
-                response_data['extracted_data'] = combined.get('structured_data', {})
-                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
-                response_data['document_type'] = combined.get('document_type', 'general_document')
-            
-            return jsonify(response_data)
-        except (json.JSONDecodeError, AttributeError):
-            # If cached results are corrupted, proceed with new analysis
-            pass
-    
-    # Use real AI analysis implementation
     try:
         # Initialize AI service
         ai_service = AIService(current_app.config)
         
-        # Find document file path
-        document_path = None
-        if hasattr(document, 'attachment') and document.attachment:
-            document_path = document.attachment.file_path
-        elif hasattr(document, 'file_path') and document.file_path:
-            document_path = document.file_path
+        # Get or perform analysis
+        response_data = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis)
         
-        if not document_path or not os.path.exists(document_path):
-            # Return mock results if file not found
-            mock_results = {
-                'document_type': 'general_document',
-                'confidence_score': 0.5,
-                'analysis_timestamp': datetime.utcnow().isoformat(),
-                'status': 'mock',
-                'services_used': ['mock'],
-                'reason': 'Document file not found - using mock data',
-                'extracted_data': {},
-                'azure_result': None,
-                'gemini_result': None,
-                'combined_analysis': None
-            }
-        else:
-            # Perform real AI analysis
-            analysis_results = ai_service.analyze_document(document_path, document_id)
-            
-            # Convert to frontend-expected format
-            response_data = {
-                'document_type': analysis_results.get('document_type', 'general_document'),
-                'confidence_score': analysis_results.get('confidence_score', 0.0),
-                'analysis_timestamp': analysis_results.get('analysis_timestamp'),
-                'status': analysis_results.get('status', 'completed'),
-                'services_used': analysis_results.get('services_used', []),
-                'extracted_data': {},
-                'azure_result': analysis_results.get('azure_results'),  # Map plural to singular 
-                'gemini_result': analysis_results.get('gemini_results'),  # Map plural to singular
-                'combined_analysis': analysis_results.get('combined_analysis'),
-                'filename': os.path.basename(document_path) if document_path else 'Unknown'  # Add filename for display
-            }
-            
-            # Add extracted data from combined analysis
-            if 'combined_analysis' in analysis_results:
-                combined = analysis_results['combined_analysis']
-                response_data['extracted_data'] = combined.get('structured_data', {})
-                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
-                response_data['document_type'] = combined.get('document_type', 'general_document')
+        return jsonify(response_data)
         
-        # Save results to database and return response
-        if 'analysis_results' in locals():
-            ai_service.save_analysis_results(document_id, analysis_results)
-            db.session.commit()
-            return jsonify(response_data)
-        else:
-            ai_service.save_analysis_results(document_id, mock_results)
-            db.session.commit()
-            return jsonify(mock_results)
-        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'error': f'Analysis failed: {str(e)}'
-        }), 500
+        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
@@ -220,13 +92,7 @@ def analyze_checklist(checklist_id):
     except Exception as session_error:
         return jsonify({'error': f'Session error: {str(session_error)}'}), 500
     
-    # Get checklist and verify access
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Get force_reanalysis flag using more robust method
+    # Get force_reanalysis flag
     request_data = request.get_json(silent=True) or {}
     force_reanalysis = request_data.get('force_reanalysis', False)
     
@@ -234,67 +100,15 @@ def analyze_checklist(checklist_id):
         # Initialize AI service
         ai_service = AIService(current_app.config)
         
-        # Real analysis of all documents in checklist
-        analyzed_count = 0
-        total_documents = 0
+        # Analyze all documents in checklist
+        results = ai_service.analyze_checklist_documents(checklist_id, firm_id, force_reanalysis)
         
-        for item in checklist.items:
-            for document in item.client_documents:
-                total_documents += 1
-                
-                # If forcing re-analysis, reset the document's analysis status
-                if force_reanalysis:
-                    document.ai_analysis_completed = False
-                    document.ai_analysis_results = None
-                    document.ai_analysis_timestamp = None
-                
-                if not document.ai_analysis_completed or force_reanalysis:
-                    try:
-                        # Find document file path
-                        document_path = None
-                        if hasattr(document, 'attachment') and document.attachment:
-                            document_path = document.attachment.file_path
-                        elif hasattr(document, 'file_path') and document.file_path:
-                            document_path = document.file_path
-                        
-                        if document_path and os.path.exists(document_path):
-                            # Perform real AI analysis
-                            results = ai_service.analyze_document(document_path, document.id)
-                            ai_service.save_analysis_results(document.id, results)
-                            analyzed_count += 1
-                        else:
-                            # Use mock results if file not found
-                            mock_results = {
-                                'document_type': 'general_document',
-                                'confidence_score': 0.5,
-                                'analysis_timestamp': datetime.utcnow().isoformat(),
-                                'status': 'mock',
-                                'reason': 'Document file not found'
-                            }
-                            ai_service.save_analysis_results(document.id, mock_results)
-                            analyzed_count += 1
-                        
-                        # Commit after each document to avoid session buildup
-                        db.session.commit()
-                        
-                    except Exception as doc_error:
-                        print(f"Error processing document {document.id}: {doc_error}")
-                        db.session.rollback()
-                        # Continue with next document
+        return jsonify(results)
         
-        return jsonify({
-            'success': True,
-            'analyzed_count': analyzed_count,
-            'total_documents': total_documents,
-            'message': f'Analyzed {analyzed_count} new documents'
-        })
-        
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
     except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': f'Analysis failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Analysis failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/api/export-checklist-analysis/<int:checklist_id>', methods=['GET'])
@@ -351,51 +165,21 @@ def export_checklist_analysis(checklist_id):
 def generate_income_worksheet(checklist_id):
     """Generate income worksheet from analyzed documents"""
     firm_id = session['firm_id']
-    
-    # Get checklist and verify access
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    user_id = session['user_id']
     
     try:
-        # Mock income worksheet generation
-        worksheet_data = {
-            'total_income': 75000,
-            'w2_income': 60000,
-            'interest_income': 500,
-            'dividend_income': 1500,
-            'other_income': 13000,
-            'total_deductions': 12000,
-            'federal_withholding': 8000,
-            'state_withholding': 2000
-        }
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
         
-        # Create or update income worksheet
-        worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
-        if not worksheet:
-            worksheet = IncomeWorksheet(
-                checklist_id=checklist_id,
-                created_by=session['user_id']
-            )
-            db.session.add(worksheet)
+        # Generate income worksheet
+        results = ai_service.generate_income_worksheet(checklist_id, firm_id, user_id)
         
-        worksheet.worksheet_data = json.dumps(worksheet_data)
-        worksheet.updated_at = datetime.utcnow()
-        db.session.commit()
+        return jsonify(results)
         
-        return jsonify({
-            'success': True,
-            'worksheet_id': worksheet.id,
-            'data': worksheet_data
-        })
-        
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
     except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'error': f'Worksheet generation failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Worksheet generation failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/download-income-worksheet/<int:checklist_id>')
@@ -439,30 +223,22 @@ def get_saved_income_worksheet(checklist_id):
     """Get saved income worksheet data"""
     firm_id = session['firm_id']
     
-    # Get checklist and verify access
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
-    
-    if not worksheet:
-        return jsonify({'error': 'No saved worksheet found'}), 404
-    
     try:
-        worksheet_data = json.loads(worksheet.worksheet_data)
-        return jsonify({
-            'success': True,
-            'data': worksheet_data,
-            'updated_at': worksheet.updated_at.isoformat()
-        })
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
         
+        # Get saved worksheet
+        results = ai_service.get_saved_income_worksheet(checklist_id, firm_id)
+        
+        if not results['success']:
+            return jsonify({'error': results['message']}), 404
+        
+        return jsonify(results)
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to load worksheet: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Failed to load worksheet: {str(e)}'}), 500
 
 
 @ai_bp.route('/download-saved-worksheet/<int:worksheet_id>')
