@@ -375,12 +375,17 @@ class AIService:
             # Extract key findings from the analysis text (for frontend dropdown)
             key_findings = self._extract_key_findings(analysis_text)
             
+            # Clean the summary text to remove asterisks (same cleaning as key_findings)
+            clean_summary = self._clean_analysis_text(analysis_text[:500])
+            if len(analysis_text) > 500:
+                clean_summary += "..."
+            
             return {
                 'service': 'gemini',
                 'analysis_text': analysis_text,
                 'document_type': self._extract_document_type(analysis_text),
                 'confidence_score': 0.85,
-                'summary': analysis_text[:500] + "..." if len(analysis_text) > 500 else analysis_text,
+                'summary': clean_summary,
                 'key_findings': key_findings,  # Added for frontend dropdown display
                 'response_time_ms': response_time_ms
             }
@@ -430,6 +435,20 @@ class AIService:
         
         # Limit to most relevant findings
         return findings[:8]
+    
+    def _clean_analysis_text(self, text: str) -> str:
+        """Clean analysis text by removing asterisks and markdown formatting"""
+        # Remove asterisks used for masking sensitive data (like TINs)
+        cleaned_text = text.replace('*', '')
+        
+        # Remove excessive markdown formatting but keep basic structure
+        cleaned_text = cleaned_text.replace('###', '').replace('##', '').replace('#', '')
+        
+        # Clean up multiple spaces that might result from asterisk removal
+        import re
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
+        return cleaned_text
     
     def _combine_analysis_results(self, azure_results: Optional[Dict], gemini_results: Optional[Dict]) -> Dict[str, Any]:
         """Combine Azure and Gemini analysis results"""
