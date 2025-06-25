@@ -372,12 +372,16 @@ class AIService:
             analysis_text = response.text
             logging.info(f"Gemini analysis completed in {response_time_ms:.2f}ms")
             
+            # Extract key findings from the analysis text (for frontend dropdown)
+            key_findings = self._extract_key_findings(analysis_text)
+            
             return {
                 'service': 'gemini',
                 'analysis_text': analysis_text,
                 'document_type': self._extract_document_type(analysis_text),
                 'confidence_score': 0.85,
                 'summary': analysis_text[:500] + "..." if len(analysis_text) > 500 else analysis_text,
+                'key_findings': key_findings,  # Added for frontend dropdown display
                 'response_time_ms': response_time_ms
             }
                 
@@ -399,6 +403,34 @@ class AIService:
         else:
             return 'general_document'
     
+    def _extract_key_findings(self, text: str) -> list:
+        """Extract key findings from Gemini analysis text with clean formatting"""
+        findings = []
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Look for specific patterns that indicate key findings
+            if any(keyword in line.lower() for keyword in [
+                'box', 'amount', 'withheld', 'payer', 'recipient', 'tin', 'ein', 'ssn',
+                'federal', 'state', 'income', 'tax', 'form', 'corrected', 'document type',
+                'employer', 'employee', 'wages', 'medicare', 'social security'
+            ]):
+                # Clean up the line and remove markdown formatting and asterisks
+                cleaned_line = line.replace('*', '').replace('#', '').replace('-', '').strip()
+                
+                # Remove asterisks from sensitive data (like TINs)
+                cleaned_line = cleaned_line.replace('*', '')
+                
+                if cleaned_line and len(cleaned_line) > 10:  # Filter out very short lines
+                    findings.append(cleaned_line)
+        
+        # Limit to most relevant findings
+        return findings[:8]
+    
     def _combine_analysis_results(self, azure_results: Optional[Dict], gemini_results: Optional[Dict]) -> Dict[str, Any]:
         """Combine Azure and Gemini analysis results"""
         combined = {
@@ -416,7 +448,7 @@ class AIService:
             confidence_scores.append(azure_results.get('confidence_score', 0.8))
             combined['text_content'] = azure_results.get('text_content', '')
             combined['structured_data']['tables'] = azure_results.get('tables', [])
-            combined['structured_data']['key_value_pairs'] = azure_results.get('key_value_pairs', {})
+            combined['structured_data']['key_value_pairs'] = azure_results.get('key_value_pairs', [])
             combined['key_findings'].append("Azure: Structured data extraction completed")
         
         if gemini_results:
@@ -454,7 +486,13 @@ class AIService:
             'gemini_results': {
                 'summary': 'This is mock analysis data. Configure AI services for real document analysis.',
                 'document_type': 'tax_document',
-                'confidence_score': 0.5
+                'confidence_score': 0.5,
+                'key_findings': [
+                    'Document Type: Mock Tax Document',
+                    'Status: AI services not configured',
+                    'Configure GEMINI_API_KEY for real analysis',
+                    'Mock data for testing purposes'
+                ]
             },
             'combined_analysis': {
                 'document_type': 'general_document',
@@ -471,7 +509,7 @@ class AIService:
     
     @staticmethod
     def save_analysis_results(document_id: int, results: Dict[str, Any]) -> bool:
-        """Save analysis results to database"""
+        """Save analysis results to database session without committing. Caller must handle transaction."""
         try:
             document = ClientDocument.query.get(document_id)
             if document:
@@ -480,20 +518,21 @@ class AIService:
                 document.ai_analysis_timestamp = datetime.utcnow()
                 
                 # Extract document type for easy querying
-                if 'combined_analysis' in results:
-                    document.ai_document_type = results['combined_analysis'].get('document_type', 'general_document')
-                    document.ai_confidence_score = results['combined_analysis'].get('confidence_score', 0.0)
+                if 'combined_analysis' in results and results['combined_analysis']:
+                    combined = results['combined_analysis']
+                    document.ai_document_type = combined.get('document_type', 'general_document')
+                    document.ai_confidence_score = combined.get('confidence_score', 0.0)
                 elif 'document_type' in results:
                     document.ai_document_type = results['document_type']
                     document.ai_confidence_score = results.get('confidence_score', 0.0)
                 
-                db.session.commit()
-                logging.info(f"Saved analysis results for document {document_id}")
+                # Add to session but do not commit - caller handles transaction
+                db.session.add(document)
+                logging.info(f"Staged analysis results for document {document_id}")
                 return True
             else:
                 logging.error(f"Document {document_id} not found")
                 return False
         except Exception as e:
             logging.error(f"Failed to save analysis results for document {document_id}: {e}")
-            db.session.rollback()
             return False

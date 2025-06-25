@@ -114,9 +114,29 @@ def get_document_analysis(document_id):
     if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
         try:
             cached_results = json.loads(document.ai_analysis_results)
-            cached_results['cached'] = True
-            cached_results['analysis_timestamp'] = document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None
-            return jsonify(cached_results)
+            
+            # Convert cached results to frontend-expected format (same as fresh analysis)
+            response_data = {
+                'document_type': cached_results.get('document_type', 'general_document'),
+                'confidence_score': cached_results.get('confidence_score', 0.0),
+                'analysis_timestamp': document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None,
+                'status': cached_results.get('status', 'completed'),
+                'services_used': cached_results.get('services_used', []),
+                'extracted_data': {},
+                'azure_result': cached_results.get('azure_results'),  # Map plural to singular 
+                'gemini_result': cached_results.get('gemini_results'),  # Map plural to singular
+                'combined_analysis': cached_results.get('combined_analysis'),
+                'cached': True
+            }
+            
+            # Add extracted data from combined analysis
+            if 'combined_analysis' in cached_results:
+                combined = cached_results['combined_analysis']
+                response_data['extracted_data'] = combined.get('structured_data', {})
+                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
+                response_data['document_type'] = combined.get('document_type', 'general_document')
+            
+            return jsonify(response_data)
         except (json.JSONDecodeError, AttributeError):
             # If cached results are corrupted, proceed with new analysis
             pass
@@ -161,7 +181,8 @@ def get_document_analysis(document_id):
                 'extracted_data': {},
                 'azure_result': analysis_results.get('azure_results'),  # Map plural to singular 
                 'gemini_result': analysis_results.get('gemini_results'),  # Map plural to singular
-                'combined_analysis': analysis_results.get('combined_analysis')
+                'combined_analysis': analysis_results.get('combined_analysis'),
+                'filename': os.path.basename(document_path) if document_path else 'Unknown'  # Add filename for display
             }
             
             # Add extracted data from combined analysis
@@ -174,12 +195,15 @@ def get_document_analysis(document_id):
         # Save results to database and return response
         if 'analysis_results' in locals():
             ai_service.save_analysis_results(document_id, analysis_results)
+            db.session.commit()
             return jsonify(response_data)
         else:
             ai_service.save_analysis_results(document_id, mock_results)
+            db.session.commit()
             return jsonify(mock_results)
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'error': f'Analysis failed: {str(e)}'
         }), 500
@@ -225,31 +249,38 @@ def analyze_checklist(checklist_id):
                     document.ai_analysis_timestamp = None
                 
                 if not document.ai_analysis_completed or force_reanalysis:
-                    # Find document file path
-                    document_path = None
-                    if hasattr(document, 'attachment') and document.attachment:
-                        document_path = document.attachment.file_path
-                    elif hasattr(document, 'file_path') and document.file_path:
-                        document_path = document.file_path
-                    
-                    if document_path and os.path.exists(document_path):
-                        # Perform real AI analysis
-                        results = ai_service.analyze_document(document_path, document.id)
-                        ai_service.save_analysis_results(document.id, results)
-                        analyzed_count += 1
-                    else:
-                        # Use mock results if file not found
-                        mock_results = {
-                            'document_type': 'general_document',
-                            'confidence_score': 0.5,
-                            'analysis_timestamp': datetime.utcnow().isoformat(),
-                            'status': 'mock',
-                            'reason': 'Document file not found'
-                        }
-                        ai_service.save_analysis_results(document.id, mock_results)
-                        analyzed_count += 1
-        
-        db.session.commit()
+                    try:
+                        # Find document file path
+                        document_path = None
+                        if hasattr(document, 'attachment') and document.attachment:
+                            document_path = document.attachment.file_path
+                        elif hasattr(document, 'file_path') and document.file_path:
+                            document_path = document.file_path
+                        
+                        if document_path and os.path.exists(document_path):
+                            # Perform real AI analysis
+                            results = ai_service.analyze_document(document_path, document.id)
+                            ai_service.save_analysis_results(document.id, results)
+                            analyzed_count += 1
+                        else:
+                            # Use mock results if file not found
+                            mock_results = {
+                                'document_type': 'general_document',
+                                'confidence_score': 0.5,
+                                'analysis_timestamp': datetime.utcnow().isoformat(),
+                                'status': 'mock',
+                                'reason': 'Document file not found'
+                            }
+                            ai_service.save_analysis_results(document.id, mock_results)
+                            analyzed_count += 1
+                        
+                        # Commit after each document to avoid session buildup
+                        db.session.commit()
+                        
+                    except Exception as doc_error:
+                        print(f"Error processing document {document.id}: {doc_error}")
+                        db.session.rollback()
+                        # Continue with next document
         
         return jsonify({
             'success': True,
