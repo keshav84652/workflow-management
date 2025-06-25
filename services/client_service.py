@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from flask import session
 from core import db
 from models import Client, Project, Contact, ActivityLog
-from utils import create_activity_log
+from services.activity_service import ActivityService
 
 
 class ClientService:
@@ -57,11 +57,9 @@ class ClientService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
-                user_id=session.get('user_id'),
-                firm_id=firm_id,
-                action='create',
-                details=f'Created client "{client.name}"'
+            ActivityService.create_activity_log(
+                action=f'Created client "{client.name}"',
+                user_id=session.get('user_id')
             )
             
             return {
@@ -108,11 +106,9 @@ class ClientService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
-                user_id=session.get('user_id'),
-                firm_id=firm_id,
-                action='update',
-                details=f'Updated client "{client.name}"'
+            ActivityService.create_activity_log(
+                action=f'Updated client "{client.name}"',
+                user_id=session.get('user_id')
             )
             
             return {'success': True, 'message': 'Client updated successfully'}
@@ -142,11 +138,9 @@ class ClientService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
-                user_id=session.get('user_id'),
-                firm_id=firm_id,
-                action='delete',
-                details=f'Deleted client "{client_name}" and {project_count} associated projects'
+            ActivityService.create_activity_log(
+                action=f'Deleted client "{client_name}" and {project_count} associated projects',
+                user_id=session.get('user_id')
             )
             
             return {
@@ -173,3 +167,21 @@ class ClientService:
         }
         
         return stats
+    
+    @staticmethod
+    def find_or_create_client(client_name: str, firm_id: int) -> Client:
+        """Find existing client or create a new one with minimal info"""
+        # Check if client already exists
+        client = Client.query.filter_by(name=client_name.strip(), firm_id=firm_id).first()
+        
+        if not client:
+            # Create new client with basic info
+            client = Client(
+                name=client_name.strip(),
+                firm_id=firm_id,
+                entity_type='Individual'  # Default
+            )
+            db.session.add(client)
+            db.session.flush()  # Get the ID
+        
+        return client

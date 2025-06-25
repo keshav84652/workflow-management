@@ -4,10 +4,12 @@ Task service layer for business logic
 
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date, timedelta
+from dateutil.relativedelta import relativedelta
+import calendar
 from flask import session
 from core import db
-from models import Task, Project, User, ActivityLog, TaskComment
-from utils import create_activity_log
+from models import Task, Project, User, ActivityLog, TaskComment, TemplateTask
+from services.activity_service import ActivityService
 
 
 class TaskService:
@@ -39,11 +41,10 @@ class TaskService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
+                action=f'Updated task "{task.title}" status from {old_status} to {status}',
                 user_id=session.get('user_id'),
-                firm_id=firm_id,
-                action='update',
-                details=f'Updated task "{task.title}" status from {old_status} to {status}'
+                task_id=task_id
             )
             
             return {'success': True, 'message': f'Task status updated to {status}'}
@@ -738,3 +739,129 @@ class TaskService:
             result.append(task_data)
         
         return result
+    
+    @staticmethod
+    def calculate_task_due_date(project_start_date: date, template_task: TemplateTask) -> Optional[date]:
+        """Calculate due date for a task based on project start and template settings"""
+        if template_task.days_from_start:
+            return project_start_date + timedelta(days=template_task.days_from_start)
+        elif template_task.recurrence_rule:
+            return TaskService.calculate_next_due_date(template_task.recurrence_rule, project_start_date)
+        return None
+    
+    @staticmethod
+    def calculate_next_due_date(recurrence_rule: str, base_date: Optional[date] = None) -> Optional[date]:
+        """Calculate next due date based on recurrence rule"""
+        if not recurrence_rule:
+            return None
+        
+        if base_date is None:
+            base_date = date.today()
+        
+        parts = recurrence_rule.split(':')
+        frequency = parts[0]
+        
+        if frequency == 'daily':
+            return base_date + timedelta(days=1)
+        
+        elif frequency == 'weekly':
+            return base_date + timedelta(weeks=1)
+        
+        elif frequency == 'monthly':
+            if len(parts) > 1:
+                day = parts[1]
+                if day == 'last_day':
+                    next_month = base_date.replace(day=1) + relativedelta(months=1)
+                    return next_month.replace(day=calendar.monthrange(next_month.year, next_month.month)[1])
+                elif day == 'last_biz_day':
+                    next_month = base_date.replace(day=1) + relativedelta(months=1)
+                    last_day = next_month.replace(day=calendar.monthrange(next_month.year, next_month.month)[1])
+                    while last_day.weekday() > 4:  # Saturday = 5, Sunday = 6
+                        last_day -= timedelta(days=1)
+                    return last_day
+                else:
+                    try:
+                        day_num = int(day)
+                        next_month = base_date.replace(day=1) + relativedelta(months=1)
+                        max_day = calendar.monthrange(next_month.year, next_month.month)[1]
+                        actual_day = min(day_num, max_day)
+                        return next_month.replace(day=actual_day)
+                    except ValueError:
+                        pass
+            return base_date + relativedelta(months=1)
+        
+        elif frequency == 'quarterly':
+            if len(parts) > 1 and parts[1] == 'last_biz_day':
+                next_quarter_start = base_date.replace(day=1) + relativedelta(months=3)
+                quarter_end_month = ((next_quarter_start.month - 1) // 3 + 1) * 3
+                quarter_end = next_quarter_start.replace(month=quarter_end_month)
+                quarter_end = quarter_end.replace(day=calendar.monthrange(quarter_end.year, quarter_end.month)[1])
+                while quarter_end.weekday() > 4:
+                    quarter_end -= timedelta(days=1)
+                return quarter_end
+            return base_date + relativedelta(months=3)
+        
+        elif frequency == 'annually':
+            return base_date + relativedelta(years=1)
+        
+        return None
+    
+    @staticmethod
+    def process_recurring_tasks() -> Dict[str, Any]:
+        """Process both template-based and standalone recurring tasks"""
+        try:
+            tasks_created = 0
+            
+            # Process template-based recurring tasks
+            template_tasks = TemplateTask.query.filter(TemplateTask.recurrence_rule.isnot(None)).all()
+            
+            for template_task in template_tasks:
+                last_generated = Task.query.filter_by(
+                    template_task_origin_id=template_task.id
+                ).order_by(Task.due_date.desc()).first()
+                
+                if last_generated:
+                    next_due = TaskService.calculate_next_due_date(template_task.recurrence_rule, last_generated.due_date)
+                else:
+                    next_due = TaskService.calculate_next_due_date(template_task.recurrence_rule)
+                
+                if next_due and next_due <= date.today():
+                    projects = Project.query.filter_by(
+                        template_origin_id=template_task.template_id,
+                        status='Active'
+                    ).all()
+                    
+                    for project in projects:
+                        existing_task = Task.query.filter_by(
+                            project_id=project.id,
+                            template_task_origin_id=template_task.id,
+                            due_date=next_due
+                        ).first()
+                        
+                        if not existing_task:
+                            task = Task(
+                                title=template_task.title,
+                                description=template_task.description,
+                                due_date=next_due,
+                                project_id=project.id,
+                                assignee_id=template_task.default_assignee_id,
+                                template_task_origin_id=template_task.id,
+                                firm_id=project.firm_id
+                            )
+                            db.session.add(task)
+                            tasks_created += 1
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'tasks_created': tasks_created,
+                'message': f'Created {tasks_created} recurring tasks'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'error': f'Failed to process recurring tasks: {str(e)}'
+            }
