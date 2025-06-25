@@ -33,6 +33,14 @@ def find_or_create_client(client_name, firm_id):
     from services.client_service import ClientService
     return ClientService.find_or_create_client(client_name, firm_id)
 
+def calculate_next_due_date(recurrence_rule, base_date=None):
+    """
+    DEPRECATED: Use TaskService.calculate_next_due_date() directly
+    This wrapper is provided for backward compatibility only
+    """
+    from services.task_service import TaskService
+    return TaskService.calculate_next_due_date(recurrence_rule, base_date)
+
 def process_recurring_tasks():
     """
     DEPRECATED: Use TaskService.process_recurring_tasks() directly
