@@ -64,105 +64,24 @@ def handle_sequential_task_dependencies(task, old_status, new_status):
 
 @tasks_bp.route('/')
 def list_tasks():
+    from services.task_service import TaskService
+    
     firm_id = session['firm_id']
     
     # Get filter parameters - support multiple values
-    status_filters = request.args.getlist('status')
-    priority_filters = request.args.getlist('priority')
-    assignee_filters = request.args.getlist('assignee')
-    project_filters = request.args.getlist('project')
-    overdue_filter = request.args.get('overdue')
-    due_date_filter = request.args.get('due_date')
-    show_completed = request.args.get('show_completed', 'false').lower() == 'true'
+    filters = {
+        'status_filters': request.args.getlist('status'),
+        'priority_filters': request.args.getlist('priority'),
+        'assignee_filters': request.args.getlist('assignee'),
+        'project_filters': request.args.getlist('project'),
+        'overdue_filter': request.args.get('overdue'),
+        'due_date_filter': request.args.get('due_date'),
+        'show_completed': request.args.get('show_completed', 'false').lower() == 'true'
+    }
     
-    # Base query - include both project tasks and independent tasks
-    query = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        )
-    )
-    
-    # Hide completed tasks by default
-    if not show_completed:
-        query = query.filter(Task.status != 'Completed')
-    
-    # Apply multi-select filters
-    if status_filters:
-        query = query.filter(Task.status.in_(status_filters))
-    
-    if priority_filters:
-        query = query.filter(Task.priority.in_(priority_filters))
-    
-    if assignee_filters:
-        # Handle both assigned users and unassigned tasks
-        assignee_conditions = []
-        if 'unassigned' in assignee_filters:
-            assignee_conditions.append(Task.assignee_id.is_(None))
-        
-        user_ids = [f for f in assignee_filters if f != 'unassigned']
-        if user_ids:
-            assignee_conditions.append(Task.assignee_id.in_(user_ids))
-        
-        if assignee_conditions:
-            query = query.filter(db.or_(*assignee_conditions))
-    
-    if project_filters:
-        # Handle both project tasks and independent tasks
-        project_conditions = []
-        if 'independent' in project_filters:
-            project_conditions.append(Task.project_id.is_(None))
-        
-        project_ids = [f for f in project_filters if f != 'independent']
-        if project_ids:
-            project_conditions.append(Task.project_id.in_(project_ids))
-        
-        if project_conditions:
-            query = query.filter(db.or_(*project_conditions))
-    
-    # Date-based filters
-    today = date.today()
-    if overdue_filter == 'true':
-        # Exclude completed tasks and tasks from completed projects
-        query = query.filter(
-            Task.due_date < today, 
-            Task.status != 'Completed',
-            db.or_(
-                Task.project_id.is_(None),  # Independent tasks
-                Project.status != 'Completed'  # Tasks from non-completed projects
-            )
-        )
-    elif due_date_filter == 'today':
-        query = query.filter(Task.due_date == today)
-    elif due_date_filter == 'soon':
-        # Due within next 3 days
-        soon_date = today + timedelta(days=3)
-        query = query.filter(Task.due_date.between(today, soon_date))
-    
-    # Get all tasks first
-    all_tasks = query.order_by(
-        Task.due_date.asc().nullslast(),
-        db.case(
-            (Task.priority == 'High', 1),
-            (Task.priority == 'Medium', 2),
-            (Task.priority == 'Low', 3),
-            else_=4
-        )
-    ).all()
-    
-    # Filter to show only current active task per interdependent project
-    tasks = []
-    seen_projects = set()
-    
-    for task in all_tasks:
-        if task.project and task.project.task_dependency_mode:
-            # For interdependent projects, only show the first active task per project
-            if task.project_id not in seen_projects and not task.is_completed:
-                tasks.append(task)
-                seen_projects.add(task.project_id)
-        else:
-            # For independent tasks or non-interdependent projects, show all tasks
-            tasks.append(task)
+    # Use optimized service method to get tasks with dependency info pre-calculated
+    task_data_list = TaskService.get_tasks_with_dependency_info(firm_id, filters)
+    tasks = [item['task'] for item in task_data_list]
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
@@ -173,36 +92,22 @@ def list_tasks():
 
 @tasks_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_task(id):
-    task = Task.query.get_or_404(id)
+    from services.task_service import TaskService
     
-    # Check access for both project tasks and independent tasks
-    if task.project and task.project.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    firm_id = session['firm_id']
+    result = TaskService.delete_task(id, firm_id)
     
-    try:
-        task_title = task.title
-        project_id = task.project_id
-        
-        # Create activity log before deletion
-        if project_id:
-            create_activity_log(f'Task "{task_title}" deleted', session['user_id'], project_id)
-        else:
-            create_activity_log(f'Independent task "{task_title}" deleted', session['user_id'])
-        
-        # Delete associated comments first
-        TaskComment.query.filter_by(task_id=id).delete()
-        
-        # Delete the task
-        db.session.delete(task)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Task deleted successfully'})
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+    if result['success']:
+        return jsonify({
+            'success': True,
+            'message': result['message']
+        })
+    else:
+        status_code = 403 if 'access' in result['message'].lower() else 500
+        return jsonify({
+            'success': False,
+            'message': result['message']
+        }), status_code
 
 
 @tasks_bp.route('/create', methods=['GET', 'POST'])
@@ -427,49 +332,25 @@ def view_task(id):
 
 @tasks_bp.route('/<int:id>/comments', methods=['POST'])
 def add_task_comment(id):
-    task = Task.query.get_or_404(id)
-    # Check access for both project tasks and independent tasks
-    if task.project and task.project.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    from services.task_service import TaskService
     
+    firm_id = session['firm_id']
+    user_id = session['user_id']
     comment_text = request.form.get('comment', '').strip()
-    if not comment_text:
-        return jsonify({'success': False, 'message': 'Comment cannot be empty'})
     
-    try:
-        # Create comment
-        comment = TaskComment(
-            comment=comment_text,
-            task_id=task.id,
-            user_id=session['user_id']
-        )
-        db.session.add(comment)
-        
-        # Create activity log
-        create_activity_log(
-            f'Comment added to task "{task.title}"',
-            session['user_id'],
-            task.project_id if task.project_id else None,
-            task.id
-        )
-        
-        db.session.commit()
-        
+    result = TaskService.add_task_comment(id, firm_id, comment_text, user_id)
+    
+    if result['success']:
         return jsonify({
             'success': True,
-            'comment': {
-                'id': comment.id,
-                'comment': comment.comment,
-                'user_name': comment.user.name,
-                'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M:%S')
-            }
+            'comment': result['comment']
         })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+    else:
+        status_code = 403 if 'access' in result['message'].lower() else 400
+        return jsonify({
+            'success': False,
+            'message': result['message']
+        }), status_code
 
 
 @tasks_bp.route('/<int:id>/log-time', methods=['POST'])

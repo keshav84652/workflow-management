@@ -771,66 +771,47 @@ function showAnalysisModal(data) {
     document.body.appendChild(modal);
 }
 
-// Analyze all documents (always re-run analysis)
-async function analyzeAllDocuments() {
+// Analyze all documents (always re-run analysis) - Efficient bulk API call
+async function analyzeAllDocuments(forceReanalysis = true) {
     if (allDocuments.length === 0) {
         alert('No documents to analyze');
         return;
     }
     
+    const checklistId = {{ checklist.id }};
     const progressElement = document.getElementById('bulkProgress');
     progressElement.classList.remove('hidden');
+    progressElement.querySelector('span').textContent = `Starting analysis for ${allDocuments.length} documents...`;
     
     try {
-        let processedCount = 0;
-        
-        for (const doc of allDocuments) {
-            // Update progress
-            progressElement.querySelector('span').textContent = `Processing ${doc.filename} (${processedCount + 1}/${allDocuments.length})...`;
-            
-            // Update document status
-            const statusElement = document.getElementById(`analysis-status-${doc.id}`);
-            statusElement.textContent = 'Analyzing...';
-            statusElement.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800';
-            
-            try {
-                const result = await analyzeDocument(doc.id, doc.filename, false, true); // Don't show modal, force re-analysis
-                analysisResults[doc.id] = result;
-                
-                // Update status to success
-                statusElement.textContent = 'Analyzed';
-                statusElement.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800';
-                
-                // Update the document content
-                displayInlineAnalysis(doc.id, result);
-                
-                processedCount++;
-                
-            } catch (error) {
-                console.error(`Failed to analyze ${doc.filename}:`, error);
-                
-                // Update status to error
-                statusElement.textContent = 'Failed';
-                statusElement.className = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800';
-                
-                // Show error in document content
-                const analysisDiv = document.getElementById(`document-analysis-${doc.id}`);
-                analysisDiv.innerHTML = `
-                    <div class="text-center py-4 text-red-600">
-                        <i class="bi bi-exclamation-triangle text-xl mb-2"></i>
-                        <p class="font-medium">Analysis Failed</p>
-                        <p class="text-sm">${error.message || 'Unable to analyze document'}</p>
-                    </div>
-                `;
-            }
+        const response = await fetch(`/api/analyze-checklist/${checklistId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ force_reanalysis: forceReanalysis })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Bulk analysis failed');
         }
-        
-        progressElement.classList.add('hidden');
-        alert(`Analysis complete! Processed ${processedCount}/${allDocuments.length} documents.`);
-        
+
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Analysis complete! Processed ${data.analyzed_count} out of ${data.total_documents} documents.`);
+            // Refresh the page to show all the new analysis results
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Analysis returned an error');
+        }
+
     } catch (error) {
-        progressElement.classList.add('hidden');
+        console.error('Bulk analysis error:', error);
         alert('Bulk analysis failed: ' + error.message);
+    } finally {
+        progressElement.classList.add('hidden');
     }
 }
 
@@ -1014,7 +995,7 @@ async function showDocumentVisualization(documentId) {
     vizDiv.classList.remove('hidden');
     
     try {
-        const response = await fetch(`/create-document-visualization/${documentId}`, {
+        const response = await fetch(`/ai/create-document-visualization/${documentId}`, {
             method: 'POST'
         });
         
@@ -1031,7 +1012,7 @@ async function showDocumentVisualization(documentId) {
                                 <i class="bi bi-x-lg"></i>
                             </button>
                         </div>
-                        <img src="/document-visualization/${documentId}?t=${Date.now()}" 
+                        <img src="/ai/document-visualization/${documentId}?t=${Date.now()}" 
                              alt="Document with tick mark annotations" 
                              class="max-w-full h-auto rounded border"
                              onerror="this.parentElement.innerHTML='<p class=&quot;text-red-600&quot;>Failed to load visualization image</p>'" />

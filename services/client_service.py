@@ -32,6 +32,9 @@ class ClientService:
         email: Optional[str] = None,
         phone: Optional[str] = None,
         address: Optional[str] = None,
+        contact_person: Optional[str] = None,
+        tax_id: Optional[str] = None,
+        notes: Optional[str] = None,
         firm_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Create a new client"""
@@ -45,6 +48,9 @@ class ClientService:
                 email=email,
                 phone=phone,
                 address=address,
+                contact_person=contact_person,
+                tax_id=tax_id,
+                notes=notes,
                 firm_id=firm_id
             )
             db.session.add(client)
@@ -76,6 +82,9 @@ class ClientService:
         email: Optional[str] = None,
         phone: Optional[str] = None,
         address: Optional[str] = None,
+        contact_person: Optional[str] = None,
+        tax_id: Optional[str] = None,
+        notes: Optional[str] = None,
         firm_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Update an existing client"""
@@ -92,6 +101,9 @@ class ClientService:
             client.email = email
             client.phone = phone
             client.address = address
+            client.contact_person = contact_person
+            client.tax_id = tax_id
+            client.notes = notes
             
             db.session.commit()
             

@@ -6,7 +6,7 @@ A comprehensive workflow management application designed specifically for CPA fi
 
 ### ✅ **Complete Feature Set (All Implemented)**
 - **Template-Driven Workflows**: Sophisticated workflow automation with conditional logic
-- **Enhanced Role-Based Permissions**: Staff, Senior, Manager, Partner, Admin roles
+- **Role-Based Permissions**: Admin and Member roles (additional roles planned for future releases)
 - **Advanced Project Management**: Sequential task dependencies and project health tracking
 - **Comprehensive Task Management**: Kanban boards, time tracking, real-time updates
 - **Client Portal Integration**: Document checklists with public access and sharing

@@ -2,7 +2,7 @@
 AI Document Analysis blueprint
 """
 
-from flask import Blueprint, request, session, jsonify, send_file, render_template
+from flask import Blueprint, request, session, jsonify, send_file, render_template, current_app
 from datetime import datetime
 import os
 import json
@@ -11,35 +11,17 @@ from pathlib import Path
 from core import db
 from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
-    IncomeWorksheet, User
+    IncomeWorksheet, User, Attachment
 )
 from utils import create_activity_log
+from services.ai_service import AIService
 
 ai_bp = Blueprint('ai', __name__)
-
-# Check if AI services are available
-AI_SERVICES_AVAILABLE = False
-
-try:
-    # Import would be here for production
-    # from backend.services.document_processor import DocumentProcessor
-    # from backend.services.azure_service import AzureDocumentService  
-    # from backend.services.gemini_service import GeminiDocumentService
-    # AI_SERVICES_AVAILABLE = True
-    pass
-except Exception:
-    AI_SERVICES_AVAILABLE = False
 
 
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
-    if not AI_SERVICES_AVAILABLE:
-        return jsonify({
-            'success': False,
-            'error': 'AI services not available. Please configure environment and install dependencies.'
-        }), 503
-    
     firm_id = session['firm_id']
     
     try:
@@ -52,13 +34,40 @@ def analyze_document(document_id):
         if not document:
             return jsonify({'success': False, 'error': 'Document not found'}), 404
         
-        # For now, return success to show the UI works
-        return jsonify({
-            'success': True,
-            'message': 'Document analysis started',
-            'document_id': document_id,
-            'status': 'processing'
-        })
+        # Initialize AI service with current config
+        ai_service = AIService(current_app.config)
+        
+        # Find the actual file path
+        document_path = None
+        if hasattr(document, 'attachment') and document.attachment:
+            document_path = document.attachment.file_path
+        elif hasattr(document, 'file_path') and document.file_path:
+            document_path = document.file_path
+        
+        if not document_path or not os.path.exists(document_path):
+            return jsonify({
+                'success': False,
+                'error': 'Document file not found on server'
+            }), 404
+        
+        # Perform AI analysis
+        results = ai_service.analyze_document(document_path, document_id)
+        
+        # Save results to database
+        if ai_service.save_analysis_results(document_id, results):
+            return jsonify({
+                'success': True,
+                'message': 'Document analysis completed',
+                'document_id': document_id,
+                'status': results.get('status', 'completed'),
+                'services_used': results.get('services_used', []),
+                'confidence_score': results.get('confidence_score', 0.0)
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Failed to save analysis results'
+            }), 500
         
     except Exception as e:
         return jsonify({
@@ -94,43 +103,108 @@ def get_document_analysis(document_id):
     # Check for force_reanalysis parameter
     force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
     
+    # If forcing re-analysis, reset analysis status to ensure fresh analysis
+    if force_reanalysis:
+        document.ai_analysis_completed = False
+        document.ai_analysis_results = None
+        document.ai_analysis_timestamp = None
+        db.session.commit()
+    
     # Check if AI analysis has already been completed (unless forcing re-analysis)
     if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
         try:
             cached_results = json.loads(document.ai_analysis_results)
-            cached_results['cached'] = True
-            cached_results['analysis_timestamp'] = document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None
-            return jsonify(cached_results)
+            
+            # Convert cached results to frontend-expected format (same as fresh analysis)
+            response_data = {
+                'document_type': cached_results.get('document_type', 'general_document'),
+                'confidence_score': cached_results.get('confidence_score', 0.0),
+                'analysis_timestamp': document.ai_analysis_timestamp.isoformat() if document.ai_analysis_timestamp else None,
+                'status': cached_results.get('status', 'completed'),
+                'services_used': cached_results.get('services_used', []),
+                'extracted_data': {},
+                'azure_result': cached_results.get('azure_results'),  # Map plural to singular 
+                'gemini_result': cached_results.get('gemini_results'),  # Map plural to singular
+                'combined_analysis': cached_results.get('combined_analysis'),
+                'cached': True
+            }
+            
+            # Add extracted data from combined analysis
+            if 'combined_analysis' in cached_results:
+                combined = cached_results['combined_analysis']
+                response_data['extracted_data'] = combined.get('structured_data', {})
+                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
+                response_data['document_type'] = combined.get('document_type', 'general_document')
+            
+            return jsonify(response_data)
         except (json.JSONDecodeError, AttributeError):
             # If cached results are corrupted, proceed with new analysis
             pass
     
-    # Placeholder for AI analysis implementation
+    # Use real AI analysis implementation
     try:
-        # This would contain the actual AI analysis logic
-        mock_results = {
-            'document_type': 'tax_document',
-            'confidence_score': 0.95,
-            'extracted_data': {
-                'total_income': 50000,
-                'deductions': 5000,
-                'tax_year': 2024
-            },
-            'analysis_timestamp': datetime.utcnow().isoformat(),
-            'status': 'completed'
-        }
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
         
-        # Save results to database
-        document.ai_analysis_completed = True
-        document.ai_analysis_results = json.dumps(mock_results)
-        document.ai_analysis_timestamp = datetime.utcnow()
-        db.session.commit()
+        # Find document file path
+        document_path = None
+        if hasattr(document, 'attachment') and document.attachment:
+            document_path = document.attachment.file_path
+        elif hasattr(document, 'file_path') and document.file_path:
+            document_path = document.file_path
         
-        return jsonify(mock_results)
+        if not document_path or not os.path.exists(document_path):
+            # Return mock results if file not found
+            mock_results = {
+                'document_type': 'general_document',
+                'confidence_score': 0.5,
+                'analysis_timestamp': datetime.utcnow().isoformat(),
+                'status': 'mock',
+                'services_used': ['mock'],
+                'reason': 'Document file not found - using mock data',
+                'extracted_data': {},
+                'azure_result': None,
+                'gemini_result': None,
+                'combined_analysis': None
+            }
+        else:
+            # Perform real AI analysis
+            analysis_results = ai_service.analyze_document(document_path, document_id)
+            
+            # Convert to frontend-expected format
+            response_data = {
+                'document_type': analysis_results.get('document_type', 'general_document'),
+                'confidence_score': analysis_results.get('confidence_score', 0.0),
+                'analysis_timestamp': analysis_results.get('analysis_timestamp'),
+                'status': analysis_results.get('status', 'completed'),
+                'services_used': analysis_results.get('services_used', []),
+                'extracted_data': {},
+                'azure_result': analysis_results.get('azure_results'),  # Map plural to singular 
+                'gemini_result': analysis_results.get('gemini_results'),  # Map plural to singular
+                'combined_analysis': analysis_results.get('combined_analysis'),
+                'filename': os.path.basename(document_path) if document_path else 'Unknown'  # Add filename for display
+            }
+            
+            # Add extracted data from combined analysis
+            if 'combined_analysis' in analysis_results:
+                combined = analysis_results['combined_analysis']
+                response_data['extracted_data'] = combined.get('structured_data', {})
+                response_data['confidence_score'] = combined.get('confidence_score', 0.0)
+                response_data['document_type'] = combined.get('document_type', 'general_document')
+        
+        # Save results to database and return response
+        if 'analysis_results' in locals():
+            ai_service.save_analysis_results(document_id, analysis_results)
+            db.session.commit()
+            return jsonify(response_data)
+        else:
+            ai_service.save_analysis_results(document_id, mock_results)
+            db.session.commit()
+            return jsonify(mock_results)
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
-            'success': False,
             'error': f'Analysis failed: {str(e)}'
         }), 500
 
@@ -138,7 +212,13 @@ def get_document_analysis(document_id):
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
 def analyze_checklist(checklist_id):
     """Analyze all documents in a checklist"""
-    firm_id = session['firm_id']
+    try:
+        if 'firm_id' not in session:
+            return jsonify({'error': 'No firm session found'}), 401
+            
+        firm_id = session['firm_id']
+    except Exception as session_error:
+        return jsonify({'error': f'Session error: {str(session_error)}'}), 500
     
     # Get checklist and verify access
     checklist = DocumentChecklist.query.join(Client).filter(
@@ -146,29 +226,61 @@ def analyze_checklist(checklist_id):
         Client.firm_id == firm_id
     ).first_or_404()
     
+    # Get force_reanalysis flag using more robust method
+    request_data = request.get_json(silent=True) or {}
+    force_reanalysis = request_data.get('force_reanalysis', False)
+    
     try:
-        # Mock analysis of all documents in checklist
+        # Initialize AI service
+        ai_service = AIService(current_app.config)
+        
+        # Real analysis of all documents in checklist
         analyzed_count = 0
         total_documents = 0
         
         for item in checklist.items:
             for document in item.client_documents:
                 total_documents += 1
-                if not document.ai_analysis_completed:
-                    # Mock analysis
-                    mock_results = {
-                        'document_type': 'general_document',
-                        'confidence_score': 0.85,
-                        'analysis_timestamp': datetime.utcnow().isoformat(),
-                        'status': 'completed'
-                    }
-                    
-                    document.ai_analysis_completed = True
-                    document.ai_analysis_results = json.dumps(mock_results)
-                    document.ai_analysis_timestamp = datetime.utcnow()
-                    analyzed_count += 1
-        
-        db.session.commit()
+                
+                # If forcing re-analysis, reset the document's analysis status
+                if force_reanalysis:
+                    document.ai_analysis_completed = False
+                    document.ai_analysis_results = None
+                    document.ai_analysis_timestamp = None
+                
+                if not document.ai_analysis_completed or force_reanalysis:
+                    try:
+                        # Find document file path
+                        document_path = None
+                        if hasattr(document, 'attachment') and document.attachment:
+                            document_path = document.attachment.file_path
+                        elif hasattr(document, 'file_path') and document.file_path:
+                            document_path = document.file_path
+                        
+                        if document_path and os.path.exists(document_path):
+                            # Perform real AI analysis
+                            results = ai_service.analyze_document(document_path, document.id)
+                            ai_service.save_analysis_results(document.id, results)
+                            analyzed_count += 1
+                        else:
+                            # Use mock results if file not found
+                            mock_results = {
+                                'document_type': 'general_document',
+                                'confidence_score': 0.5,
+                                'analysis_timestamp': datetime.utcnow().isoformat(),
+                                'status': 'mock',
+                                'reason': 'Document file not found'
+                            }
+                            ai_service.save_analysis_results(document.id, mock_results)
+                            analyzed_count += 1
+                        
+                        # Commit after each document to avoid session buildup
+                        db.session.commit()
+                        
+                    except Exception as doc_error:
+                        print(f"Error processing document {document.id}: {doc_error}")
+                        db.session.rollback()
+                        # Continue with next document
         
         return jsonify({
             'success': True,

@@ -390,6 +390,227 @@ class AdminService:
         return WorkType.query.filter_by(firm_id=firm_id).all()
     
     @staticmethod
+    def get_work_type_usage_stats(firm_id: int) -> Dict[int, int]:
+        """
+        Get usage statistics for work types (number of tasks using each work type)
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            Dict mapping work_type_id to task count
+        """
+        work_types = AdminService.get_work_types_for_firm(firm_id)
+        usage_stats = {}
+        
+        for wt in work_types:
+            task_count = Task.query.join(Project).filter(
+                Task.firm_id == firm_id,
+                Project.work_type_id == wt.id
+            ).count()
+            usage_stats[wt.id] = task_count
+        
+        return usage_stats
+    
+    @staticmethod
+    def create_work_type(name: str, description: str, firm_id: int) -> Dict[str, Any]:
+        """
+        Create a new work type with default statuses
+        
+        Args:
+            name: Work type name
+            description: Work type description
+            firm_id: The firm's ID
+            
+        Returns:
+            Dict containing success status, work type data, and any error messages
+        """
+        try:
+            work_type = WorkType(
+                name=name.strip(),
+                description=description.strip(),
+                firm_id=firm_id
+            )
+            db.session.add(work_type)
+            db.session.flush()  # Get work_type ID
+            
+            # Create default statuses
+            default_statuses = [
+                {'name': 'Not Started', 'color': '#6b7280', 'position': 1, 'is_default': True},
+                {'name': 'In Progress', 'color': '#3b82f6', 'position': 2},
+                {'name': 'Review', 'color': '#f59e0b', 'position': 3},
+                {'name': 'Completed', 'color': '#10b981', 'position': 4, 'is_terminal': True}
+            ]
+            
+            for status_data in default_statuses:
+                status = TaskStatus(
+                    firm_id=firm_id,
+                    work_type_id=work_type.id,
+                    **status_data
+                )
+                db.session.add(status)
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Work type "{name}" created successfully with default statuses',
+                'work_type': {
+                    'id': work_type.id,
+                    'name': work_type.name
+                }
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error creating work type: {str(e)}',
+                'work_type': None
+            }
+    
+    @staticmethod
+    def update_work_type(work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
+        """
+        Update an existing work type
+        
+        Args:
+            work_type_id: The work type's ID
+            name: Updated work type name
+            description: Updated work type description
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            work_type = WorkType.query.filter_by(id=work_type_id, firm_id=firm_id).first()
+            if not work_type:
+                return {
+                    'success': False,
+                    'message': 'Work type not found or access denied'
+                }
+            
+            work_type.name = name.strip()
+            work_type.description = description.strip()
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Work type "{name}" updated successfully'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error updating work type: {str(e)}'
+            }
+    
+    @staticmethod
+    def create_task_status(work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
+        """
+        Create a new task status for a work type
+        
+        Args:
+            work_type_id: The work type's ID
+            name: Status name
+            color: Status color (hex)
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing success status, status data, and any error messages
+        """
+        try:
+            # Verify work type belongs to firm
+            work_type = WorkType.query.filter_by(id=work_type_id, firm_id=firm_id).first()
+            if not work_type:
+                return {
+                    'success': False,
+                    'message': 'Work type not found or access denied'
+                }
+            
+            # Get next position
+            max_position = db.session.query(db.func.max(TaskStatus.position)).filter_by(
+                work_type_id=work_type_id
+            ).scalar() or 0
+            
+            status = TaskStatus(
+                firm_id=firm_id,
+                work_type_id=work_type_id,
+                name=name.strip(),
+                color=color,
+                position=max_position + 1
+            )
+            
+            db.session.add(status)
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Status "{name}" created successfully',
+                'status': {
+                    'id': status.id,
+                    'name': status.name,
+                    'color': status.color
+                }
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error creating status: {str(e)}',
+                'status': None
+            }
+    
+    @staticmethod
+    def update_task_status(status_id: int, name: str, color: str, position: int,
+                          is_default: bool, is_terminal: bool, firm_id: int) -> Dict[str, Any]:
+        """
+        Update an existing task status
+        
+        Args:
+            status_id: The status's ID
+            name: Updated status name
+            color: Updated status color
+            position: Updated status position
+            is_default: Whether this is the default status
+            is_terminal: Whether this is a terminal status
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            status = TaskStatus.query.filter_by(id=status_id, firm_id=firm_id).first()
+            if not status:
+                return {
+                    'success': False,
+                    'message': 'Status not found or access denied'
+                }
+            
+            status.name = name.strip()
+            status.color = color
+            status.position = position
+            status.is_default = is_default
+            status.is_terminal = is_terminal
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Status "{name}" updated successfully'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error updating status: {str(e)}'
+            }
+    
+    @staticmethod
     def create_user(name: str, role: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new user for a firm

@@ -5,6 +5,10 @@ Environment-based configuration for CPA WorkflowPilot
 
 import os
 import secrets
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 class BaseConfig:
@@ -37,6 +41,15 @@ class BaseConfig:
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = os.environ.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
     AZURE_DOCUMENT_INTELLIGENCE_KEY = os.environ.get('AZURE_DOCUMENT_INTELLIGENCE_KEY')
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    
+    # AI Services Auto-Detection
+    @property
+    def AI_SERVICES_AVAILABLE(self):
+        """Auto-detect if AI services should be enabled based on available API keys"""
+        return bool(
+            (self.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT and self.AZURE_DOCUMENT_INTELLIGENCE_KEY) or
+            self.GEMINI_API_KEY
+        )
     
     # Integration Configuration  
     ONEDRIVE_CLIENT_ID = os.environ.get('ONEDRIVE_CLIENT_ID')

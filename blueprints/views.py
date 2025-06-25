@@ -225,6 +225,11 @@ def kanban_view():
                 kanban_columns = TemplateTask.query.filter_by(
                     template_id=template.id
                 ).order_by(TemplateTask.order.asc()).all()
+            else:
+                # Use work type statuses as kanban columns
+                kanban_columns = TaskStatus.query.filter_by(
+                    work_type_id=current_work_type.id
+                ).order_by(TaskStatus.position.asc()).all()
     
     # Base query for projects (not individual tasks)
     query = Project.query.filter_by(firm_id=firm_id, status='Active')
@@ -250,15 +255,16 @@ def kanban_view():
     # Get all projects
     projects = query.order_by(Project.created_at.desc()).all()
     
-    # Organize projects by current task progress (simplified version)
+    # Organize projects by current task progress (restored functionality)
     projects_by_column = {}
     project_counts = {}
     
     if kanban_columns:
         # Initialize columns
         for column in kanban_columns:
-            projects_by_column[column.id] = []
-            project_counts[column.id] = 0
+            column_id = column.id if hasattr(column, 'id') else column.name
+            projects_by_column[column_id] = []
+            project_counts[column_id] = 0
         
         # Add a "Completed" column for finished projects
         projects_by_column['completed'] = []
@@ -266,7 +272,6 @@ def kanban_view():
         
         # Assign projects to columns based on their actual progress
         for project in projects:
-            
             if project.status == 'Completed' or project.progress_percentage == 100:
                 # Completed projects go to a special completed column
                 projects_by_column['completed'].append(project)
@@ -290,11 +295,32 @@ def kanban_view():
                     target_column_index = min(int(progress / progress_per_column), column_count - 1)
                 
                 target_column = kanban_columns[target_column_index]
-                projects_by_column[target_column.id].append(project)
-                project_counts[target_column.id] += 1
+                column_id = target_column.id if hasattr(target_column, 'id') else target_column.name
+                projects_by_column[column_id].append(project)
+                project_counts[column_id] += 1
     else:
-        projects_by_column = {}
-        project_counts = {}
+        # Fallback if no columns found - use simple status-based columns
+        projects_by_column = {
+            'not_started': [],
+            'in_progress': [],
+            'completed': []
+        }
+        project_counts = {
+            'not_started': 0,
+            'in_progress': 0,
+            'completed': 0
+        }
+        
+        for project in projects:
+            if project.status == 'Completed' or project.progress_percentage >= 100:
+                projects_by_column['completed'].append(project)
+                project_counts['completed'] += 1
+            elif project.progress_percentage == 0:
+                projects_by_column['not_started'].append(project)
+                project_counts['not_started'] += 1
+            else:
+                projects_by_column['in_progress'].append(project)
+                project_counts['in_progress'] += 1
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()

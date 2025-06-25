@@ -62,9 +62,12 @@ def create_project():
 
 @projects_bp.route('/<int:id>')
 def view_project(id):
-    project = Project.query.get_or_404(id)
-    if project.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
+    firm_id = session['firm_id']
+    
+    # Use service layer to get project
+    project = ProjectService.get_project_by_id(id, firm_id)
+    if not project:
+        flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
     tasks = Task.query.filter_by(project_id=id).order_by(Task.due_date.asc()).all()
@@ -75,84 +78,75 @@ def view_project(id):
 
 @projects_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_project(id):
-    project = Project.query.get_or_404(id)
-    if project.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
+    firm_id = session['firm_id']
+    
+    # Use service layer to get project
+    project = ProjectService.get_project_by_id(id, firm_id)
+    if not project:
+        flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
     if request.method == 'POST':
-        # Update project details
-        project.name = request.form.get('name')
-        project.priority = request.form.get('priority', 'Medium')
-        project.status = request.form.get('status', 'Active')
+        # Prepare update data
+        update_data = {
+            'name': request.form.get('name'),
+            'priority': request.form.get('priority', 'Medium'),
+            'status': request.form.get('status', 'Active'),
+            'due_date': None,
+            'start_date': None
+        }
         
         # Handle due date
         due_date = request.form.get('due_date')
         if due_date:
-            project.due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
-        else:
-            project.due_date = None
+            try:
+                update_data['due_date'] = datetime.strptime(due_date, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Invalid due date format', 'error')
+                return redirect(url_for('projects.edit_project', id=id))
         
         # Handle start date
         start_date = request.form.get('start_date')
         if start_date:
-            project.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            try:
+                update_data['start_date'] = datetime.strptime(start_date, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Invalid start date format', 'error')
+                return redirect(url_for('projects.edit_project', id=id))
         
-        db.session.commit()
+        # Use service layer to update project
+        result = ProjectService.update_project(id, firm_id, **update_data)
         
-        # Activity log
-        create_activity_log(f'Project "{project.name}" updated', session['user_id'], project.id)
-        
-        flash('Project updated successfully!', 'success')
-        return redirect(url_for('projects.view_project', id=project.id))
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('projects.view_project', id=id))
+        else:
+            flash(result['message'], 'error')
+            return redirect(url_for('projects.edit_project', id=id))
     
     # GET request - show form
-    firm_id = session['firm_id']
     users = User.query.filter_by(firm_id=firm_id).all()
     return render_template('projects/edit_project.html', project=project, users=users)
 
 @projects_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_project(id):
-    project = Project.query.get_or_404(id)
+    firm_id = session['firm_id']
     
-    # Check access permission
-    if project.firm_id != session['firm_id']:
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
+    # Use service layer to delete project
+    result = ProjectService.delete_project(id, firm_id)
     
-    try:
-        project_name = project.name
-        client_name = project.client_name
-        
-        # Get count of associated tasks for confirmation
-        task_count = Task.query.filter_by(project_id=id).count()
-        
-        # Create activity log before deletion
-        create_activity_log(f'Project "{project_name}" for {client_name} deleted (with {task_count} tasks)', session['user_id'])
-        
-        # Delete all associated tasks first (cascade deletion)
-        tasks = Task.query.filter_by(project_id=id).all()
-        for task in tasks:
-            # Delete task comments first
-            TaskComment.query.filter_by(task_id=task.id).delete()
-            # Delete the task
-            db.session.delete(task)
-        
-        # Delete project attachments if any
-        Attachment.query.filter_by(project_id=id).delete()
-        
-        # Delete the project itself
-        db.session.delete(project)
-        db.session.commit()
-        
+    if result['success']:
         return jsonify({
-            'success': True, 
-            'message': f'Project "{project_name}" and {task_count} associated tasks deleted successfully',
+            'success': True,
+            'message': result['message'],
             'redirect': url_for('projects.list_projects')
         })
-    
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error deleting project: {str(e)}'}), 500
+    else:
+        status_code = 403 if 'access' in result['message'].lower() else 500
+        return jsonify({
+            'success': False,
+            'message': result['message']
+        }), status_code
 
 
 @projects_bp.route('/<int:id>/move-status', methods=['POST'])
