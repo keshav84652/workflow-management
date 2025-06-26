@@ -19,6 +19,38 @@ from services.ai_service import AIService
 ai_bp = Blueprint('ai', __name__)
 
 
+@ai_bp.route('/api/ai-services/status', methods=['GET'])
+def ai_services_status():
+    """Check the status of AI services"""
+    try:
+        ai_service = AIService(current_app.config)
+        
+        status = {
+            'ai_services_available': ai_service.is_available(),
+            'azure_available': ai_service.azure_client is not None,
+            'gemini_available': ai_service.gemini_client is not None,
+            'services_configured': []
+        }
+        
+        if ai_service.azure_client:
+            status['services_configured'].append('Azure Document Intelligence')
+        if ai_service.gemini_client:
+            status['services_configured'].append('Google Gemini')
+            
+        if not status['ai_services_available']:
+            status['message'] = 'No AI services configured. Please add GEMINI_API_KEY or Azure Document Intelligence credentials.'
+        else:
+            status['message'] = f"AI services ready: {', '.join(status['services_configured'])}"
+            
+        return jsonify(status)
+        
+    except Exception as e:
+        return jsonify({
+            'ai_services_available': False,
+            'error': f'Failed to check AI service status: {str(e)}'
+        }), 500
+
+
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
@@ -100,8 +132,23 @@ def analyze_checklist(checklist_id):
         # Initialize AI service
         ai_service = AIService(current_app.config)
         
+        # Check if AI services are available first
+        if not ai_service.is_available():
+            return jsonify({
+                'success': False,
+                'error': 'AI services not configured',
+                'message': 'Please configure GEMINI_API_KEY or Azure Document Intelligence API keys to enable AI analysis',
+                'ai_services_available': False,
+                'analyzed_count': 0,
+                'total_documents': 0
+            }), 503  # Service Unavailable
+        
         # Analyze all documents in checklist
         results = ai_service.analyze_checklist_documents(checklist_id, firm_id, force_reanalysis)
+        
+        # If no real analysis was performed, return 422 (Unprocessable Entity)
+        if not results.get('success') and results.get('real_analysis_count', 0) == 0:
+            return jsonify(results), 422
         
         return jsonify(results)
         

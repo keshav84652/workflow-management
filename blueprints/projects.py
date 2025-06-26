@@ -152,6 +152,13 @@ def delete_project(id):
 @projects_bp.route('/<int:id>/move-status', methods=['POST'])
 def move_project_status(id):
     """Move project to different status for Kanban board"""
+    from services.auth_service import AuthService
+    
+    # Check authentication
+    auth_redirect = AuthService.require_authentication()
+    if auth_redirect:
+        return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    
     firm_id = session['firm_id']
     data = request.get_json()
     status_id = data.get('status_id')
