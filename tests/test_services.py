@@ -23,8 +23,15 @@ class TestServiceLayer(unittest.TestCase):
     
     def test_config_ai_services_detection(self):
         """Test AI services auto-detection in config"""
-        # Test with no API keys
+        # Test logic of AI_SERVICES_AVAILABLE property
         config = TestingConfig()
+        
+        # Clear any existing keys for clean test
+        config.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = None
+        config.AZURE_DOCUMENT_INTELLIGENCE_KEY = None
+        config.GEMINI_API_KEY = None
+        
+        # Should be False with no keys
         self.assertFalse(config.AI_SERVICES_AVAILABLE)
         
         # Test with Azure keys
@@ -32,8 +39,9 @@ class TestServiceLayer(unittest.TestCase):
         config.AZURE_DOCUMENT_INTELLIGENCE_KEY = "test_key"
         self.assertTrue(config.AI_SERVICES_AVAILABLE)
         
-        # Test with Gemini key
-        config = TestingConfig()
+        # Test with Gemini key only
+        config.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = None
+        config.AZURE_DOCUMENT_INTELLIGENCE_KEY = None
         config.GEMINI_API_KEY = "test_gemini_key"
         self.assertTrue(config.AI_SERVICES_AVAILABLE)
     

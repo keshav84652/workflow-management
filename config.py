@@ -20,7 +20,7 @@ class BaseConfig:
     # Session Configuration for better persistence
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    SESSION_COOKIE_SECURE = os.environ.get('FLASK_ENV') == 'production'
     PERMANENT_SESSION_LIFETIME = 86400  # 24 hours
     SESSION_COOKIE_NAME = 'cpa_workflow_session'
     
@@ -40,7 +40,7 @@ class BaseConfig:
     # AI Services Configuration
     AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = os.environ.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
     AZURE_DOCUMENT_INTELLIGENCE_KEY = os.environ.get('AZURE_DOCUMENT_INTELLIGENCE_KEY')
-    GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    GEMINI_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('GEMINI_API_KEY')
     
     # AI Services Auto-Detection
     @property
