@@ -575,7 +575,7 @@ class AIService:
                 document.ai_analysis_completed = False
                 document.ai_analysis_results = None
                 document.ai_analysis_timestamp = None
-                db.session.commit()
+                # Note: Commit will happen at end of transaction
             
             # Check for existing results first (no AI services needed for cached data)
             if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
@@ -616,7 +616,7 @@ class AIService:
                 
         except Exception as e:
             db.session.rollback()
-            raise e
+            raise
     
     def _get_document_path(self, document) -> Optional[str]:
         """Get the file path for a document"""
@@ -755,7 +755,7 @@ class AIService:
             
         except Exception as e:
             db.session.rollback()
-            raise e
+            raise
 
     def generate_income_worksheet(self, checklist_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
         """Generate income worksheet from analyzed documents"""
@@ -804,7 +804,7 @@ class AIService:
             
         except Exception as e:
             db.session.rollback()
-            raise e
+            raise
 
     def get_saved_income_worksheet(self, checklist_id: int, firm_id: int) -> Dict[str, Any]:
         """Get saved income worksheet data"""
@@ -841,4 +841,4 @@ class AIService:
                 }
                 
         except Exception as e:
-            raise e
+            raise
