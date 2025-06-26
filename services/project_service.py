@@ -5,7 +5,14 @@ Project service layer for business logic
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 from flask import session
-from core import db
+import importlib.util
+import os
+
+# Import db from root core.py file
+spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
 from utils import calculate_task_due_date, find_or_create_client, create_activity_log
 

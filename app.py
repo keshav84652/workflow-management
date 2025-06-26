@@ -10,7 +10,16 @@ import uuid
 
 # Import configuration and core utilities
 from config import get_config
-from core import db, migrate, create_directories
+import importlib.util
+import os
+
+# Import db from root core.py file  
+spec = importlib.util.spec_from_file_location("core", "core.py")
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
+migrate = core_module.migrate
+create_directories = core_module.create_directories
 
 # Import models
 from models import (

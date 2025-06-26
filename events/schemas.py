@@ -55,6 +55,104 @@ class TaskCreatedEvent:
         }
 
 
+class TaskUpdatedEvent:
+    """Event fired when a task is updated"""
+    
+    def __init__(self, task_id: int, task_title: str, changes: Dict[str, Any],
+                 priority: str = "Medium", project_id: Optional[int] = None, 
+                 assigned_to: Optional[int] = None, due_date: Optional[datetime] = None,
+                 firm_id: Optional[int] = None, user_id: Optional[int] = None):
+        self.task_id = task_id
+        self.task_title = task_title
+        self.changes = changes
+        self.priority = priority
+        self.project_id = project_id
+        self.assigned_to = assigned_to
+        self.due_date = due_date
+        self.firm_id = firm_id
+        self.user_id = user_id
+        
+        # Event metadata
+        import uuid
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+    
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'task_id': self.task_id,
+            'task_title': self.task_title,
+            'changes': self.changes,
+            'project_id': self.project_id,
+            'assigned_to': self.assigned_to,
+            'priority': self.priority,
+            'due_date': self.due_date.isoformat() if self.due_date else None
+        }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'user_id': self.user_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
+class TaskStatusChangedEvent:
+    """Event fired when a task status changes"""
+    
+    def __init__(self, task_id: int, task_title: str, old_status: str, new_status: str,
+                 priority: str = "Medium", project_id: Optional[int] = None, 
+                 assigned_to: Optional[int] = None, firm_id: Optional[int] = None, 
+                 user_id: Optional[int] = None):
+        self.task_id = task_id
+        self.task_title = task_title
+        self.old_status = old_status
+        self.new_status = new_status
+        self.priority = priority
+        self.project_id = project_id
+        self.assigned_to = assigned_to
+        self.firm_id = firm_id
+        self.user_id = user_id
+        
+        # Event metadata
+        import uuid
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+    
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'task_id': self.task_id,
+            'task_title': self.task_title,
+            'old_status': self.old_status,
+            'new_status': self.new_status,
+            'project_id': self.project_id,
+            'assigned_to': self.assigned_to,
+            'priority': self.priority
+        }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'user_id': self.user_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
 class DocumentAnalysisStartedEvent:
     """Event fired when AI document analysis is started"""
     

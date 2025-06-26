@@ -4,7 +4,14 @@ Views and interface modes blueprint (Calendar, Kanban, Search, Reports)
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
-from core import db
+import importlib.util
+import os
+
+# Import db from root core.py file
+spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
 from models import Task, Project, User, WorkType, Template, TemplateTask, Client
 from services.dashboard_service import DashboardService
 from utils import get_session_firm_id

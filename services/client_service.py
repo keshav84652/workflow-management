@@ -4,7 +4,14 @@ Client service layer for business logic
 
 from typing import Optional, List, Dict, Any
 from flask import session
-from core import db
+import importlib.util
+import os
+
+# Import db from root core.py file
+spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
 from models import Client, Project, Contact, ActivityLog, ClientContact, ClientUser
 from services.activity_service import ActivityService
 from utils import get_session_firm_id, get_session_user_id

@@ -21,8 +21,15 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import Flask and extensions
 from flask import Flask
-from core import db
 from config import TestingConfig
+import importlib.util
+import os
+
+# Import db from root core.py file
+spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
 
 # Import models
 from models import (

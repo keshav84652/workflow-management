@@ -20,10 +20,17 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.ai_service import AIService
 from config import TestingConfig
+from flask import Flask
 
 
 class SimpleCriticalFixesTests(unittest.TestCase):
     """Simple tests for the critical fixes we made"""
+    
+    @classmethod
+    def setUpClass(cls):
+        """Set up minimal test application for session tests"""
+        cls.app = Flask(__name__)
+        cls.app.config.from_object(TestingConfig)
     
     def test_session_cookie_security_configuration(self):
         """Test that session cookie security is environment-dependent"""
@@ -210,28 +217,29 @@ class SimpleCriticalFixesTests(unittest.TestCase):
         """Test that session helper functions work correctly"""
         from utils import get_session_firm_id, get_session_user_id
         
-        # Test with mock session data
-        mock_session = {'firm_id': 123, 'user_id': 456}
-        
-        with patch('utils.session', mock_session):
-            firm_id = get_session_firm_id()
-            user_id = get_session_user_id()
+        with self.app.test_request_context():
+            # Test with mock session data
+            mock_session = {'firm_id': 123, 'user_id': 456}
             
-            self.assertEqual(firm_id, 123)
-            self.assertEqual(user_id, 456)
-        
-        # Test error handling for missing session data
-        with patch('utils.session', {}):
-            # Mock request object properly
-            mock_request = Mock()
-            mock_request.path = '/test/path'
-            with patch('utils.request', mock_request):
-                with self.assertRaises(ValueError) as context:
-                    get_session_firm_id()
+            with patch('utils.session_helpers.session', mock_session):
+                firm_id = get_session_firm_id()
+                user_id = get_session_user_id()
                 
-                error_msg = str(context.exception)
-                self.assertIn('No firm_id in session', error_msg)
-                self.assertIn('/test/path', error_msg)  # Should include request path
+                self.assertEqual(firm_id, 123)
+                self.assertEqual(user_id, 456)
+            
+            # Test error handling for missing session data
+            with patch('utils.session_helpers.session', {}):
+                # Mock request object properly
+                mock_request = Mock()
+                mock_request.path = '/test/path'
+                with patch('utils.session_helpers.request', mock_request):
+                    with self.assertRaises(ValueError) as context:
+                        get_session_firm_id()
+                    
+                    error_msg = str(context.exception)
+                    self.assertIn('No firm_id in session', error_msg)
+                    self.assertIn('/test/path', error_msg)  # Should include request path
     
     def test_ai_service_availability_detection(self):
         """Test AI service availability detection works correctly"""

@@ -9,7 +9,14 @@ import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
 
-from core import db
+import importlib.util
+import os
+
+# Import db from root core.py file
+spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
+core_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(core_module)
+db = core_module.db
 from models import (
     DocumentChecklist, ChecklistItem, Client, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
