@@ -842,3 +842,142 @@ class AIService:
                 
         except Exception as e:
             raise
+    
+    @staticmethod
+    def export_checklist_analysis(checklist_id: int, firm_id: int) -> Dict[str, Any]:
+        """
+        Export checklist analysis results as structured data
+        
+        Args:
+            checklist_id: The checklist's ID
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing analysis data for export
+        """
+        from models import DocumentChecklist, Client
+        
+        # Get checklist and verify access
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            raise ValueError('Checklist not found or access denied')
+        
+        try:
+            # Gather analysis results
+            analysis_data = {
+                'checklist_name': checklist.name,
+                'client_name': checklist.client.name,
+                'export_timestamp': datetime.utcnow().isoformat(),
+                'documents': []
+            }
+            
+            for item in checklist.items:
+                for document in item.client_documents:
+                    doc_data = {
+                        'item_title': item.title,
+                        'filename': document.original_filename,
+                        'analysis_completed': document.ai_analysis_completed,
+                        'analysis_results': json.loads(document.ai_analysis_results) if document.ai_analysis_results else None
+                    }
+                    analysis_data['documents'].append(doc_data)
+            
+            return {
+                'success': True,
+                'data': analysis_data,
+                'filename': f'checklist_analysis_{checklist_id}.json'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Export failed: {str(e)}'
+            }
+    
+    @staticmethod
+    def get_income_worksheet_for_download(checklist_id: int, firm_id: int) -> Dict[str, Any]:
+        """
+        Get income worksheet data formatted for download
+        
+        Args:
+            checklist_id: The checklist's ID
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing worksheet data and metadata for download
+        """
+        from models import DocumentChecklist, Client, IncomeWorksheet
+        
+        # Get checklist and verify access
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+        
+        if not checklist:
+            raise ValueError('Checklist not found or access denied')
+        
+        worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
+        if not worksheet:
+            raise ValueError('Income worksheet not found')
+        
+        try:
+            worksheet_data = json.loads(worksheet.worksheet_data)
+            
+            return {
+                'success': True,
+                'data': worksheet_data,
+                'filename': f'income_worksheet_{checklist_id}.json',
+                'checklist_name': checklist.name,
+                'client_name': checklist.client.name
+            }
+            
+        except json.JSONDecodeError:
+            raise ValueError('Invalid worksheet data format')
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Download preparation failed: {str(e)}'
+            }
+    
+    @staticmethod
+    def get_ai_services_status(config) -> Dict[str, Any]:
+        """
+        Check the status of AI services
+        
+        Args:
+            config: Application configuration
+            
+        Returns:
+            Dict containing AI services status and availability
+        """
+        try:
+            ai_service = AIService(config)
+            
+            status = {
+                'ai_services_available': ai_service.is_available(),
+                'azure_available': ai_service.azure_client is not None,
+                'gemini_available': ai_service.gemini_client is not None,
+                'services_configured': []
+            }
+            
+            if ai_service.azure_client:
+                status['services_configured'].append('Azure Document Intelligence')
+            if ai_service.gemini_client:
+                status['services_configured'].append('Google Gemini')
+                
+            if not status['ai_services_available']:
+                status['message'] = 'No AI services configured. Please add GEMINI_API_KEY or Azure Document Intelligence credentials.'
+            else:
+                status['message'] = f"AI services ready: {', '.join(status['services_configured'])}"
+                
+            return status
+            
+        except Exception as e:
+            return {
+                'ai_services_available': False,
+                'error': f'Failed to check AI service status: {str(e)}'
+            }

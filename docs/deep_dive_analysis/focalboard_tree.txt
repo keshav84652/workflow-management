@@ -1,0 +1,1951 @@
+/home/keshav/Projects/focalboard
+├── app-config.json
+├── CHANGELOG.md
+├── config.json
+├── CONTRIBUTING.md
+├── docker
+│   ├── config.json
+│   ├── docker-compose-db-nginx.yml
+│   ├── docker-compose.yml
+│   ├── Dockerfile
+│   ├── README.md
+│   └── server_config.json
+├── Dockerfile.build
+├── docker-testing
+│   ├── docker-compose-mariadb.yml
+│   ├── docker-compose-mysql.yml
+│   └── docker-compose-postgres.yml
+├── docs
+│   ├── code-review.md
+│   ├── _config.yml
+│   ├── contribution-checklist.md
+│   ├── contributions-without-ticket.md
+│   ├── core-committers.md
+│   ├── dev-tips.md
+│   ├── focalboard-dev-guide.md
+│   ├── index.md
+│   └── README.md
+├── experiments
+│   └── webext
+│       ├── icons
+│       │   ├── 19.png
+│       │   ├── 38.png
+│       │   ├── 48.png
+│       │   └── 96.png
+│       ├── manifest.json
+│       ├── package.json
+│       ├── package-lock.json
+│       ├── README.md
+│       ├── src
+│       │   ├── utils
+│       │   │   ├── Board.ts
+│       │   │   ├── networking.ts
+│       │   │   └── settings.ts
+│       │   └── views
+│       │       ├── OptionsApp.scss
+│       │       ├── OptionsApp.tsx
+│       │       ├── options.html
+│       │       ├── options.tsx
+│       │       ├── PopupApp.scss
+│       │       ├── PopupApp.tsx
+│       │       ├── popup.html
+│       │       └── popup.tsx
+│       └── tsconfig.json
+├── import
+│   ├── asana
+│   │   ├── asana.ts
+│   │   ├── importAsana.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   ├── jira
+│   │   ├── importJira.ts
+│   │   ├── jiraImporter.test.ts
+│   │   ├── jiraImporter.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── test
+│   │   │   └── jira-export.xml
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   ├── nextcloud-deck
+│   │   ├── deck.ts
+│   │   ├── importDeck.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   ├── notion
+│   │   ├── importNotion.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   ├── README.md
+│   ├── todoist
+│   │   ├── importTodoist.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── todoist.ts
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   ├── trello
+│   │   ├── importTrello.ts
+│   │   ├── package.json
+│   │   ├── package-lock.json
+│   │   ├── README.md
+│   │   ├── trello.ts
+│   │   ├── tsconfig.json
+│   │   └── utils.ts
+│   └── util
+│       └── archive.ts
+├── LICENSE.txt
+├── linux
+│   ├── config.json -> ../config.json
+│   ├── go.mod
+│   ├── go.sum
+│   ├── main.go
+│   ├── Makefile
+│   ├── pack -> ../webapp/pack
+│   └── webapp -> ../webapp
+├── mac
+│   ├── export.plist
+│   ├── Focalboard
+│   │   ├── AppDelegate.swift
+│   │   ├── Assets.xcassets
+│   │   │   ├── AccentColor.colorset
+│   │   │   │   └── Contents.json
+│   │   │   ├── AppIcon.appiconset
+│   │   │   │   ├── Contents.json
+│   │   │   │   ├── focalboard-1024.png
+│   │   │   │   └── focalboard-512.png
+│   │   │   └── Contents.json
+│   │   ├── AutoSaveWindowController.swift
+│   │   ├── Base.lproj
+│   │   │   └── Main.storyboard
+│   │   ├── CustomWKWebView.swift
+│   │   ├── DownloadHandler.swift
+│   │   ├── Focalboard.entitlements
+│   │   ├── Globals.swift
+│   │   ├── Info.plist
+│   │   ├── Inherit.entitlements
+│   │   ├── PortUtils.swift
+│   │   ├── ViewController.swift
+│   │   ├── whatsnew.txt
+│   │   └── WhatsNewViewController.swift
+│   ├── FocalboardTests
+│   │   ├── FocalboardTests.swift
+│   │   └── Info.plist
+│   ├── FocalboardUITests
+│   │   ├── FocalboardUITests.swift
+│   │   └── Info.plist
+│   ├── Focalboard.xcodeproj
+│   │   ├── project.pbxproj
+│   │   ├── project.xcworkspace
+│   │   │   ├── contents.xcworkspacedata
+│   │   │   └── xcshareddata
+│   │   │       └── IDEWorkspaceChecks.plist
+│   │   └── xcshareddata
+│   │       └── xcschemes
+│   │           └── Focalboard.xcscheme
+│   ├── Focalboard.xcworkspace
+│   │   ├── contents.xcworkspacedata
+│   │   └── xcshareddata
+│   │       └── IDEWorkspaceChecks.plist
+│   └── README.md
+├── Makefile
+├── modd.conf
+├── modd-servertest.conf
+├── noticegen
+│   ├── config.yaml
+│   └── Readme.md
+├── NOTICE.txt
+├── pull_request_template.md
+├── README.md
+├── responsible_disclosure_policy.md
+├── SECURITY.md
+├── server
+│   ├── admin-scripts
+│   │   └── reset-password.sh
+│   ├── api
+│   │   ├── admin.go
+│   │   ├── api.go
+│   │   ├── api_test.go
+│   │   ├── archive.go
+│   │   ├── audit.go
+│   │   ├── auth.go
+│   │   ├── blocks.go
+│   │   ├── boards_and_blocks.go
+│   │   ├── boards.go
+│   │   ├── cards.go
+│   │   ├── categories.go
+│   │   ├── channels.go
+│   │   ├── compliance.go
+│   │   ├── config.go
+│   │   ├── content_blocks.go
+│   │   ├── context.go
+│   │   ├── files.go
+│   │   ├── members.go
+│   │   ├── onboarding.go
+│   │   ├── search.go
+│   │   ├── sharing.go
+│   │   ├── statistics.go
+│   │   ├── subscriptions.go
+│   │   ├── system.go
+│   │   ├── system_test.go
+│   │   ├── teams.go
+│   │   ├── templates.go
+│   │   └── users.go
+│   ├── app
+│   │   ├── app.go
+│   │   ├── app_test.go
+│   │   ├── auth.go
+│   │   ├── auth_test.go
+│   │   ├── blocks.go
+│   │   ├── blocks_test.go
+│   │   ├── boards_and_blocks.go
+│   │   ├── boards.go
+│   │   ├── boards_test.go
+│   │   ├── cards.go
+│   │   ├── cards_test.go
+│   │   ├── category_boards.go
+│   │   ├── category_boards_test.go
+│   │   ├── category.go
+│   │   ├── category_test.go
+│   │   ├── clientConfig.go
+│   │   ├── clientConfig_test.go
+│   │   ├── compliance.go
+│   │   ├── content_blocks.go
+│   │   ├── content_blocks_test.go
+│   │   ├── export.go
+│   │   ├── files.go
+│   │   ├── files_test.go
+│   │   ├── helper_test.go
+│   │   ├── import.go
+│   │   ├── import_test.go
+│   │   ├── initialize.go
+│   │   ├── onboarding.go
+│   │   ├── onboarding_test.go
+│   │   ├── permissions.go
+│   │   ├── server_metadata.go
+│   │   ├── server_metadata_test.go
+│   │   ├── sharing.go
+│   │   ├── sharing_test.go
+│   │   ├── statistics.go
+│   │   ├── subscriptions.go
+│   │   ├── teams.go
+│   │   ├── teams_test.go
+│   │   ├── templates.boardarchive
+│   │   ├── templates.go
+│   │   ├── templates_test.go
+│   │   ├── user.go
+│   │   └── user_test.go
+│   ├── assets
+│   │   ├── assets.go
+│   │   ├── build-template-archive
+│   │   │   └── main.go
+│   │   ├── templates-boardarchive
+│   │   │   ├── b7wnw9awd4pnefryhq51apbzb4c
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bbkpwdj8x17bdpdqd176n8ctoua
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bbn1888mprfrm5fjw9f1je9x3xo
+│   │   │   │   ├── 76fwrj36hptg6dywka4k5mt3sph.png
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bc41mwxg9ybb69pn9j5zna6d36c
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bcm39o11e4ib8tye8mt6iyuec9o
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bd65qbzuqupfztpg31dgwgwm5ga
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bgi1yqiis8t8xdqxgnet8ebutky
+│   │   │   │   ├── 7b9xk9boj3fbqfm3umeaaizp8qr.png
+│   │   │   │   ├── 7tmfu5iqju3n1mdfwi5gru89qmw.png
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bh4pkixqsjift58e1qy6htrgeay
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bkqk6hpfx7pbsucue7jan5n1o1o
+│   │   │   │   └── board.jsonl
+│   │   │   ├── brs9cdimfw7fodyi7erqt747rhc
+│   │   │   │   ├── 7y5kr8x8ybpnwdykjfuz57rggrh.png
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bsjd59qtpbf888mqez3ge77domw
+│   │   │   │   └── board.jsonl
+│   │   │   ├── bui5izho7dtn77xg3thkiqprc9r
+│   │   │   │   ├── 77pe9r4ckbin438ph3f18bpatua.png
+│   │   │   │   ├── 7pbp4qg415pbstc6enzeicnu3qh.png
+│   │   │   │   └── board.jsonl
+│   │   │   ├── buixxjic3xjfkieees4iafdrznc
+│   │   │   │   ├── 74nt9eqzea3ydjjpgjtsxcjgrxc.gif
+│   │   │   │   ├── 74uia99m9btr8peydw7oexn37tw.gif
+│   │   │   │   ├── 78jws5m1myf8pufewzkaa6i11sc.gif
+│   │   │   │   ├── 7d6hrtig3zt8f9cnbo1um5oxx3y.gif
+│   │   │   │   ├── 7dybb6t8fj3nrdft7nerhuf784y.png
+│   │   │   │   ├── 7ek6wbpp19jfoujs1goh6kttbby.gif
+│   │   │   │   ├── 7iw4rxx7jj7bypmdotd9z469cyh.png
+│   │   │   │   ├── 7knxbyuiedtdafcgmropgkrtybr.gif
+│   │   │   │   └── board.jsonl
+│   │   │   └── version.json
+│   │   └── templates.boardarchive
+│   ├── auth
+│   │   ├── auth.go
+│   │   ├── auth_test.go
+│   │   └── mocks
+│   │       └── mockauth_interface.go
+│   ├── client
+│   │   └── client.go
+│   ├── go.mod
+│   ├── go.sum
+│   ├── go.tools.mod
+│   ├── go.tools.sum
+│   ├── integrationtests
+│   │   ├── blocks_test.go
+│   │   ├── boards_and_blocks_test.go
+│   │   ├── board_test.go
+│   │   ├── cards_test.go
+│   │   ├── clienttestlib.go
+│   │   ├── compliance_test.go
+│   │   ├── content_blocks_test.go
+│   │   ├── export_test.go
+│   │   ├── file_test.go
+│   │   ├── permissions_test.go
+│   │   ├── pluginteststore.go
+│   │   ├── sharing_test.go
+│   │   ├── sidebar_test.go
+│   │   ├── subscriptions_test.go
+│   │   ├── teststore.go
+│   │   ├── user_test.go
+│   │   └── work_template_test.go
+│   ├── main
+│   │   ├── doc.go
+│   │   └── main.go
+│   ├── model
+│   │   ├── auth.go
+│   │   ├── block.go
+│   │   ├── blockid.go
+│   │   ├── block_test.go
+│   │   ├── blocktype.go
+│   │   ├── board.go
+│   │   ├── boards_and_blocks.go
+│   │   ├── boards_and_blocks_test.go
+│   │   ├── board_statistics.go
+│   │   ├── card.go
+│   │   ├── card_test.go
+│   │   ├── category_boards.go
+│   │   ├── category.go
+│   │   ├── clientConfig.go
+│   │   ├── cloud.go
+│   │   ├── compliance.go
+│   │   ├── database.go
+│   │   ├── error.go
+│   │   ├── errorResponse.go
+│   │   ├── file.go
+│   │   ├── import_export.go
+│   │   ├── log_level.go
+│   │   ├── mocks
+│   │   │   ├── mockservicesapi.go
+│   │   │   └── propValueResolverMock.go
+│   │   ├── notification.go
+│   │   ├── permission.go
+│   │   ├── properties.go
+│   │   ├── properties_test.go
+│   │   ├── services_api.go
+│   │   ├── sharing.go
+│   │   ├── subscription.go
+│   │   ├── team.go
+│   │   ├── user.go
+│   │   ├── util.go
+│   │   └── version.go
+│   ├── server
+│   │   ├── initHandlers.go
+│   │   ├── params.go
+│   │   └── server.go
+│   ├── services
+│   │   ├── audit
+│   │   │   ├── audit.go
+│   │   │   ├── record.go
+│   │   │   └── record_test.go
+│   │   ├── auth
+│   │   │   ├── email.go
+│   │   │   ├── password.go
+│   │   │   ├── password_test.go
+│   │   │   ├── request_parser.go
+│   │   │   └── request_parser_test.go
+│   │   ├── config
+│   │   │   └── config.go
+│   │   ├── metrics
+│   │   │   ├── metrics.go
+│   │   │   └── service.go
+│   │   ├── notify
+│   │   │   ├── notifylogger
+│   │   │   │   └── logger_backend.go
+│   │   │   ├── notifymentions
+│   │   │   │   ├── app_api.go
+│   │   │   │   ├── delivery.go
+│   │   │   │   ├── extract.go
+│   │   │   │   ├── extract_test.go
+│   │   │   │   ├── mentions_backend.go
+│   │   │   │   ├── mentions.go
+│   │   │   │   └── mentions_test.go
+│   │   │   ├── notifysubscriptions
+│   │   │   │   ├── app_api.go
+│   │   │   │   ├── delivery.go
+│   │   │   │   ├── diff2markdown.go
+│   │   │   │   ├── diff2markdown_test.go
+│   │   │   │   ├── diff2slackattachments.go
+│   │   │   │   ├── diff.go
+│   │   │   │   ├── notifier.go
+│   │   │   │   ├── subscriptions_backend.go
+│   │   │   │   └── util.go
+│   │   │   ├── plugindelivery
+│   │   │   │   ├── mention_deliver.go
+│   │   │   │   ├── message.go
+│   │   │   │   ├── plugin_delivery.go
+│   │   │   │   ├── subscription_deliver.go
+│   │   │   │   ├── user.go
+│   │   │   │   └── user_test.go
+│   │   │   └── service.go
+│   │   ├── permissions
+│   │   │   ├── localpermissions
+│   │   │   │   ├── helpers_test.go
+│   │   │   │   ├── localpermissions.go
+│   │   │   │   └── localpermissions_test.go
+│   │   │   ├── mmpermissions
+│   │   │   │   ├── helpers_test.go
+│   │   │   │   ├── mmpermissions.go
+│   │   │   │   ├── mmpermissions_test.go
+│   │   │   │   └── mocks
+│   │   │   │       └── mockpluginapi.go
+│   │   │   ├── mocks
+│   │   │   │   └── mockstore.go
+│   │   │   └── permissions.go
+│   │   ├── scheduler
+│   │   │   ├── scheduler.go
+│   │   │   └── scheduler_test.go
+│   │   ├── store
+│   │   │   ├── generators
+│   │   │   │   ├── main.go
+│   │   │   │   └── transactional_store.go.tmpl
+│   │   │   ├── mattermostauthlayer
+│   │   │   │   ├── mattermostauthlayer.go
+│   │   │   │   └── mattermostauthlayer_test.go
+│   │   │   ├── mockstore
+│   │   │   │   └── mockstore.go
+│   │   │   ├── sqlstore
+│   │   │   │   ├── blocks.go
+│   │   │   │   ├── board.go
+│   │   │   │   ├── boards_and_blocks.go
+│   │   │   │   ├── category_boards.go
+│   │   │   │   ├── category.go
+│   │   │   │   ├── cloud.go
+│   │   │   │   ├── compliance.go
+│   │   │   │   ├── data_migrations.go
+│   │   │   │   ├── data_migrations_test.go
+│   │   │   │   ├── data_retention.go
+│   │   │   │   ├── file.go
+│   │   │   │   ├── helpers_test.go
+│   │   │   │   ├── legacy_blocks.go
+│   │   │   │   ├── migrate.go
+│   │   │   │   ├── migrations
+│   │   │   │   │   ├── 000001_init.down.sql
+│   │   │   │   │   ├── 000001_init.up.sql
+│   │   │   │   │   ├── 000002_system_settings_table.down.sql
+│   │   │   │   │   ├── 000002_system_settings_table.up.sql
+│   │   │   │   │   ├── 000003_blocks_rootid.down.sql
+│   │   │   │   │   ├── 000003_blocks_rootid.up.sql
+│   │   │   │   │   ├── 000004_auth_table.down.sql
+│   │   │   │   │   ├── 000004_auth_table.up.sql
+│   │   │   │   │   ├── 000005_blocks_modifiedby.down.sql
+│   │   │   │   │   ├── 000005_blocks_modifiedby.up.sql
+│   │   │   │   │   ├── 000006_sharing_table.down.sql
+│   │   │   │   │   ├── 000006_sharing_table.up.sql
+│   │   │   │   │   ├── 000007_workspaces_table.down.sql
+│   │   │   │   │   ├── 000007_workspaces_table.up.sql
+│   │   │   │   │   ├── 000008_teams.down.sql
+│   │   │   │   │   ├── 000008_teams.up.sql
+│   │   │   │   │   ├── 000009_blocks_history.down.sql
+│   │   │   │   │   ├── 000009_blocks_history.up.sql
+│   │   │   │   │   ├── 000010_blocks_created_by.down.sql
+│   │   │   │   │   ├── 000010_blocks_created_by.up.sql
+│   │   │   │   │   ├── 000011_match_collation.down.sql
+│   │   │   │   │   ├── 000011_match_collation.up.sql
+│   │   │   │   │   ├── 000012_match_column_collation.down.sql
+│   │   │   │   │   ├── 000012_match_column_collation.up.sql
+│   │   │   │   │   ├── 000013_millisecond_timestamps.down.sql
+│   │   │   │   │   ├── 000013_millisecond_timestamps.up.sql
+│   │   │   │   │   ├── 000014_add_not_null_constraint.down.sql
+│   │   │   │   │   ├── 000014_add_not_null_constraint.up.sql
+│   │   │   │   │   ├── 000015_blocks_history_no_nulls.down.sql
+│   │   │   │   │   ├── 000015_blocks_history_no_nulls.up.sql
+│   │   │   │   │   ├── 000016_subscriptions_table.down.sql
+│   │   │   │   │   ├── 000016_subscriptions_table.up.sql
+│   │   │   │   │   ├── 000017_add_file_info.down.sql
+│   │   │   │   │   ├── 000017_add_file_info.up.sql
+│   │   │   │   │   ├── 000018_add_teams_and_boards.down.sql
+│   │   │   │   │   ├── 000018_add_teams_and_boards.up.sql
+│   │   │   │   │   ├── 000019_populate_categories.down.sql
+│   │   │   │   │   ├── 000019_populate_categories.up.sql
+│   │   │   │   │   ├── 000020_populate_category_blocks.down.sql
+│   │   │   │   │   ├── 000020_populate_category_blocks.up.sql
+│   │   │   │   │   ├── 000021_create_boards_members_history.down.sql
+│   │   │   │   │   ├── 000021_create_boards_members_history.up.sql
+│   │   │   │   │   ├── 000022_create_default_board_role.down.sql
+│   │   │   │   │   ├── 000022_create_default_board_role.up.sql
+│   │   │   │   │   ├── 000023_persist_category_collapsed_state.down.sql
+│   │   │   │   │   ├── 000023_persist_category_collapsed_state.up.sql
+│   │   │   │   │   ├── 000024_mark_existsing_categories_collapsed.down.sql
+│   │   │   │   │   ├── 000024_mark_existsing_categories_collapsed.up.sql
+│   │   │   │   │   ├── 000025_indexes_update.down.sql
+│   │   │   │   │   ├── 000025_indexes_update.up.sql
+│   │   │   │   │   ├── 000026_create_preferences_table.down.sql
+│   │   │   │   │   ├── 000026_create_preferences_table.up.sql
+│   │   │   │   │   ├── 000027_migrate_user_props_to_preferences.down.sql
+│   │   │   │   │   ├── 000027_migrate_user_props_to_preferences.up.sql
+│   │   │   │   │   ├── 000028_remove_template_channel_link.down.sql
+│   │   │   │   │   ├── 000028_remove_template_channel_link.up.sql
+│   │   │   │   │   ├── 000029_add_category_type_field.down.sql
+│   │   │   │   │   ├── 000029_add_category_type_field.up.sql
+│   │   │   │   │   ├── 000030_add_category_sort_order.down.sql
+│   │   │   │   │   ├── 000030_add_category_sort_order.up.sql
+│   │   │   │   │   ├── 000031_add_category_boards_sort_order.down.sql
+│   │   │   │   │   ├── 000031_add_category_boards_sort_order.up.sql
+│   │   │   │   │   ├── 000032_move_boards_category_to_end.down.sql
+│   │   │   │   │   ├── 000032_move_boards_category_to_end.up.sql
+│   │   │   │   │   ├── 000033_remove_deleted_category_boards.down.sql
+│   │   │   │   │   ├── 000033_remove_deleted_category_boards.up.sql
+│   │   │   │   │   ├── 000034_category_boards_remove_unused_delete_at_column.down.sql
+│   │   │   │   │   ├── 000034_category_boards_remove_unused_delete_at_column.up.sql
+│   │   │   │   │   ├── 000035_add_hidden_board_column.down.sql
+│   │   │   │   │   ├── 000035_add_hidden_board_column.up.sql
+│   │   │   │   │   ├── 000036_category_board_add_unique_constraint.down.sql
+│   │   │   │   │   ├── 000036_category_board_add_unique_constraint.up.sql
+│   │   │   │   │   ├── 000037_hidden_boards_from_preferences.down.sql
+│   │   │   │   │   ├── 000037_hidden_boards_from_preferences.up.sql
+│   │   │   │   │   ├── 000038_delete_hiddenBoardIDs_from_preferences.down.sql
+│   │   │   │   │   ├── 000038_delete_hiddenBoardIDs_from_preferences.up.sql
+│   │   │   │   │   ├── 000039_add_path_to_file_info.down.sql
+│   │   │   │   │   ├── 000039_add_path_to_file_info.up.sql
+│   │   │   │   │   ├── 000040_fix_fileinfo_soft_deletes.down.sql
+│   │   │   │   │   ├── 000040_fix_fileinfo_soft_deletes.up.sql
+│   │   │   │   │   └── README.md
+│   │   │   │   ├── migrationstests
+│   │   │   │   │   ├── boards_migrator_test.go
+│   │   │   │   │   ├── de_duplicate_category_boards_migration_test.go
+│   │   │   │   │   ├── fixtures
+│   │   │   │   │   │   ├── deletedMembershipBoardsMigrationFixtures.sql
+│   │   │   │   │   │   ├── test18AddTeamsAndBoardsSQLMigrationFixtures.sql
+│   │   │   │   │   │   ├── test27MigrateUserPropsToPreferences.sql
+│   │   │   │   │   │   ├── test28RemoveTemplateChannelLink.sql
+│   │   │   │   │   │   ├── test33_with_deleted_data.sql
+│   │   │   │   │   │   ├── test33_with_no_deleted_data.sql
+│   │   │   │   │   │   ├── test34_drop_delete_at_column.sql
+│   │   │   │   │   │   ├── test35_add_hidden_column.sql
+│   │   │   │   │   │   ├── test36_add_unique_constraint.sql
+│   │   │   │   │   │   ├── test37_valid_data_no_hidden_boards.sql
+│   │   │   │   │   │   ├── test37_valid_data_preference_but_no_hidden_board.sql
+│   │   │   │   │   │   ├── test37_valid_data.sql
+│   │   │   │   │   │   ├── test37_valid_data_sqlite_preference_but_no_hidden_board.sql
+│   │   │   │   │   │   ├── test37_valid_data_sqlite.sql
+│   │   │   │   │   │   ├── test38_add_plugin_preferences.sql
+│   │   │   │   │   │   ├── test38_add_standalone_preferences.sql
+│   │   │   │   │   │   ├── test40FixFileinfoSoftDeletes.sql
+│   │   │   │   │   │   └── testDeDuplicateCategoryBoardsMigration.sql
+│   │   │   │   │   ├── helpers_test.go
+│   │   │   │   │   ├── migrate_34_test.go
+│   │   │   │   │   ├── migration_27_test.go
+│   │   │   │   │   ├── migration_28_test.go
+│   │   │   │   │   ├── migration_33_test.go
+│   │   │   │   │   ├── migration35_test.go
+│   │   │   │   │   ├── migration36_test.go
+│   │   │   │   │   ├── migration37_test.go
+│   │   │   │   │   └── migration38_test.go
+│   │   │   │   ├── notificationhints.go
+│   │   │   │   ├── params.go
+│   │   │   │   ├── public_methods.go
+│   │   │   │   ├── schema_table_migration.go
+│   │   │   │   ├── schema_table_migration_test.go
+│   │   │   │   ├── session.go
+│   │   │   │   ├── sharing.go
+│   │   │   │   ├── sqlite.go
+│   │   │   │   ├── sqlstore.go
+│   │   │   │   ├── sqlstore_test.go
+│   │   │   │   ├── subscriptions.go
+│   │   │   │   ├── system.go
+│   │   │   │   ├── team.go
+│   │   │   │   ├── templates.go
+│   │   │   │   ├── user.go
+│   │   │   │   └── util.go
+│   │   │   ├── store.go
+│   │   │   └── storetests
+│   │   │       ├── blocks.go
+│   │   │       ├── boards_and_blocks.go
+│   │   │       ├── boards.go
+│   │   │       ├── categoryBoards.go
+│   │   │       ├── category.go
+│   │   │       ├── cloud.go
+│   │   │       ├── compliance.go
+│   │   │       ├── data_retention.go
+│   │   │       ├── files.go
+│   │   │       ├── helpers.go
+│   │   │       ├── notificationhints.go
+│   │   │       ├── session.go
+│   │   │       ├── sharing.go
+│   │   │       ├── subscriptions.go
+│   │   │       ├── system.go
+│   │   │       ├── teams.go
+│   │   │       ├── users.go
+│   │   │       └── util.go
+│   │   ├── telemetry
+│   │   │   ├── mocks
+│   │   │   │   └── ServerIface.go
+│   │   │   ├── telemetry.go
+│   │   │   └── telemetry_test.go
+│   │   └── webhook
+│   │       ├── webhook.go
+│   │       └── webhook_test.go
+│   ├── swagger
+│   │   ├── docs
+│   │   │   └── html
+│   │   │       └── index.html
+│   │   ├── README.md
+│   │   └── swagger.yml
+│   ├── utils
+│   │   ├── callbackqueue.go
+│   │   ├── callbackqueue_test.go
+│   │   ├── debug.go
+│   │   ├── links.go
+│   │   ├── testUtils.go
+│   │   └── utils.go
+│   ├── web
+│   │   ├── webserver.go
+│   │   └── webserver_test.go
+│   └── ws
+│       ├── adapter.go
+│       ├── common.go
+│       ├── helpers_test.go
+│       ├── mocks
+│       │   ├── mockpluginapi.go
+│       │   └── mockstore.go
+│       ├── plugin_adapter_client.go
+│       ├── plugin_adapter_cluster.go
+│       ├── plugin_adapter.go
+│       ├── plugin_adapter_test.go
+│       ├── server.go
+│       └── server_test.go
+├── server-config.json
+├── webapp
+│   ├── cypress
+│   │   ├── config.json
+│   │   ├── global.d.ts
+│   │   ├── integration
+│   │   │   ├── cardBadges.ts
+│   │   │   ├── cardURLProperty.ts
+│   │   │   ├── createBoard.ts
+│   │   │   ├── groupByProperty.ts
+│   │   │   ├── loginActions.ts
+│   │   │   └── manageGroups.ts
+│   │   ├── plugins
+│   │   │   └── index.js
+│   │   ├── support
+│   │   │   ├── api_commands.ts
+│   │   │   ├── index.ts
+│   │   │   └── ui_commands.ts
+│   │   └── tsconfig.json
+│   ├── cypress.json
+│   ├── html-templates
+│   │   ├── deveditor.ejs
+│   │   └── page.ejs
+│   ├── i18n
+│   │   ├── ar.json
+│   │   ├── ars.json
+│   │   ├── ca.json
+│   │   ├── de.json
+│   │   ├── el.json
+│   │   ├── en_AU.json
+│   │   ├── en.json
+│   │   ├── es.json
+│   │   ├── et.json
+│   │   ├── fa.json
+│   │   ├── fr.json
+│   │   ├── he.json
+│   │   ├── hr.json
+│   │   ├── hu.json
+│   │   ├── id.json
+│   │   ├── it.json
+│   │   ├── ja.json
+│   │   ├── kab.json
+│   │   ├── ka.json
+│   │   ├── kk.json
+│   │   ├── ko.json
+│   │   ├── lt.json
+│   │   ├── ml.json
+│   │   ├── nb_NO.json
+│   │   ├── nl.json
+│   │   ├── oc.json
+│   │   ├── pl.json
+│   │   ├── pt_BR.json
+│   │   ├── pt.json
+│   │   ├── ru.json
+│   │   ├── sk.json
+│   │   ├── sl.json
+│   │   ├── sv.json
+│   │   ├── tr.json
+│   │   ├── uk.json
+│   │   ├── vi.json
+│   │   ├── zh_Hans.json
+│   │   └── zh_Hant.json
+│   ├── __mocks__
+│   │   ├── fileMock.js
+│   │   └── styleMock.js
+│   ├── NOTICE.txt
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── src
+│   │   ├── app.tsx
+│   │   ├── archiver.ts
+│   │   ├── blockIcons.ts
+│   │   ├── blocks
+│   │   │   ├── attachmentBlock.tsx
+│   │   │   ├── block.test.ts
+│   │   │   ├── block.ts
+│   │   │   ├── board.test.ts
+│   │   │   ├── board.ts
+│   │   │   ├── boardView.test.ts
+│   │   │   ├── boardView.ts
+│   │   │   ├── card.ts
+│   │   │   ├── checkboxBlock.ts
+│   │   │   ├── commentBlock.ts
+│   │   │   ├── contentBlock.ts
+│   │   │   ├── dividerBlock.ts
+│   │   │   ├── filterClause.test.ts
+│   │   │   ├── filterClause.ts
+│   │   │   ├── filterGroup.ts
+│   │   │   ├── h1Block.tsx
+│   │   │   ├── h2Block.tsx
+│   │   │   ├── h3Block.tsx
+│   │   │   ├── imageBlock.ts
+│   │   │   ├── sharing.ts
+│   │   │   ├── __snapshots__
+│   │   │   │   ├── block.test.ts.snap
+│   │   │   │   └── board.test.ts.snap
+│   │   │   ├── team.ts
+│   │   │   ├── textBlock.ts
+│   │   │   └── workspace.ts
+│   │   ├── boardCloudLimits
+│   │   │   └── index.ts
+│   │   ├── boardsCloudLimits
+│   │   │   └── index.ts
+│   │   ├── boardUtils.ts
+│   │   ├── cardFilter.test.ts
+│   │   ├── cardFilter.ts
+│   │   ├── components
+│   │   │   ├── addContentMenuItem.test.tsx
+│   │   │   ├── addContentMenuItem.tsx
+│   │   │   ├── blockIconSelector.test.tsx
+│   │   │   ├── blockIconSelector.tsx
+│   │   │   ├── blocksEditor
+│   │   │   │   ├── blockContent.scss
+│   │   │   │   ├── blockContent.test.tsx
+│   │   │   │   ├── blockContent.tsx
+│   │   │   │   ├── blocks
+│   │   │   │   │   ├── attachment
+│   │   │   │   │   │   ├── attachment.scss
+│   │   │   │   │   │   ├── attachment.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── attachment.test.tsx.snap
+│   │   │   │   │   ├── checkbox
+│   │   │   │   │   │   ├── checkbox.scss
+│   │   │   │   │   │   ├── checkbox.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── checkbox.test.tsx.snap
+│   │   │   │   │   ├── divider
+│   │   │   │   │   │   ├── divider.scss
+│   │   │   │   │   │   ├── divider.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── divider.test.tsx.snap
+│   │   │   │   │   ├── h1
+│   │   │   │   │   │   ├── h1.scss
+│   │   │   │   │   │   ├── h1.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── h1.test.tsx.snap
+│   │   │   │   │   ├── h2
+│   │   │   │   │   │   ├── h2.scss
+│   │   │   │   │   │   ├── h2.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── h2.test.tsx.snap
+│   │   │   │   │   ├── h3
+│   │   │   │   │   │   ├── h3.scss
+│   │   │   │   │   │   ├── h3.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── h3.test.tsx.snap
+│   │   │   │   │   ├── image
+│   │   │   │   │   │   ├── image.scss
+│   │   │   │   │   │   ├── image.test.tsx
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── image.test.tsx.snap
+│   │   │   │   │   ├── index.tsx
+│   │   │   │   │   ├── list-item
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   ├── list-item.scss
+│   │   │   │   │   │   ├── list-item.test.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── list-item.test.tsx.snap
+│   │   │   │   │   ├── quote
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   ├── quote.scss
+│   │   │   │   │   │   ├── quote.test.tsx
+│   │   │   │   │   │   └── __snapshots__
+│   │   │   │   │   │       └── quote.test.tsx.snap
+│   │   │   │   │   ├── text
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   ├── __snapshots__
+│   │   │   │   │   │   │   └── text.test.tsx.snap
+│   │   │   │   │   │   ├── text.scss
+│   │   │   │   │   │   └── text.test.tsx
+│   │   │   │   │   ├── text-dev
+│   │   │   │   │   │   ├── index.tsx
+│   │   │   │   │   │   └── text.scss
+│   │   │   │   │   ├── types.tsx
+│   │   │   │   │   └── video
+│   │   │   │   │       ├── index.tsx
+│   │   │   │   │       ├── __snapshots__
+│   │   │   │   │       │   └── video.test.tsx.snap
+│   │   │   │   │       ├── video.scss
+│   │   │   │   │       └── video.test.tsx
+│   │   │   │   ├── blocksEditor.test.tsx
+│   │   │   │   ├── blocksEditor.tsx
+│   │   │   │   ├── devmain.scss
+│   │   │   │   ├── devmain.tsx
+│   │   │   │   ├── editor.scss
+│   │   │   │   ├── editor.test.tsx
+│   │   │   │   ├── editor.tsx
+│   │   │   │   ├── rootInput.test.tsx
+│   │   │   │   ├── rootInput.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── blockContent.test.tsx.snap
+│   │   │   │       ├── blocksEditor.test.tsx.snap
+│   │   │   │       ├── editor.test.tsx.snap
+│   │   │   │       └── rootInput.test.tsx.snap
+│   │   │   ├── boardIconSelector.tsx
+│   │   │   ├── boardsSwitcher
+│   │   │   │   ├── boardsSwitcher.scss
+│   │   │   │   └── boardsSwitcher.tsx
+│   │   │   ├── boardsSwitcherDialog
+│   │   │   │   ├── boardSwitcherDialog.scss
+│   │   │   │   ├── boardSwitcherDialog.test.tsx
+│   │   │   │   ├── boardSwitcherDialog.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── boardSwitcherDialog.test.tsx.snap
+│   │   │   ├── boardTemplateSelector
+│   │   │   │   ├── boardTemplateSelectorItem.scss
+│   │   │   │   ├── boardTemplateSelectorItem.test.tsx
+│   │   │   │   ├── boardTemplateSelectorItem.tsx
+│   │   │   │   ├── boardTemplateSelectorPreview.scss
+│   │   │   │   ├── boardTemplateSelectorPreview.test.tsx
+│   │   │   │   ├── boardTemplateSelectorPreview.tsx
+│   │   │   │   ├── boardTemplateSelector.scss
+│   │   │   │   ├── boardTemplateSelector.test.tsx
+│   │   │   │   ├── boardTemplateSelector.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── boardTemplateSelectorItem.test.tsx.snap
+│   │   │   │       ├── boardTemplateSelectorPreview.test.tsx.snap
+│   │   │   │       └── boardTemplateSelector.test.tsx.snap
+│   │   │   ├── calculations
+│   │   │   │   ├── calculation.scss
+│   │   │   │   ├── calculations.test.tsx
+│   │   │   │   ├── calculations.ts
+│   │   │   │   ├── calculation.test.tsx
+│   │   │   │   ├── calculation.tsx
+│   │   │   │   ├── options.test.tsx
+│   │   │   │   ├── options.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── calculation.test.tsx.snap
+│   │   │   │       └── options.test.tsx.snap
+│   │   │   ├── calendar
+│   │   │   │   ├── fullcalendar.scss
+│   │   │   │   ├── fullCalendar.test.tsx
+│   │   │   │   ├── fullCalendar.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── fullCalendar.test.tsx.snap
+│   │   │   ├── cardActionsMenu
+│   │   │   │   ├── cardActionsMenuIcon.scss
+│   │   │   │   ├── cardActionsMenuIcon.tsx
+│   │   │   │   ├── cardActionsMenu.test.tsx
+│   │   │   │   ├── cardActionsMenu.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── cardActionsMenu.test.tsx.snap
+│   │   │   ├── cardBadges.scss
+│   │   │   ├── cardBadges.test.tsx
+│   │   │   ├── cardBadges.tsx
+│   │   │   ├── cardDetail
+│   │   │   │   ├── attachment.scss
+│   │   │   │   ├── attachment.tsx
+│   │   │   │   ├── cardDetailContentsMenu.test.tsx
+│   │   │   │   ├── cardDetailContentsMenu.tsx
+│   │   │   │   ├── cardDetailContents.test.tsx
+│   │   │   │   ├── cardDetailContents.tsx
+│   │   │   │   ├── cardDetailContentsUtility.test.ts
+│   │   │   │   ├── cardDetailContentsUtility.ts
+│   │   │   │   ├── cardDetailContext.tsx
+│   │   │   │   ├── cardDetailProperties.test.tsx
+│   │   │   │   ├── cardDetailProperties.tsx
+│   │   │   │   ├── cardDetail.scss
+│   │   │   │   ├── cardDetail.test.tsx
+│   │   │   │   ├── cardDetail.tsx
+│   │   │   │   ├── comment.scss
+│   │   │   │   ├── commentsList.scss
+│   │   │   │   ├── commentsList.test.tsx
+│   │   │   │   ├── commentsList.tsx
+│   │   │   │   ├── comment.test.tsx
+│   │   │   │   ├── comment.tsx
+│   │   │   │   ├── imagePaste.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── cardDetailContentsMenu.test.tsx.snap
+│   │   │   │       ├── cardDetailContents.test.tsx.snap
+│   │   │   │       ├── cardDetailProperties.test.tsx.snap
+│   │   │   │       ├── cardDetail.test.tsx.snap
+│   │   │   │       ├── commentsList.test.tsx.snap
+│   │   │   │       └── comment.test.tsx.snap
+│   │   │   ├── cardDialog.scss
+│   │   │   ├── cardDialog.test.tsx
+│   │   │   ├── cardDialog.tsx
+│   │   │   ├── cardLimitNotification.scss
+│   │   │   ├── cardLimitNotification.tsx
+│   │   │   ├── centerPanel.scss
+│   │   │   ├── centerPanel.test.tsx
+│   │   │   ├── centerPanel.tsx
+│   │   │   ├── confirmAddUserForNotifications.scss
+│   │   │   ├── confirmAddUserForNotifications.test.tsx
+│   │   │   ├── confirmAddUserForNotifications.tsx
+│   │   │   ├── confirmationDialogBox.scss
+│   │   │   ├── confirmationDialogBox.test.tsx
+│   │   │   ├── confirmationDialogBox.tsx
+│   │   │   ├── content
+│   │   │   │   ├── archivedFile
+│   │   │   │   │   ├── archivedFile.scss
+│   │   │   │   │   ├── archivedFile.test.tsx
+│   │   │   │   │   ├── archivedFile.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── archivedFile.test.tsx.snap
+│   │   │   │   ├── attachmentElement.scss
+│   │   │   │   ├── attachmentElement.test.tsx
+│   │   │   │   ├── attachmentElement.tsx
+│   │   │   │   ├── checkboxElement.scss
+│   │   │   │   ├── checkboxElement.test.tsx
+│   │   │   │   ├── checkboxElement.tsx
+│   │   │   │   ├── contentElement.test.tsx
+│   │   │   │   ├── contentElement.tsx
+│   │   │   │   ├── contentRegistry.test.tsx
+│   │   │   │   ├── contentRegistry.tsx
+│   │   │   │   ├── dividerElement.scss
+│   │   │   │   ├── dividerElement.test.tsx
+│   │   │   │   ├── dividerElement.tsx
+│   │   │   │   ├── imageElement.test.tsx
+│   │   │   │   ├── imageElement.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   ├── attachmentElement.test.tsx.snap
+│   │   │   │   │   ├── checkboxElement.test.tsx.snap
+│   │   │   │   │   ├── contentElement.test.tsx.snap
+│   │   │   │   │   ├── dividerElement.test.tsx.snap
+│   │   │   │   │   ├── imageElement.test.tsx.snap
+│   │   │   │   │   └── textElement.test.tsx.snap
+│   │   │   │   ├── textElement.scss
+│   │   │   │   ├── textElement.test.tsx
+│   │   │   │   └── textElement.tsx
+│   │   │   ├── contentBlock.scss
+│   │   │   ├── contentBlock.test.tsx
+│   │   │   ├── contentBlock.tsx
+│   │   │   ├── createCategory
+│   │   │   │   ├── createCategory.scss
+│   │   │   │   ├── createCategory.test.tsx
+│   │   │   │   ├── createCategory.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── createCategory.test.tsx.snap
+│   │   │   ├── dialog.scss
+│   │   │   ├── dialog.test.tsx
+│   │   │   ├── dialog.tsx
+│   │   │   ├── flashMessages.scss
+│   │   │   ├── flashMessages.test.tsx
+│   │   │   ├── flashMessages.tsx
+│   │   │   ├── gallery
+│   │   │   │   ├── galleryCard.scss
+│   │   │   │   ├── galleryCard.test.tsx
+│   │   │   │   ├── galleryCard.tsx
+│   │   │   │   ├── gallery.scss
+│   │   │   │   ├── gallery.test.tsx
+│   │   │   │   ├── gallery.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── galleryCard.test.tsx.snap
+│   │   │   │       └── gallery.test.tsx.snap
+│   │   │   ├── globalHeader
+│   │   │   │   ├── globalHeader.scss
+│   │   │   │   ├── globalHeaderSettingsMenu.scss
+│   │   │   │   ├── globalHeaderSettingsMenu.test.tsx
+│   │   │   │   ├── globalHeaderSettingsMenu.tsx
+│   │   │   │   ├── globalHeader.test.tsx
+│   │   │   │   ├── globalHeader.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── globalHeaderSettingsMenu.test.tsx.snap
+│   │   │   │       └── globalHeader.test.tsx.snap
+│   │   │   ├── guestNoBoards.scss
+│   │   │   ├── guestNoBoards.tsx
+│   │   │   ├── hiddenCardCount
+│   │   │   │   ├── hiddenCardCount.scss
+│   │   │   │   └── hiddenCardCount.tsx
+│   │   │   ├── iconSelector.scss
+│   │   │   ├── iconSelector.tsx
+│   │   │   ├── kanban
+│   │   │   │   ├── calculation
+│   │   │   │   │   ├── calculationOption.scss
+│   │   │   │   │   ├── calculationOptions.test.tsx
+│   │   │   │   │   ├── calculationOptions.tsx
+│   │   │   │   │   ├── calculation.scss
+│   │   │   │   │   ├── calculation.test.tsx
+│   │   │   │   │   ├── calculation.tsx
+│   │   │   │   │   ├── kanbanOption.test.tsx
+│   │   │   │   │   ├── kanbanOption.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       ├── calculationOptions.test.tsx.snap
+│   │   │   │   │       ├── calculation.test.tsx.snap
+│   │   │   │   │       └── kanbanOption.test.tsx.snap
+│   │   │   │   ├── kanbanCard.scss
+│   │   │   │   ├── kanbanCard.test.tsx
+│   │   │   │   ├── kanbanCard.tsx
+│   │   │   │   ├── kanbanColumnHeader.test.tsx
+│   │   │   │   ├── kanbanColumnHeader.tsx
+│   │   │   │   ├── kanbanColumn.scss
+│   │   │   │   ├── kanbanColumn.test.tsx
+│   │   │   │   ├── kanbanColumn.tsx
+│   │   │   │   ├── kanbanHiddenColumnItem.test.tsx
+│   │   │   │   ├── kanbanHiddenColumnItem.tsx
+│   │   │   │   ├── kanban.scss
+│   │   │   │   ├── kanban.test.tsx
+│   │   │   │   ├── kanban.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── kanbanCard.test.tsx.snap
+│   │   │   │       ├── kanbanColumnHeader.test.tsx.snap
+│   │   │   │       ├── kanbanColumn.test.tsx.snap
+│   │   │   │       ├── kanbanHiddenColumnItem.test.tsx.snap
+│   │   │   │       └── kanban.test.tsx.snap
+│   │   │   ├── live-markdown-plugin
+│   │   │   │   ├── block-types
+│   │   │   │   │   ├── codeBlockStrategy.ts
+│   │   │   │   │   └── headingBlockStrategy.ts
+│   │   │   │   ├── inline-styles
+│   │   │   │   │   ├── boldStyleStrategy.ts
+│   │   │   │   │   ├── headingDelimiterStyleStrategy.ts
+│   │   │   │   │   ├── inlineCodeStyleStrategy.ts
+│   │   │   │   │   ├── italicStyleStrategy.ts
+│   │   │   │   │   ├── olDelimiterStyleStrategy.ts
+│   │   │   │   │   ├── quoteStyleStrategy.ts
+│   │   │   │   │   ├── strikethroughStyleStrategy.ts
+│   │   │   │   │   └── ulDelimiterStyleStrategy.ts
+│   │   │   │   ├── liveMarkdownPlugin.ts
+│   │   │   │   ├── pluginStrategy.ts
+│   │   │   │   └── utils
+│   │   │   │       └── findRangesWithRegex.ts
+│   │   │   ├── markdownEditorInput
+│   │   │   │   ├── entryComponent
+│   │   │   │   │   ├── entryComponent.scss
+│   │   │   │   │   └── entryComponent.tsx
+│   │   │   │   ├── markdownEditorInput.scss
+│   │   │   │   └── markdownEditorInput.tsx
+│   │   │   ├── markdownEditor.scss
+│   │   │   ├── markdownEditor.test.tsx
+│   │   │   ├── markdownEditor.tsx
+│   │   │   ├── messages
+│   │   │   │   ├── versionMessage.scss
+│   │   │   │   ├── versionMessage.test.tsx
+│   │   │   │   └── versionMessage.tsx
+│   │   │   ├── modal.scss
+│   │   │   ├── modal.test.tsx
+│   │   │   ├── modal.tsx
+│   │   │   ├── modalWrapper.scss
+│   │   │   ├── modalWrapper.tsx
+│   │   │   ├── newVersionBanner.scss
+│   │   │   ├── newVersionBanner.tsx
+│   │   │   ├── onboardingTour
+│   │   │   │   ├── addComments
+│   │   │   │   │   ├── add_comments.scss
+│   │   │   │   │   ├── addComments.test.tsx
+│   │   │   │   │   ├── addComments.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── addComments.test.tsx.snap
+│   │   │   │   ├── addDescription
+│   │   │   │   │   ├── add_description.scss
+│   │   │   │   │   ├── addDescription.test.tsx
+│   │   │   │   │   ├── add_description.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── addDescription.test.tsx.snap
+│   │   │   │   ├── addProperties
+│   │   │   │   │   ├── add_properties.scss
+│   │   │   │   │   ├── addProperties.test.tsx
+│   │   │   │   │   ├── add_properties.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── addProperties.test.tsx.snap
+│   │   │   │   ├── addView
+│   │   │   │   │   ├── add_view.scss
+│   │   │   │   │   ├── addView.test.tsx
+│   │   │   │   │   ├── add_view.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── addView.test.tsx.snap
+│   │   │   │   ├── copyLink
+│   │   │   │   │   ├── copy_link.scss
+│   │   │   │   │   ├── copyLink.test.tsx
+│   │   │   │   │   ├── copy_link.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── copyLink.test.tsx.snap
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── manageCategories
+│   │   │   │   │   ├── manageCategories.scss
+│   │   │   │   │   └── manageCategories.tsx
+│   │   │   │   ├── openCard
+│   │   │   │   │   ├── open_card.scss
+│   │   │   │   │   ├── openCard.test.tsx
+│   │   │   │   │   ├── open_card.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── openCard.test.tsx.snap
+│   │   │   │   ├── searchForBoards
+│   │   │   │   │   ├── searchForBoards.scss
+│   │   │   │   │   └── searchForBoards.tsx
+│   │   │   │   ├── shareBoard
+│   │   │   │   │   ├── shareBoard.scss
+│   │   │   │   │   ├── shareBoard.test.tsx
+│   │   │   │   │   ├── shareBoard.tsx
+│   │   │   │   │   └── __snapshots__
+│   │   │   │   │       └── shareBoard.test.tsx.snap
+│   │   │   │   ├── sidebarCategories
+│   │   │   │   │   ├── sidebarCategories.scss
+│   │   │   │   │   └── sidebarCategories.tsx
+│   │   │   │   └── tourTipRenderer
+│   │   │   │       └── tourTipRenderer.tsx
+│   │   │   ├── permissions
+│   │   │   │   ├── boardPermissionGate.test.tsx
+│   │   │   │   ├── boardPermissionGate.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── boardPermissionGate.test.tsx.snap
+│   │   │   ├── personSelector.scss
+│   │   │   ├── personSelector.test.tsx
+│   │   │   ├── personSelector.tsx
+│   │   │   ├── propertyValueElement.test.tsx
+│   │   │   ├── propertyValueElement.tsx
+│   │   │   ├── pulsating_dot
+│   │   │   │   ├── index.tsx
+│   │   │   │   └── pulsating_dot.scss
+│   │   │   ├── rootPortal.test.tsx
+│   │   │   ├── rootPortal.tsx
+│   │   │   ├── searchDialog
+│   │   │   │   ├── searchDialog.scss
+│   │   │   │   └── searchDialog.tsx
+│   │   │   ├── shareBoard
+│   │   │   │   ├── shareBoardButton.scss
+│   │   │   │   ├── shareBoardButton.test.tsx
+│   │   │   │   ├── shareBoardButton.tsx
+│   │   │   │   ├── shareBoardLoginButton.scss
+│   │   │   │   ├── shareBoardLoginButton.test.tsx
+│   │   │   │   ├── shareBoardLoginButton.tsx
+│   │   │   │   ├── shareBoard.scss
+│   │   │   │   ├── shareBoard.test.tsx
+│   │   │   │   ├── shareBoard.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   ├── shareBoardButton.test.tsx.snap
+│   │   │   │   │   ├── shareBoardLoginButton.test.tsx.snap
+│   │   │   │   │   ├── shareBoard.test.tsx.snap
+│   │   │   │   │   ├── teamPermissionsRow.test.tsx.snap
+│   │   │   │   │   └── userPermissionsRow.test.tsx.snap
+│   │   │   │   ├── teamPermissionsRow.test.tsx
+│   │   │   │   ├── teamPermissionsRow.tsx
+│   │   │   │   ├── userPermissionsRow.test.tsx
+│   │   │   │   └── userPermissionsRow.tsx
+│   │   │   ├── sidebar
+│   │   │   │   ├── deleteBoardDialog.scss
+│   │   │   │   ├── deleteBoardDialog.test.tsx
+│   │   │   │   ├── deleteBoardDialog.tsx
+│   │   │   │   ├── registrationLink.scss
+│   │   │   │   ├── registrationLink.test.tsx
+│   │   │   │   ├── registrationLink.tsx
+│   │   │   │   ├── sidebarBoardItem.scss
+│   │   │   │   ├── sidebarBoardItem.test.tsx
+│   │   │   │   ├── sidebarBoardItem.tsx
+│   │   │   │   ├── sidebarCategory.scss
+│   │   │   │   ├── sidebarCategory.test.tsx
+│   │   │   │   ├── sidebarCategory.tsx
+│   │   │   │   ├── sidebar.scss
+│   │   │   │   ├── sidebarSettingsMenu.scss
+│   │   │   │   ├── sidebarSettingsMenu.test.tsx
+│   │   │   │   ├── sidebarSettingsMenu.tsx
+│   │   │   │   ├── sidebar.test.tsx
+│   │   │   │   ├── sidebar.tsx
+│   │   │   │   ├── sidebarUserMenu.scss
+│   │   │   │   ├── sidebarUserMenu.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── deleteBoardDialog.test.tsx.snap
+│   │   │   │       ├── registrationLink.test.tsx.snap
+│   │   │   │       ├── sidebarBoardItem.test.tsx.snap
+│   │   │   │       ├── sidebarCategory.test.tsx.snap
+│   │   │   │       ├── sidebarSettingsMenu.test.tsx.snap
+│   │   │   │       └── sidebar.test.tsx.snap
+│   │   │   ├── __snapshots__
+│   │   │   │   ├── addContentMenuItem.test.tsx.snap
+│   │   │   │   ├── blockIconSelector.test.tsx.snap
+│   │   │   │   ├── cardBadges.test.tsx.snap
+│   │   │   │   ├── cardDialog.test.tsx.snap
+│   │   │   │   ├── centerPanel.test.tsx.snap
+│   │   │   │   ├── confirmAddUserForNotifications.test.tsx.snap
+│   │   │   │   ├── confirmationDialogBox.test.tsx.snap
+│   │   │   │   ├── contentBlock.test.tsx.snap
+│   │   │   │   ├── dialog.test.tsx.snap
+│   │   │   │   ├── flashMessages.test.tsx.snap
+│   │   │   │   ├── markdownEditor.test.tsx.snap
+│   │   │   │   ├── modal.test.tsx.snap
+│   │   │   │   ├── personSelector.test.tsx.snap
+│   │   │   │   ├── propertyValueElement.test.tsx.snap
+│   │   │   │   ├── rootPortal.test.tsx.snap
+│   │   │   │   ├── topBar.test.tsx.snap
+│   │   │   │   ├── viewMenu.test.tsx.snap
+│   │   │   │   ├── viewTitle.test.tsx.snap
+│   │   │   │   └── workspace.test.tsx.snap
+│   │   │   ├── table
+│   │   │   │   ├── calculation
+│   │   │   │   │   ├── calculationRow.scss
+│   │   │   │   │   ├── calculationRow.test.tsx
+│   │   │   │   │   ├── calculationRow.tsx
+│   │   │   │   │   ├── __snapshots__
+│   │   │   │   │   │   └── calculationRow.test.tsx.snap
+│   │   │   │   │   └── tableCalculationOptions.tsx
+│   │   │   │   ├── horizontalGrip.scss
+│   │   │   │   ├── horizontalGrip.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   ├── tableGroupHeaderRow.test.tsx.snap
+│   │   │   │   │   ├── tableHeaderMenu.test.tsx.snap
+│   │   │   │   │   ├── tableHeaders.test.tsx.snap
+│   │   │   │   │   ├── tableHeader.test.tsx.snap
+│   │   │   │   │   ├── tableRows.test.tsx.snap
+│   │   │   │   │   ├── tableRow.test.tsx.snap
+│   │   │   │   │   └── table.test.tsx.snap
+│   │   │   │   ├── tableColumnResizeContext.tsx
+│   │   │   │   ├── tableGroupHeaderRow.test.tsx
+│   │   │   │   ├── tableGroupHeaderRow.tsx
+│   │   │   │   ├── tableGroup.tsx
+│   │   │   │   ├── tableHeaderMenu.test.tsx
+│   │   │   │   ├── tableHeaderMenu.tsx
+│   │   │   │   ├── tableHeaders.test.tsx
+│   │   │   │   ├── tableHeaders.tsx
+│   │   │   │   ├── tableHeader.test.tsx
+│   │   │   │   ├── tableHeader.tsx
+│   │   │   │   ├── tableRow.scss
+│   │   │   │   ├── tableRows.test.tsx
+│   │   │   │   ├── tableRows.tsx
+│   │   │   │   ├── tableRow.test.tsx
+│   │   │   │   ├── tableRow.tsx
+│   │   │   │   ├── table.scss
+│   │   │   │   ├── table.test.tsx
+│   │   │   │   └── table.tsx
+│   │   │   ├── topBar.scss
+│   │   │   ├── topBar.test.tsx
+│   │   │   ├── topBar.tsx
+│   │   │   ├── tutorial_tour_tip
+│   │   │   │   ├── hooks.ts
+│   │   │   │   ├── tutorial_tour_tip_backdrop.tsx
+│   │   │   │   ├── tutorial_tour_tip_manager.tsx
+│   │   │   │   ├── tutorial_tour_tip.scss
+│   │   │   │   ├── tutorial_tour_tip.tsx
+│   │   │   │   └── useElementAvailable.ts
+│   │   │   ├── viewHeader
+│   │   │   │   ├── dateFilter.scss
+│   │   │   │   ├── dateFilter.test.tsx
+│   │   │   │   ├── dateFilter.tsx
+│   │   │   │   ├── emptyCardButton.test.tsx
+│   │   │   │   ├── emptyCardButton.tsx
+│   │   │   │   ├── filterComponent.scss
+│   │   │   │   ├── filterComponent.test.tsx
+│   │   │   │   ├── filterComponent.tsx
+│   │   │   │   ├── filterEntry.scss
+│   │   │   │   ├── filterEntry.test.tsx
+│   │   │   │   ├── filterEntry.tsx
+│   │   │   │   ├── filterValue.scss
+│   │   │   │   ├── filterValue.test.tsx
+│   │   │   │   ├── filterValue.tsx
+│   │   │   │   ├── multipersonFilterValue.tsx
+│   │   │   │   ├── multiperson.scss
+│   │   │   │   ├── newCardButtonTemplateItem.test.tsx
+│   │   │   │   ├── newCardButtonTemplateItem.tsx
+│   │   │   │   ├── newCardButton.test.tsx
+│   │   │   │   ├── newCardButton.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   ├── dateFilter.test.tsx.snap
+│   │   │   │   │   ├── emptyCardButton.test.tsx.snap
+│   │   │   │   │   ├── filterComponent.test.tsx.snap
+│   │   │   │   │   ├── filterEntry.test.tsx.snap
+│   │   │   │   │   ├── filterValue.test.tsx.snap
+│   │   │   │   │   ├── newCardButtonTemplateItem.test.tsx.snap
+│   │   │   │   │   ├── newCardButton.test.tsx.snap
+│   │   │   │   │   ├── viewHeaderActionsMenu.test.tsx.snap
+│   │   │   │   │   ├── viewHeaderGroupByMenu.test.tsx.snap
+│   │   │   │   │   ├── viewHeaderPropertiesMenu.test.tsx.snap
+│   │   │   │   │   ├── viewHeaderSearch.test.tsx.snap
+│   │   │   │   │   ├── viewHeaderSortMenu.test.tsx.snap
+│   │   │   │   │   └── viewHeader.test.tsx.snap
+│   │   │   │   ├── viewHeaderActionsMenu.test.tsx
+│   │   │   │   ├── viewHeaderActionsMenu.tsx
+│   │   │   │   ├── viewHeaderDisplayByMenu.tsx
+│   │   │   │   ├── viewHeaderGroupByMenu.test.tsx
+│   │   │   │   ├── viewHeaderGroupByMenu.tsx
+│   │   │   │   ├── viewHeaderPropertiesMenu.test.tsx
+│   │   │   │   ├── viewHeaderPropertiesMenu.tsx
+│   │   │   │   ├── viewHeader.scss
+│   │   │   │   ├── viewHeaderSearch.test.tsx
+│   │   │   │   ├── viewHeaderSearch.tsx
+│   │   │   │   ├── viewHeaderSortMenu.test.tsx
+│   │   │   │   ├── viewHeaderSortMenu.tsx
+│   │   │   │   ├── viewHeader.test.tsx
+│   │   │   │   └── viewHeader.tsx
+│   │   │   ├── viewMenu.scss
+│   │   │   ├── viewMenu.test.tsx
+│   │   │   ├── viewMenu.tsx
+│   │   │   ├── viewTitle.scss
+│   │   │   ├── viewTitle.test.tsx
+│   │   │   ├── viewTitle.tsx
+│   │   │   ├── withWebSockets.tsx
+│   │   │   ├── workspace.scss
+│   │   │   ├── workspace.test.tsx
+│   │   │   └── workspace.tsx
+│   │   ├── config
+│   │   │   └── clientConfig.ts
+│   │   ├── constants.ts
+│   │   ├── csvExporter.ts
+│   │   ├── emojiList.ts
+│   │   ├── errors.ts
+│   │   ├── fileIcons.ts
+│   │   ├── file.ts
+│   │   ├── fonts
+│   │   │   └── metropolis
+│   │   │       ├── Metropolis-LightItalic.woff2
+│   │   │       ├── Metropolis-Light.woff2
+│   │   │       ├── Metropolis-RegularItalic.woff2
+│   │   │       ├── Metropolis-Regular.woff2
+│   │   │       ├── Metropolis-SemiBoldItalic.woff2
+│   │   │       └── Metropolis-SemiBold.woff2
+│   │   ├── hooks
+│   │   │   ├── permissions.tsx
+│   │   │   ├── sortable.tsx
+│   │   │   ├── useGetAllTemplates.ts
+│   │   │   └── websockets.tsx
+│   │   ├── i18n.tsx
+│   │   ├── insights
+│   │   │   └── index.ts
+│   │   ├── main.tsx
+│   │   ├── mutator.test.ts
+│   │   ├── mutator.ts
+│   │   ├── nativeApp.ts
+│   │   ├── octoClient.test.ts
+│   │   ├── octoClient.ts
+│   │   ├── octoUtils.test.ts
+│   │   ├── octoUtils.tsx
+│   │   ├── onboardingTour
+│   │   │   └── index.ts
+│   │   ├── pages
+│   │   │   ├── boardPage
+│   │   │   │   ├── backwardCompatibilityQueryParamsRedirect.tsx
+│   │   │   │   ├── boardPage.scss
+│   │   │   │   ├── boardPage.tsx
+│   │   │   │   ├── setWindowTitleAndIcon.tsx
+│   │   │   │   ├── teamToBoardAndViewRedirect.tsx
+│   │   │   │   ├── undoRedoHotKeys.tsx
+│   │   │   │   └── websocketConnection.tsx
+│   │   │   ├── changePasswordPage.scss
+│   │   │   ├── changePasswordPage.tsx
+│   │   │   ├── errorPage.scss
+│   │   │   ├── errorPage.tsx
+│   │   │   ├── loginPage.scss
+│   │   │   ├── loginPage.tsx
+│   │   │   ├── registerPage.scss
+│   │   │   ├── registerPage.tsx
+│   │   │   └── welcome
+│   │   │       ├── __snapshots__
+│   │   │       │   └── welcomePage.test.tsx.snap
+│   │   │       ├── welcomePage.scss
+│   │   │       ├── welcomePage.test.tsx
+│   │   │       └── welcomePage.tsx
+│   │   ├── properties
+│   │   │   ├── baseTextEditor.tsx
+│   │   │   ├── checkbox
+│   │   │   │   ├── checkbox.tsx
+│   │   │   │   └── property.tsx
+│   │   │   ├── createdBy
+│   │   │   │   ├── createdBy.test.tsx
+│   │   │   │   ├── createdBy.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── createdBy.test.tsx.snap
+│   │   │   ├── createdTime
+│   │   │   │   ├── createdTime.scss
+│   │   │   │   ├── createdTime.tsx
+│   │   │   │   └── property.tsx
+│   │   │   ├── date
+│   │   │   │   ├── date.scss
+│   │   │   │   ├── date.test.tsx
+│   │   │   │   ├── date.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── date.test.tsx.snap
+│   │   │   ├── email
+│   │   │   │   ├── email.tsx
+│   │   │   │   └── property.tsx
+│   │   │   ├── index.tsx
+│   │   │   ├── multiperson
+│   │   │   │   ├── multiperson.test.tsx
+│   │   │   │   ├── multiperson.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── multiperson.test.tsx.snap
+│   │   │   ├── multiselect
+│   │   │   │   ├── multiselect.test.tsx
+│   │   │   │   ├── multiselect.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── multiselect.test.tsx.snap
+│   │   │   ├── number
+│   │   │   │   ├── number.test.tsx
+│   │   │   │   ├── number.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── number.test.tsx.snap
+│   │   │   ├── person
+│   │   │   │   ├── confirmPerson.test.tsx
+│   │   │   │   ├── confirmPerson.tsx
+│   │   │   │   ├── person.test.tsx
+│   │   │   │   ├── person.tsx
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       ├── confirmPerson.test.tsx.snap
+│   │   │   │       └── person.test.tsx.snap
+│   │   │   ├── phone
+│   │   │   │   ├── phone.tsx
+│   │   │   │   └── property.tsx
+│   │   │   ├── select
+│   │   │   │   ├── property.tsx
+│   │   │   │   ├── select.test.tsx
+│   │   │   │   ├── select.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── select.test.tsx.snap
+│   │   │   ├── text
+│   │   │   │   ├── property.tsx
+│   │   │   │   └── text.tsx
+│   │   │   ├── types.tsx
+│   │   │   ├── unknown
+│   │   │   │   └── property.tsx
+│   │   │   ├── updatedBy
+│   │   │   │   ├── property.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   └── updatedBy.test.tsx.snap
+│   │   │   │   ├── updatedBy.scss
+│   │   │   │   ├── updatedBy.test.tsx
+│   │   │   │   └── updatedBy.tsx
+│   │   │   ├── updatedTime
+│   │   │   │   ├── property.tsx
+│   │   │   │   ├── __snapshots__
+│   │   │   │   │   └── updatedTime.test.tsx.snap
+│   │   │   │   ├── updatedTime.scss
+│   │   │   │   ├── updatedTime.test.tsx
+│   │   │   │   └── updatedTime.tsx
+│   │   │   └── url
+│   │   │       ├── property.tsx
+│   │   │       ├── __snapshots__
+│   │   │       │   └── url.test.tsx.snap
+│   │   │       ├── url.scss
+│   │   │       ├── url.test.tsx
+│   │   │       └── url.tsx
+│   │   ├── router.tsx
+│   │   ├── route.tsx
+│   │   ├── statistics
+│   │   │   └── index.ts
+│   │   ├── store
+│   │   │   ├── attachments.ts
+│   │   │   ├── boards.ts
+│   │   │   ├── cards.ts
+│   │   │   ├── channels.ts
+│   │   │   ├── clientConfig.ts
+│   │   │   ├── comments.ts
+│   │   │   ├── contents.ts
+│   │   │   ├── globalError.ts
+│   │   │   ├── globalTemplates.ts
+│   │   │   ├── hooks.ts
+│   │   │   ├── index.ts
+│   │   │   ├── initialLoad.ts
+│   │   │   ├── language.ts
+│   │   │   ├── limits.ts
+│   │   │   ├── searchText.ts
+│   │   │   ├── sidebar.ts
+│   │   │   ├── teams.ts
+│   │   │   ├── users.ts
+│   │   │   └── views.ts
+│   │   ├── styles
+│   │   │   ├── focalboard-variables.scss
+│   │   │   ├── labels.scss
+│   │   │   ├── main.scss
+│   │   │   ├── _markdown.scss
+│   │   │   ├── _modifiers.scss
+│   │   │   ├── shared-variables.scss
+│   │   │   ├── _typography.scss
+│   │   │   ├── variables.scss
+│   │   │   └── _z-index.scss
+│   │   ├── svg
+│   │   │   ├── card-skeleton.tsx
+│   │   │   ├── error-illustration.tsx
+│   │   │   └── search-illustration.tsx
+│   │   ├── telemetry
+│   │   │   ├── telemetryClient.test.ts
+│   │   │   ├── telemetryClient.ts
+│   │   │   └── telemetry.ts
+│   │   ├── test
+│   │   │   ├── fetchMock.ts
+│   │   │   └── testBlockFactory.ts
+│   │   ├── testUtils.tsx
+│   │   ├── theme.ts
+│   │   ├── tsconfig.json
+│   │   ├── types
+│   │   │   ├── images.d.ts
+│   │   │   └── index.d.ts
+│   │   ├── undoManager.test.ts
+│   │   ├── undomanager.ts
+│   │   ├── userSettings.ts
+│   │   ├── user.tsx
+│   │   ├── utils.test.ts
+│   │   ├── utils.ts
+│   │   ├── widgets
+│   │   │   ├── adminBadge
+│   │   │   │   ├── adminBadge.scss
+│   │   │   │   ├── adminBadge.test.tsx
+│   │   │   │   ├── adminBadge.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── adminBadge.test.tsx.snap
+│   │   │   ├── buttons
+│   │   │   │   ├── button.scss
+│   │   │   │   ├── button.tsx
+│   │   │   │   ├── buttonWithMenu.scss
+│   │   │   │   ├── buttonWithMenu.tsx
+│   │   │   │   ├── iconButton.scss
+│   │   │   │   └── iconButton.tsx
+│   │   │   ├── editableArea.scss
+│   │   │   ├── editableArea.tsx
+│   │   │   ├── editableDayPicker.scss
+│   │   │   ├── editableDayPicker.tsx
+│   │   │   ├── editable.scss
+│   │   │   ├── editable.tsx
+│   │   │   ├── emojiPicker.scss
+│   │   │   ├── emojiPicker.tsx
+│   │   │   ├── guestBadge.scss
+│   │   │   ├── guestBadge.test.tsx
+│   │   │   ├── guestBadge.tsx
+│   │   │   ├── icons
+│   │   │   │   ├── add.scss
+│   │   │   │   ├── add.tsx
+│   │   │   │   ├── alert.tsx
+│   │   │   │   ├── apps.tsx
+│   │   │   │   ├── board.scss
+│   │   │   │   ├── board.tsx
+│   │   │   │   ├── brokenFile.tsx
+│   │   │   │   ├── calendar.scss
+│   │   │   │   ├── calendar.tsx
+│   │   │   │   ├── card.scss
+│   │   │   │   ├── card.tsx
+│   │   │   │   ├── checkIcon.tsx
+│   │   │   │   ├── check.scss
+│   │   │   │   ├── check.tsx
+│   │   │   │   ├── chevronDown.tsx
+│   │   │   │   ├── chevronRight.tsx
+│   │   │   │   ├── chevronUp.tsx
+│   │   │   │   ├── closeCircle.tsx
+│   │   │   │   ├── close.tsx
+│   │   │   │   ├── compassIcon.tsx
+│   │   │   │   ├── delete.scss
+│   │   │   │   ├── delete.tsx
+│   │   │   │   ├── disclosureTriangle.scss
+│   │   │   │   ├── disclosureTriangle.tsx
+│   │   │   │   ├── divider.scss
+│   │   │   │   ├── divider.tsx
+│   │   │   │   ├── dot.scss
+│   │   │   │   ├── dot.tsx
+│   │   │   │   ├── dropdown.scss
+│   │   │   │   ├── dropdown.tsx
+│   │   │   │   ├── duplicate.scss
+│   │   │   │   ├── duplicate.tsx
+│   │   │   │   ├── edit.tsx
+│   │   │   │   ├── emoji.scss
+│   │   │   │   ├── emoji.tsx
+│   │   │   │   ├── focalboard_logo.scss
+│   │   │   │   ├── focalboard_logo.tsx
+│   │   │   │   ├── folder.tsx
+│   │   │   │   ├── gallery.scss
+│   │   │   │   ├── gallery.tsx
+│   │   │   │   ├── globe.tsx
+│   │   │   │   ├── grip.scss
+│   │   │   │   ├── grip.tsx
+│   │   │   │   ├── hamburger.scss
+│   │   │   │   ├── hamburger.tsx
+│   │   │   │   ├── HandRight.tsx
+│   │   │   │   ├── help.scss
+│   │   │   │   ├── help.tsx
+│   │   │   │   ├── hide.scss
+│   │   │   │   ├── hideSidebar.scss
+│   │   │   │   ├── hideSidebar.tsx
+│   │   │   │   ├── hide.tsx
+│   │   │   │   ├── image.scss
+│   │   │   │   ├── image.tsx
+│   │   │   │   ├── link.scss
+│   │   │   │   ├── Link.tsx
+│   │   │   │   ├── lockOutline.tsx
+│   │   │   │   ├── logo.scss
+│   │   │   │   ├── logo.tsx
+│   │   │   │   ├── logoWithName.scss
+│   │   │   │   ├── logoWithName.tsx
+│   │   │   │   ├── logoWithNameWhite.scss
+│   │   │   │   ├── logoWithNameWhite.tsx
+│   │   │   │   ├── message.tsx
+│   │   │   │   ├── newFolder.tsx
+│   │   │   │   ├── options.scss
+│   │   │   │   ├── options.tsx
+│   │   │   │   ├── random.tsx
+│   │   │   │   ├── search.tsx
+│   │   │   │   ├── settings.scss
+│   │   │   │   ├── settings.tsx
+│   │   │   │   ├── show.scss
+│   │   │   │   ├── showSidebar.scss
+│   │   │   │   ├── showSidebar.tsx
+│   │   │   │   ├── show.tsx
+│   │   │   │   ├── sortDown.scss
+│   │   │   │   ├── sortDown.tsx
+│   │   │   │   ├── sortUp.scss
+│   │   │   │   ├── sortUp.tsx
+│   │   │   │   ├── submenuTriangle.scss
+│   │   │   │   ├── submenuTriangle.tsx
+│   │   │   │   ├── table.scss
+│   │   │   │   ├── table.tsx
+│   │   │   │   ├── text.scss
+│   │   │   │   ├── text.tsx
+│   │   │   │   └── update.tsx
+│   │   │   ├── label.scss
+│   │   │   ├── label.tsx
+│   │   │   ├── menu
+│   │   │   │   ├── colorOption.scss
+│   │   │   │   ├── colorOption.tsx
+│   │   │   │   ├── index.tsx
+│   │   │   │   ├── labelOption.scss
+│   │   │   │   ├── labelOption.tsx
+│   │   │   │   ├── menuItem.tsx
+│   │   │   │   ├── menu.scss
+│   │   │   │   ├── menu.tsx
+│   │   │   │   ├── menuUtil.ts
+│   │   │   │   ├── separatorOption.scss
+│   │   │   │   ├── separatorOption.tsx
+│   │   │   │   ├── subMenuOption.scss
+│   │   │   │   ├── subMenuOption.tsx
+│   │   │   │   ├── switchOption.tsx
+│   │   │   │   ├── textInputOption.tsx
+│   │   │   │   └── textOption.tsx
+│   │   │   ├── menuWrapper.scss
+│   │   │   ├── menuWrapper.tsx
+│   │   │   ├── notificationBox
+│   │   │   │   ├── notificationBox.scss
+│   │   │   │   ├── notificationBox.test.tsx
+│   │   │   │   ├── notificationBox.tsx
+│   │   │   │   └── __snapshots__
+│   │   │   │       └── notificationBox.test.tsx.snap
+│   │   │   ├── propertyMenu.scss
+│   │   │   ├── propertyMenu.test.tsx
+│   │   │   ├── propertyMenu.tsx
+│   │   │   ├── __snapshots__
+│   │   │   │   ├── guestBadge.test.tsx.snap
+│   │   │   │   └── propertyMenu.test.tsx.snap
+│   │   │   ├── switch.scss
+│   │   │   ├── switch.tsx
+│   │   │   ├── tooltip.scss
+│   │   │   ├── tooltip.tsx
+│   │   │   ├── valueSelector.scss
+│   │   │   └── valueSelector.tsx
+│   │   └── wsclient.ts
+│   ├── static
+│   │   ├── addDescription.png
+│   │   ├── addProperty.gif
+│   │   ├── app-bar-icon.png
+│   │   ├── boards-screenshots.png
+│   │   ├── boards-welcome.png
+│   │   ├── boards-welcome-small.png
+│   │   ├── changeViews.gif
+│   │   ├── comment.gif
+│   │   ├── copyLink.gif
+│   │   ├── emoji_spirit.png
+│   │   ├── favicon.svg
+│   │   ├── onboardingBg.jpg
+│   │   ├── share.gif
+│   │   └── upgrade.png
+│   ├── tsconfig.json
+│   ├── tslint.json
+│   ├── webpack.common.js
+│   ├── webpack.dev.js
+│   ├── webpack.editor.js
+│   └── webpack.prod.js
+├── website
+│   ├── Makefile
+│   ├── README.md
+│   └── site
+│       ├── archetypes
+│       │   └── default.md
+│       ├── config.toml
+│       ├── content
+│       │   ├── blog
+│       │   │   ├── 2021-1-7-hello.md
+│       │   │   ├── 2021-4-21-Focalboard v0.6.5 release.md
+│       │   │   ├── 2021-4-27-Mattermost-Focalboard-early-preview.md
+│       │   │   ├── 2021-5-07-meeting-agenda-template.md
+│       │   │   ├── 2021-5-13-Focalboard-the-road-to-v1.md
+│       │   │   └── 2021-6-18-Mattermost-Focalboard-release.md
+│       │   ├── docs
+│       │   │   └── personal-edition
+│       │   │       ├── desktop.md
+│       │   │       ├── docker.md
+│       │   │       ├── _index.md
+│       │   │       ├── ubuntu.md
+│       │   │       └── ubuntu-upgrade.md
+│       │   ├── download
+│       │   │   └── index.html
+│       │   ├── feedback
+│       │   │   └── _index.md
+│       │   ├── fwlink
+│       │   │   ├── doc-boards.html
+│       │   │   ├── feedback-boards.html
+│       │   │   ├── feedback-focalboard.html
+│       │   │   ├── plugin-setup.html
+│       │   │   ├── setup-536.html
+│       │   │   ├── v1-focalboard.html
+│       │   │   └── websocket-connect-error.html
+│       │   └── guide
+│       │       ├── admin
+│       │       │   └── _index.md
+│       │       ├── server-setup
+│       │       │   └── _index.md
+│       │       ├── user
+│       │       │   ├── add view.png
+│       │       │   ├── all tasks.png
+│       │       │   ├── board sidebar menu.png
+│       │       │   ├── by status.png
+│       │       │   ├── by status properties.png
+│       │       │   ├── _index.md
+│       │       │   ├── settings menu.png
+│       │       │   ├── share board menu.png
+│       │       │   ├── share board.png
+│       │       │   └── table header menu.png
+│       │       └── websocket-errors
+│       │           └── _index.md
+│       ├── layouts
+│       │   ├── 404.html
+│       │   ├── blog
+│       │   │   ├── li.html
+│       │   │   ├── list.html
+│       │   │   ├── single.html
+│       │   │   └── summary.html
+│       │   ├── _default
+│       │   │   ├── list.html
+│       │   │   ├── _markup
+│       │   │   │   └── render-link.html
+│       │   │   ├── page.html
+│       │   │   ├── single.html
+│       │   │   └── taxonomy.html
+│       │   ├── indexes
+│       │   │   └── tag.html
+│       │   ├── index.html
+│       │   ├── partials
+│       │   │   ├── blogauthor.html
+│       │   │   ├── footer.html
+│       │   │   ├── hanchor.html
+│       │   │   ├── head.html
+│       │   │   ├── hero.html
+│       │   │   ├── intro.html
+│       │   │   ├── mailinglist.html
+│       │   │   ├── nav.html
+│       │   │   ├── notification.html
+│       │   │   ├── page-edit.html
+│       │   │   ├── series_link.html
+│       │   │   └── sidebar.html
+│       │   └── shortcodes
+│       │       ├── baseurl.html
+│       │       ├── bignumber.html
+│       │       ├── blogurl.html
+│       │       ├── content.html
+│       │       ├── md.html
+│       │       └── note.html
+│       ├── static
+│       │   ├── css
+│       │   │   ├── bar.css
+│       │   │   ├── bootstrap.min.css
+│       │   │   ├── code.css
+│       │   │   ├── markdown.css
+│       │   │   ├── note.css
+│       │   │   ├── partials
+│       │   │   │   ├── banners.css
+│       │   │   │   ├── base.css
+│       │   │   │   ├── blog.css
+│       │   │   │   ├── buttons.css
+│       │   │   │   ├── fontawesome.css
+│       │   │   │   ├── footer.css
+│       │   │   │   ├── header.css
+│       │   │   │   ├── homepage.css
+│       │   │   │   ├── root.css
+│       │   │   │   ├── sidebar.css
+│       │   │   │   └── template-picker.css
+│       │   │   ├── styles.css
+│       │   │   └── tabs.css
+│       │   ├── fonts
+│       │   │   ├── FontAwesome.otf
+│       │   │   ├── fontawesome-webfont.eot
+│       │   │   ├── fontawesome-webfont.svg
+│       │   │   ├── fontawesome-webfont.ttf
+│       │   │   ├── fontawesome-webfont.woff
+│       │   │   └── fontawesome-webfont.woff2
+│       │   ├── img
+│       │   │   ├── 3d-icons
+│       │   │   │   ├── development.svg
+│       │   │   │   ├── firstbump.svg
+│       │   │   │   ├── gasp.svg
+│       │   │   │   ├── handshake.svg
+│       │   │   │   ├── raisedhands.svg
+│       │   │   │   └── rocket.svg
+│       │   │   ├── arrow-right.svg
+│       │   │   ├── bgroundedcenter.svg
+│       │   │   ├── bgroundedleft.svg
+│       │   │   ├── bgroundedright.svg
+│       │   │   ├── bullseye.svg
+│       │   │   ├── check.svg
+│       │   │   ├── contribute-icon.svg
+│       │   │   ├── developers-icon.svg
+│       │   │   ├── download-icon.svg
+│       │   │   ├── extend-icon.svg
+│       │   │   ├── favicon-16x16.png
+│       │   │   ├── favicon-32x32.png
+│       │   │   ├── footer-logo-black.svg
+│       │   │   ├── footer-logo.svg
+│       │   │   ├── hero.jpg
+│       │   │   ├── integrate-icon.svg
+│       │   │   ├── logo.svg
+│       │   │   ├── logo-white.svg
+│       │   │   ├── logo-w-mattermost.svg
+│       │   │   ├── mac-app-store.svg
+│       │   │   ├── mac-app-store-white.svg
+│       │   │   ├── mentioned
+│       │   │   │   ├── newstack.png
+│       │   │   │   ├── producthunt.png
+│       │   │   │   ├── techrepublic.png
+│       │   │   │   ├── venturebeat.png
+│       │   │   │   └── ycombinator.png
+│       │   │   ├── mm-logo.svg
+│       │   │   ├── mm-logo-white.svg
+│       │   │   ├── ms-app-store.svg
+│       │   │   ├── needhelp.svg
+│       │   │   ├── roadmap
+│       │   │   │   ├── analytics.png
+│       │   │   │   ├── card-dependencies.png
+│       │   │   │   └── standard-properties.png
+│       │   │   ├── search-icon.svg
+│       │   │   ├── single-users-icon.svg
+│       │   │   ├── tabs
+│       │   │   │   └── boards.png
+│       │   │   ├── teams
+│       │   │   │   ├── aig.svg
+│       │   │   │   ├── nasa.svg
+│       │   │   │   ├── nasdaq.svg
+│       │   │   │   ├── qualcom.svg
+│       │   │   │   └── samsung.svg
+│       │   │   ├── teams-icon.svg
+│       │   │   ├── templates
+│       │   │   │   ├── company-goals.png
+│       │   │   │   ├── content-calendar.png
+│       │   │   │   ├── meeting-agenda.png
+│       │   │   │   ├── project-tasks.png
+│       │   │   │   ├── roadmap.png
+│       │   │   │   └── welcome.png
+│       │   │   ├── use-icon.svg
+│       │   │   └── views
+│       │   │       ├── boardview.png
+│       │   │       ├── calendarview.png
+│       │   │       ├── galleryview.png
+│       │   │       └── listview.png
+│       │   ├── js
+│       │   │   ├── main.js
+│       │   │   └── tabs.js
+│       │   ├── lottie
+│       │   │   └── intro-section.json
+│       │   ├── robots.txt
+│       │   └── video
+│       │       ├── accelerate1.mp4
+│       │       └── comment-animation.mp4
+│       └── themes
+│           ├── archetypes
+│           │   └── default.md
+│           ├── config.toml
+│           ├── content
+│           │   └── contribute
+│           │       └── _index.md
+│           └── layouts
+│               ├── 404.html
+│               ├── _default
+│               │   ├── list.html
+│               │   └── single.html
+│               ├── index.html
+│               └── partials
+│                   ├── about.html
+│                   ├── contact.html
+│                   ├── counters.html
+│                   ├── footer.html
+│                   ├── head.html
+│                   ├── hero.html
+│                   ├── intro.html
+│                   ├── js.html
+│                   ├── nav2.html
+│                   ├── nav.html
+│                   ├── services.html
+│                   ├── testimonials.html
+│                   └── work.html
+└── win-wpf
+    ├── AppxManifest.xml
+    ├── art
+    │   ├── icon150.png
+    │   ├── icon44.png
+    │   └── StoreLogo.png
+    ├── build.bat
+    ├── Focalboard
+    │   ├── App.config
+    │   ├── App.xaml
+    │   ├── App.xaml.cs
+    │   ├── Focalboard.csproj
+    │   ├── focalboard.ico
+    │   ├── MainWindow.xaml
+    │   ├── MainWindow.xaml.cs
+    │   ├── packages.config
+    │   ├── Properties
+    │   │   ├── AssemblyInfo.cs
+    │   │   ├── Resources.Designer.cs
+    │   │   ├── Resources.resx
+    │   │   ├── Settings.Designer.cs
+    │   │   └── Settings.settings
+    │   ├── Utils.cs
+    │   └── Webview2Installer.cs
+    ├── Focalboard.sln
+    ├── package.bat
+    ├── package-zip.bat
+    └── README.md
+
+312 directories, 1637 files

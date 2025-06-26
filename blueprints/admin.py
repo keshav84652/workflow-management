@@ -49,8 +49,9 @@ def dashboard():
 @admin_bp.route('/templates')
 def templates():
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     templates = AdminService.get_templates_for_firm(firm_id)
     return render_template('admin/templates.html', templates=templates)
 
@@ -59,8 +60,9 @@ def templates():
 def create_template():
     if request.method == 'POST':
         from services.admin_service import AdminService
+        from utils import get_session_firm_id
         
-        firm_id = session['firm_id']
+        firm_id = get_session_firm_id()
         
         # Prepare tasks data
         tasks_data = []
@@ -97,8 +99,9 @@ def create_template():
 @admin_bp.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 def edit_template(id):
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     template = AdminService.get_template_by_id(id, firm_id)
     if not template:
         flash('Template not found or access denied', 'error')
@@ -157,12 +160,13 @@ def generate_access_code_route():
 @admin_bp.route('/work_types', methods=['GET'])
 def admin_work_types():
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         flash('Access denied', 'error')
         return redirect(url_for('dashboard.main'))
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     work_types = AdminService.get_work_types_for_firm(firm_id)
     work_type_usage = AdminService.get_work_type_usage_stats(firm_id)
     
@@ -174,13 +178,14 @@ def admin_work_types():
 @admin_bp.route('/work_types/create', methods=['POST'])
 def admin_create_work_type():
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     name = request.form.get('name')
     description = request.form.get('description')
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = AdminService.create_work_type(name, description, firm_id)
     
@@ -195,13 +200,14 @@ def admin_create_work_type():
 @admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     name = request.form.get('name')
     description = request.form.get('description')
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = AdminService.update_work_type(work_type_id, name, description, firm_id)
     
@@ -216,13 +222,14 @@ def admin_edit_work_type(work_type_id):
 @admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
 def admin_create_status(work_type_id):
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
     name = request.form.get('name')
     color = request.form.get('color', '#6b7280')
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = AdminService.create_task_status(work_type_id, name, color, firm_id)
     
@@ -238,6 +245,7 @@ def admin_create_status(work_type_id):
 def admin_edit_status(status_id):
     """Edit a task status"""
     from services.admin_service import AdminService
+    from utils import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
@@ -247,7 +255,7 @@ def admin_edit_status(status_id):
     position = int(request.form.get('position', 1))
     is_default = request.form.get('is_default') == 'true'
     is_terminal = request.form.get('is_terminal') == 'true'
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = AdminService.update_task_status(
         status_id, name, color, position, is_default, is_terminal, firm_id

@@ -382,3 +382,298 @@ class DashboardService:
             })
         
         return progress_data
+    
+    @staticmethod
+    def get_calendar_data(firm_id: int, year: int, month: int) -> Dict[str, Any]:
+        """
+        Get calendar data for a specific month with task distribution
+        
+        Args:
+            firm_id: The firm's ID
+            year: Calendar year
+            month: Calendar month (1-12)
+            
+        Returns:
+            Dict containing calendar data and tasks
+        """
+        from datetime import date, timedelta
+        
+        # Create date object for the requested month
+        current_date = date(year, month, 1)
+        
+        # Get start and end dates for the calendar view (include previous/next month days)
+        start_of_month = date(year, month, 1)
+        
+        # Get the first day of the week for the month
+        first_weekday = start_of_month.weekday()
+        # Adjust for Sunday start (weekday() returns 0=Monday, we want 0=Sunday)
+        days_back = (first_weekday + 1) % 7
+        calendar_start = start_of_month - timedelta(days=days_back)
+        
+        # Get end of month
+        if month == 12:
+            end_of_month = date(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            end_of_month = date(year, month + 1, 1) - timedelta(days=1)
+        
+        # Calculate days forward to complete the calendar grid (6 weeks * 7 days = 42 days)
+        days_shown = (end_of_month - calendar_start).days + 1
+        days_needed = 42 - days_shown
+        calendar_end = end_of_month + timedelta(days=days_needed)
+        
+        # Query tasks for the calendar period - include both project and independent tasks
+        tasks = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
+            Task.due_date.between(calendar_start, calendar_end)
+        ).all()
+        
+        # Get all users for the firm for the assignment dropdown
+        users = User.query.filter_by(firm_id=firm_id).all()
+        
+        # Organize tasks by date
+        tasks_by_date = {}
+        for task in tasks:
+            if task.due_date:
+                date_str = task.due_date.strftime('%Y-%m-%d')
+                if date_str not in tasks_by_date:
+                    tasks_by_date[date_str] = []
+                tasks_by_date[date_str].append(task)
+        
+        return {
+            'current_date': current_date,
+            'calendar_start': calendar_start,
+            'calendar_end': calendar_end,
+            'start_of_month': start_of_month,
+            'end_of_month': end_of_month,
+            'tasks_by_date': tasks_by_date,
+            'users': users,
+            'year': year,
+            'month': month
+        }
+    
+    @staticmethod
+    def search_tasks_and_projects(firm_id: int, query: str = '', filters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """
+        Search tasks and projects with advanced filtering
+        
+        Args:
+            firm_id: The firm's ID
+            query: Search query string
+            filters: Additional filters (status, assignee, project, etc.)
+            
+        Returns:
+            Dict containing search results
+        """
+        if filters is None:
+            filters = {}
+        
+        # Base queries for tasks and projects
+        tasks_query = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        )
+        
+        projects_query = Project.query.filter_by(firm_id=firm_id)
+        
+        # Apply text search if query provided
+        if query:
+            task_search = db.or_(
+                Task.title.ilike(f'%{query}%'),
+                Task.description.ilike(f'%{query}%')
+            )
+            project_search = db.or_(
+                Project.name.ilike(f'%{query}%'),
+                Project.description.ilike(f'%{query}%')
+            )
+            
+            tasks_query = tasks_query.filter(task_search)
+            projects_query = projects_query.filter(project_search)
+        
+        # Apply filters
+        if filters.get('status'):
+            tasks_query = tasks_query.filter(Task.status == filters['status'])
+            projects_query = projects_query.filter(Project.status == filters['status'])
+        
+        if filters.get('assignee_id'):
+            tasks_query = tasks_query.filter(Task.assignee_id == filters['assignee_id'])
+        
+        if filters.get('project_id'):
+            tasks_query = tasks_query.filter(Task.project_id == filters['project_id'])
+        
+        if filters.get('priority'):
+            tasks_query = tasks_query.filter(Task.priority == filters['priority'])
+        
+        # Get results
+        tasks = tasks_query.order_by(Task.due_date.asc().nullslast()).all()
+        projects = projects_query.order_by(Project.due_date.asc().nullslast()).all()
+        
+        # Get filter options for the form
+        users = User.query.filter_by(firm_id=firm_id).all()
+        all_projects = Project.query.filter_by(firm_id=firm_id).all()
+        
+        return {
+            'tasks': tasks,
+            'projects': projects,
+            'users': users,
+            'all_projects': all_projects,
+            'query': query,
+            'filters': filters,
+            'total_tasks': len(tasks),
+            'total_projects': len(projects)
+        }
+    
+    @staticmethod
+    def get_time_tracking_report(firm_id: int, start_date: date = None, end_date: date = None) -> Dict[str, Any]:
+        """
+        Generate time tracking report data
+        
+        Args:
+            firm_id: The firm's ID
+            start_date: Report start date (defaults to start of current month)
+            end_date: Report end date (defaults to today)
+            
+        Returns:
+            Dict containing time tracking data
+        """
+        from datetime import date, datetime
+        
+        if not start_date:
+            today = date.today()
+            start_date = date(today.year, today.month, 1)
+        
+        if not end_date:
+            end_date = date.today()
+        
+        # Get all tasks with time logged for the firm
+        tasks = Task.query.outerjoin(Project).filter(
+            db.or_(
+                Project.firm_id == firm_id,
+                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
+            Task.actual_hours.isnot(None),
+            Task.actual_hours > 0
+        ).all()
+        
+        # Filter tasks by date range if we had time tracking timestamps
+        # For now, we'll include all tasks with logged time
+        
+        # Aggregate data
+        total_hours = sum(task.actual_hours or 0 for task in tasks)
+        billable_hours = sum(task.actual_hours or 0 for task in tasks if task.billable_rate and task.billable_rate > 0)
+        total_revenue = sum((task.actual_hours or 0) * (task.billable_rate or 0) for task in tasks)
+        
+        # Group by user
+        user_data = {}
+        for task in tasks:
+            if task.assignee:
+                user_id = task.assignee.id
+                if user_id not in user_data:
+                    user_data[user_id] = {
+                        'user': task.assignee,
+                        'total_hours': 0,
+                        'billable_hours': 0,
+                        'revenue': 0,
+                        'tasks_count': 0
+                    }
+                
+                hours = task.actual_hours or 0
+                rate = task.billable_rate or 0
+                
+                user_data[user_id]['total_hours'] += hours
+                user_data[user_id]['tasks_count'] += 1
+                
+                if rate > 0:
+                    user_data[user_id]['billable_hours'] += hours
+                    user_data[user_id]['revenue'] += hours * rate
+        
+        # Group by project
+        project_data = {}
+        for task in tasks:
+            project_name = task.project.name if task.project else 'Independent Tasks'
+            if project_name not in project_data:
+                project_data[project_name] = {
+                    'total_hours': 0,
+                    'billable_hours': 0,
+                    'revenue': 0,
+                    'tasks_count': 0
+                }
+            
+            hours = task.actual_hours or 0
+            rate = task.billable_rate or 0
+            
+            project_data[project_name]['total_hours'] += hours
+            project_data[project_name]['tasks_count'] += 1
+            
+            if rate > 0:
+                project_data[project_name]['billable_hours'] += hours
+                project_data[project_name]['revenue'] += hours * rate
+        
+        return {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_hours': total_hours,
+            'billable_hours': billable_hours,
+            'total_revenue': total_revenue,
+            'user_data': list(user_data.values()),
+            'project_data': project_data,
+            'tasks_with_time': tasks
+        }
+    
+    @staticmethod
+    def get_kanban_data(firm_id: int) -> Dict[str, Any]:
+        """
+        Get kanban board data with projects organized by status
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            Dict containing kanban board data
+        """
+        # Get all active projects for the firm
+        projects = Project.query.filter_by(firm_id=firm_id).order_by(Project.created_at.desc()).all()
+        
+        # Get all users for assignment
+        users = User.query.filter_by(firm_id=firm_id).all()
+        
+        # Organize projects by status/column
+        kanban_data = {
+            'not_started': [],
+            'in_progress': [],
+            'needs_review': [],
+            'completed': []
+        }
+        
+        for project in projects:
+            # Determine which column the project belongs to based on status
+            if project.current_status_id == 1:  # Not Started
+                column = 'not_started'
+            elif project.current_status_id == 2:  # In Progress
+                column = 'in_progress'
+            elif project.current_status_id == 3:  # Needs Review
+                column = 'needs_review'
+            elif project.current_status_id == 4:  # Completed
+                column = 'completed'
+            else:
+                # Fallback logic based on progress percentage
+                if project.progress_percentage >= 100:
+                    column = 'completed'
+                elif project.progress_percentage >= 75:
+                    column = 'needs_review'
+                elif project.progress_percentage > 0:
+                    column = 'in_progress'
+                else:
+                    column = 'not_started'
+            
+            kanban_data[column].append(project)
+        
+        return {
+            'projects': kanban_data,
+            'users': users,
+            'total_projects': len(projects)
+        }

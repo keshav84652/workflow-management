@@ -278,19 +278,123 @@ class TaskService:
         return tasks
     
     @staticmethod
-    def create_task(title: str, description: str, firm_id: int,
+    def create_task_from_form(form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Create a task from form data with comprehensive validation and processing
+        
+        Args:
+            form_data: Form data dictionary from request.form
+            firm_id: The firm's ID
+            user_id: The creating user's ID
+            
+        Returns:
+            Dict containing success status, task data, and any error messages
+        """
+        try:
+            # Extract form data
+            title = form_data.get('title', '').strip()
+            description = form_data.get('description', '').strip()
+            project_id = form_data.get('project_id')
+            assignee_id = form_data.get('assignee_id')
+            priority = form_data.get('priority', 'Medium')
+            due_date_str = form_data.get('due_date')
+            estimated_hours_str = form_data.get('estimated_hours')
+            
+            # Recurring task options
+            is_recurring = form_data.get('is_recurring') == 'on'
+            recurrence_rule = form_data.get('recurrence_rule')
+            recurrence_interval_str = form_data.get('recurrence_interval')
+            
+            # Validate required fields
+            if not title:
+                return {
+                    'success': False,
+                    'message': 'Task title is required'
+                }
+            
+            # Parse due date
+            due_date_obj = None
+            if due_date_str:
+                try:
+                    due_date_obj = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return {
+                        'success': False,
+                        'message': 'Invalid due date format'
+                    }
+            
+            # Parse estimated hours
+            estimated_hours_float = None
+            if estimated_hours_str:
+                try:
+                    estimated_hours_float = float(estimated_hours_str)
+                except ValueError:
+                    estimated_hours_float = None
+            
+            # Parse project ID
+            project_id_int = None
+            if project_id:
+                try:
+                    project_id_int = int(project_id)
+                except ValueError:
+                    return {
+                        'success': False,
+                        'message': 'Invalid project selected'
+                    }
+            
+            # Parse assignee ID
+            assignee_id_int = None
+            if assignee_id:
+                try:
+                    assignee_id_int = int(assignee_id)
+                except ValueError:
+                    assignee_id_int = None
+            
+            # Parse recurrence interval
+            recurrence_interval_int = None
+            if is_recurring and recurrence_interval_str:
+                try:
+                    recurrence_interval_int = int(recurrence_interval_str)
+                except ValueError:
+                    recurrence_interval_int = 1
+            
+            # Call the core create_task method
+            return TaskService.create_task(
+                title=title,
+                description=description,
+                firm_id=firm_id,
+                user_id=user_id,
+                project_id=project_id_int,
+                assignee_id=assignee_id_int,
+                priority=priority,
+                due_date=due_date_obj,
+                estimated_hours=estimated_hours_float,
+                is_recurring=is_recurring,
+                recurrence_rule=recurrence_rule,
+                recurrence_interval=recurrence_interval_int
+            )
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error processing form data: {str(e)}'
+            }
+    
+    @staticmethod
+    def create_task(title: str, description: str, firm_id: int, user_id: int,
                    project_id: Optional[int] = None, assignee_id: Optional[int] = None,
                    priority: str = 'Medium', due_date: Optional[date] = None,
                    estimated_hours: Optional[float] = None,
                    is_recurring: bool = False, recurrence_rule: Optional[str] = None,
                    recurrence_interval: Optional[int] = None) -> Dict[str, Any]:
         """
-        Create a new task
+        Create a new task with comprehensive business logic
         
         Args:
             title: Task title
             description: Task description
             firm_id: The firm's ID
+            user_id: The creating user's ID
             project_id: Optional project ID
             assignee_id: Optional assignee user ID
             priority: Task priority (High, Medium, Low)
@@ -304,6 +408,13 @@ class TaskService:
             Dict containing success status, task data, and any error messages
         """
         try:
+            # Input validation
+            if not title or not title.strip():
+                return {
+                    'success': False,
+                    'message': 'Task title is required'
+                }
+            
             # Verify project belongs to firm (if project selected)
             if project_id:
                 project = Project.query.filter_by(id=project_id, firm_id=firm_id).first()
@@ -312,6 +423,20 @@ class TaskService:
                         'success': False,
                         'message': 'Invalid project selected'
                     }
+            
+            # Validate estimated hours
+            if estimated_hours is not None:
+                try:
+                    estimated_hours = float(estimated_hours) if estimated_hours else None
+                except (ValueError, TypeError):
+                    estimated_hours = None
+            
+            # Validate recurrence interval
+            if is_recurring and recurrence_interval:
+                try:
+                    recurrence_interval = int(recurrence_interval)
+                except (ValueError, TypeError):
+                    recurrence_interval = 1
             
             # Create task
             task = Task(
@@ -322,15 +447,17 @@ class TaskService:
                 estimated_hours=estimated_hours,
                 project_id=project_id,
                 firm_id=firm_id,
-                assignee_id=assignee_id,
+                assignee_id=assignee_id if assignee_id else None,
                 is_recurring=is_recurring,
                 recurrence_rule=recurrence_rule if is_recurring else None,
                 recurrence_interval=recurrence_interval if is_recurring else None
             )
             
-            # Calculate next due date for recurring tasks
+            # Calculate next due date for recurring tasks after object creation
             if is_recurring:
                 task.next_due_date = task.calculate_next_due_date()
+                
+                # Create the first upcoming instance immediately
                 next_instance = task.create_next_instance()
                 if next_instance:
                     db.session.add(next_instance)
@@ -340,9 +467,11 @@ class TaskService:
             
             # Activity log
             if project_id:
-                create_activity_log(f'Task "{task.title}" created', session['user_id'], project_id, task.id)
+                from utils import create_activity_log
+                create_activity_log(f'Task "{task.title}" created', user_id, project_id, task.id)
             else:
-                create_activity_log(f'Independent task "{task.title}" created', session['user_id'], None, task.id)
+                from utils import create_activity_log
+                create_activity_log(f'Independent task "{task.title}" created', user_id, None, task.id)
             
             return {
                 'success': True,
@@ -383,6 +512,142 @@ class TaskService:
             return None
         
         return task
+    
+    @staticmethod
+    def update_task_from_form(task_id: int, form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Update a task from form data with comprehensive validation and processing
+        
+        Args:
+            task_id: The task's ID
+            form_data: Form data dictionary from request.form
+            firm_id: The firm's ID for security check
+            user_id: The updating user's ID
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            task = TaskService.get_task_by_id_with_access_check(task_id, firm_id)
+            if not task:
+                return {
+                    'success': False,
+                    'message': 'Task not found or access denied'
+                }
+            
+            # Track original values for change detection
+            original_assignee_id = task.assignee_id
+            original_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+            original_status = task.status
+            
+            # Extract and validate form data
+            title = form_data.get('title', '').strip()
+            if not title:
+                return {
+                    'success': False,
+                    'message': 'Task title is required'
+                }
+            
+            # Update basic fields
+            task.title = title
+            task.description = form_data.get('description', '').strip()
+            task.priority = form_data.get('priority', 'Medium')
+            
+            # Handle assignee
+            assignee_id = form_data.get('assignee_id')
+            new_assignee_id = int(assignee_id) if assignee_id else None
+            task.assignee_id = new_assignee_id
+            
+            # Handle status
+            new_status = form_data.get('status', task.status)
+            task.status = new_status
+            
+            # Handle due date
+            due_date_str = form_data.get('due_date')
+            if due_date_str:
+                try:
+                    task.due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return {
+                        'success': False,
+                        'message': 'Invalid due date format'
+                    }
+            else:
+                task.due_date = None
+            
+            # Handle estimated hours
+            estimated_hours_str = form_data.get('estimated_hours')
+            if estimated_hours_str:
+                try:
+                    task.estimated_hours = float(estimated_hours_str)
+                except ValueError:
+                    task.estimated_hours = None
+            else:
+                task.estimated_hours = None
+            
+            # Handle comments
+            comments = form_data.get('comments')
+            if comments:
+                task.comments = comments
+            
+            # Handle dependencies (only for project tasks)
+            if task.project_id:
+                dependencies = form_data.getlist('dependencies')
+                if dependencies:
+                    # Validate dependencies - ensure no circular dependencies
+                    valid_dependencies = []
+                    for dep_id in dependencies:
+                        try:
+                            dep_id = int(dep_id)
+                            dep_task = Task.query.filter_by(id=dep_id, project_id=task.project_id).first()
+                            if dep_task and dep_id != task.id:
+                                # Check for circular dependency - simple check for now
+                                valid_dependencies.append(str(dep_id))
+                        except ValueError:
+                            pass
+                    task.dependencies = ','.join(valid_dependencies) if valid_dependencies else None
+                else:
+                    task.dependencies = None
+            
+            # Handle sequential task dependencies before committing
+            TaskService._handle_sequential_dependencies(task, original_status, new_status)
+            
+            db.session.commit()
+            
+            # Log assignee change if it occurred
+            if original_assignee_id != new_assignee_id:
+                new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+                assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
+                if task.project_id:
+                    from utils import create_activity_log
+                    create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
+                else:
+                    from utils import create_activity_log
+                    create_activity_log(assignee_log_msg, user_id, None, task.id)
+            
+            # General activity log
+            if task.project_id:
+                from utils import create_activity_log
+                create_activity_log(f'Task "{task.title}" updated', user_id, task.project_id, task.id)
+            else:
+                from utils import create_activity_log
+                create_activity_log(f'Independent task "{task.title}" updated', user_id, None, task.id)
+            
+            return {
+                'success': True,
+                'message': 'Task updated successfully',
+                'task': {
+                    'id': task.id,
+                    'title': task.title
+                }
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error updating task: {str(e)}'
+            }
     
     @staticmethod
     def update_task(task_id: int, firm_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
@@ -864,4 +1129,168 @@ class TaskService:
             return {
                 'success': False,
                 'error': f'Failed to process recurring tasks: {str(e)}'
+            }
+    
+    @staticmethod
+    def bulk_update_tasks(task_ids: List[int], updates: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Bulk update multiple tasks with the provided changes
+        
+        Args:
+            task_ids: List of task IDs to update
+            updates: Dictionary of field updates to apply to all tasks
+            firm_id: The firm's ID for security check
+            user_id: The updating user's ID
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            if not task_ids:
+                return {
+                    'success': False,
+                    'message': 'No tasks selected'
+                }
+            
+            # Get tasks that belong to the firm
+            tasks = Task.query.outerjoin(Project).filter(
+                Task.id.in_(task_ids),
+                db.or_(
+                    Project.firm_id == firm_id,
+                    db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+                )
+            ).all()
+            
+            if not tasks:
+                return {
+                    'success': False,
+                    'message': 'No valid tasks found'
+                }
+            
+            updated_count = 0
+            for task in tasks:
+                # Update status if provided
+                if 'status' in updates:
+                    old_status = task.status
+                    task.status = updates['status']
+                    if old_status != task.status:
+                        # Log status change
+                        from utils import create_activity_log
+                        create_activity_log(
+                            f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
+                            user_id,
+                            task.project_id if task.project_id else None,
+                            task.id
+                        )
+                
+                # Update assignee if provided
+                if 'assignee_id' in updates:
+                    old_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+                    task.assignee_id = updates['assignee_id'] if updates['assignee_id'] else None
+                    new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
+                    if old_assignee_name != new_assignee_name:
+                        # Log assignee change
+                        from utils import create_activity_log
+                        create_activity_log(
+                            f'Task "{task.title}" assignee changed from "{old_assignee_name}" to "{new_assignee_name}" (bulk update)',
+                            user_id,
+                            task.project_id if task.project_id else None,
+                            task.id
+                        )
+                
+                # Update priority if provided
+                if 'priority' in updates:
+                    old_priority = task.priority
+                    task.priority = updates['priority']
+                    if old_priority != task.priority:
+                        # Log priority change
+                        from utils import create_activity_log
+                        create_activity_log(
+                            f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
+                            user_id,
+                            task.project_id if task.project_id else None,
+                            task.id
+                        )
+                
+                updated_count += 1
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Successfully updated {updated_count} tasks'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error updating tasks: {str(e)}'
+            }
+    
+    @staticmethod
+    def bulk_delete_tasks(task_ids: List[int], firm_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Bulk delete multiple tasks and their associated data
+        
+        Args:
+            task_ids: List of task IDs to delete
+            firm_id: The firm's ID for security check
+            user_id: The deleting user's ID
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            if not task_ids:
+                return {
+                    'success': False,
+                    'message': 'No tasks selected'
+                }
+            
+            # Get tasks that belong to the firm
+            tasks = Task.query.outerjoin(Project).filter(
+                Task.id.in_(task_ids),
+                db.or_(
+                    Project.firm_id == firm_id,
+                    db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+                )
+            ).all()
+            
+            if not tasks:
+                return {
+                    'success': False,
+                    'message': 'No valid tasks found'
+                }
+            
+            deleted_count = 0
+            for task in tasks:
+                # Log deletion
+                from utils import create_activity_log
+                create_activity_log(
+                    f'Task "{task.title}" deleted (bulk operation)',
+                    user_id,
+                    task.project_id if task.project_id else None,
+                    None  # task_id will be None since task is being deleted
+                )
+                
+                # Delete associated comments first
+                TaskComment.query.filter_by(task_id=task.id).delete()
+                
+                # Delete the task
+                db.session.delete(task)
+                deleted_count += 1
+            
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': f'Successfully deleted {deleted_count} tasks'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error deleting tasks: {str(e)}'
             }

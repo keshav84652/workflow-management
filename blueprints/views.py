@@ -6,59 +6,28 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 from core import db
 from models import Task, Project, User, WorkType, Template, TemplateTask, Client
+from services.dashboard_service import DashboardService
+from utils import get_session_firm_id
 
 views_bp = Blueprint('views', __name__)
 
 
 @views_bp.route('/calendar')
 def calendar_view():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Get year and month from query parameters or use current date
     year = int(request.args.get('year', date.today().year))
     month = int(request.args.get('month', date.today().month))
     
-    # Create date object for the requested month
-    current_date = date(year, month, 1)
+    # Use DashboardService for business logic
+    calendar_data = DashboardService.get_calendar_data(firm_id, year, month)
     
-    # Get start and end dates for the calendar view (include previous/next month days)
-    start_of_month = date(year, month, 1)
-    
-    # Get the first day of the week for the month
-    first_weekday = start_of_month.weekday()
-    # Adjust for Sunday start (weekday() returns 0=Monday, we want 0=Sunday)
-    days_back = (first_weekday + 1) % 7
-    calendar_start = start_of_month - timedelta(days=days_back)
-    
-    # Get end of month
-    if month == 12:
-        end_of_month = date(year + 1, 1, 1) - timedelta(days=1)
-    else:
-        end_of_month = date(year, month + 1, 1) - timedelta(days=1)
-    
-    # Calculate days forward to complete the calendar grid (6 weeks * 7 days = 42 days)
-    days_shown = (end_of_month - calendar_start).days + 1
-    days_needed = 42 - days_shown
-    calendar_end = end_of_month + timedelta(days=days_needed)
-    
-    # Query tasks for the calendar period - include both project and independent tasks
-    tasks = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.due_date.between(calendar_start, calendar_end)
-    ).order_by(Task.due_date.asc()).all()
-    
-    # Organize tasks by date
-    calendar_data = {}
-    for task in tasks:
-        if task.due_date:
-            date_str = task.due_date.strftime('%Y-%m-%d')
-            if date_str not in calendar_data:
-                calendar_data[date_str] = []
-            
-            # Prepare task data for JSON serialization
+    # Prepare task data for JSON serialization
+    serialized_calendar_data = {}
+    for date_str, tasks in calendar_data['tasks_by_date'].items():
+        serialized_calendar_data[date_str] = []
+        for task in tasks:
             task_data = {
                 'id': task.id,
                 'title': task.title,
@@ -70,61 +39,33 @@ def calendar_view():
                 'project_name': task.project.client_name if task.project else None,
                 'assignee_name': task.assignee.name if task.assignee else None
             }
-            calendar_data[date_str].append(task_data)
+            serialized_calendar_data[date_str].append(task_data)
     
     return render_template('admin/calendar.html', 
-                         calendar_data=calendar_data,
-                         current_date=current_date,
-                         year=year,
-                         month=month)
+                         calendar_data=serialized_calendar_data,
+                         current_date=calendar_data['current_date'],
+                         year=calendar_data['year'],
+                         month=calendar_data['month'])
 
 @views_bp.route('/search')
 def search():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     query = request.args.get('q', '').strip()
     search_type = request.args.get('type', 'all')
     
-    results = {
-        'tasks': [],
-        'projects': [],
-        'clients': [],
-        'query': query,
-        'search_type': search_type
-    }
+    # Prepare filters based on search type
+    filters = {}
+    if search_type != 'all':
+        filters['search_type'] = search_type
     
-    if not query:
-        return render_template('admin/search.html', **results)
+    # Use DashboardService for business logic
+    results = DashboardService.search_tasks_and_projects(firm_id, query, filters)
     
-    # Search tasks
-    if search_type in ['all', 'tasks']:
-        task_query = Task.query.outerjoin(Project).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            )
-        )
-        
-        # Search in task title, description, and comments
-        task_filters = db.or_(
-            Task.title.ilike(f'%{query}%'),
-            Task.description.ilike(f'%{query}%')
-        )
-        
-        results['tasks'] = task_query.filter(task_filters).limit(20).all()
+    # Add search type and clients if needed
+    results['search_type'] = search_type
     
-    # Search projects
-    if search_type in ['all', 'projects']:
-        project_filters = db.or_(
-            Project.name.ilike(f'%{query}%'),
-            Project.description.ilike(f'%{query}%') if hasattr(Project, 'description') else False
-        )
-        
-        results['projects'] = Project.query.filter(
-            Project.firm_id == firm_id
-        ).filter(project_filters).limit(20).all()
-    
-    # Search clients
-    if search_type in ['all', 'clients']:
+    # Handle client search separately since it's not in DashboardService
+    if search_type in ['all', 'clients'] and query:
         client_filters = db.or_(
             Client.name.ilike(f'%{query}%'),
             Client.email.ilike(f'%{query}%'),
@@ -134,50 +75,51 @@ def search():
         results['clients'] = Client.query.filter(
             Client.firm_id == firm_id
         ).filter(client_filters).limit(20).all()
+    else:
+        results['clients'] = []
     
     return render_template('admin/search.html', **results)
 
 
 @views_bp.route('/reports/time-tracking')
 def time_tracking_report():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get filter parameters
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    # Get filter parameters and convert to date objects if provided
+    start_date = None
+    end_date = None
+    
+    if request.args.get('start_date'):
+        start_date = datetime.strptime(request.args.get('start_date'), '%Y-%m-%d').date()
+    
+    if request.args.get('end_date'):
+        end_date = datetime.strptime(request.args.get('end_date'), '%Y-%m-%d').date()
+    
+    # Use DashboardService for business logic
+    report_data = DashboardService.get_time_tracking_report(firm_id, start_date, end_date)
+    
+    # Handle additional filters that aren't in the service method
     user_id = request.args.get('user_id')
     project_id = request.args.get('project_id')
     
-    # Base query for tasks with time logged
-    query = Task.query.outerjoin(Project).filter(
-        db.or_(
-            Project.firm_id == firm_id,
-            db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-        ),
-        Task.actual_hours > 0
-    )
+    tasks = report_data['tasks_with_time']
     
-    # Apply filters
-    if start_date:
-        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
-        query = query.filter(Task.updated_at >= start_date_obj)
-    
-    if end_date:
-        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
-        query = query.filter(Task.updated_at <= end_date_obj)
-    
+    # Apply additional filters if specified
     if user_id:
-        query = query.filter(Task.assignee_id == user_id)
+        tasks = [task for task in tasks if task.assignee_id == int(user_id)]
     
     if project_id:
-        query = query.filter(Task.project_id == project_id)
+        tasks = [task for task in tasks if task.project_id == int(project_id)]
     
-    tasks = query.order_by(Task.updated_at.desc()).all()
-    
-    # Calculate summary statistics
-    total_hours = sum(task.actual_hours or 0 for task in tasks)
-    billable_hours = sum(task.actual_hours or 0 for task in tasks if task.is_billable)
-    total_billable_amount = sum(task.billable_amount for task in tasks)
+    # Recalculate statistics for filtered results
+    if user_id or project_id:
+        total_hours = sum(task.actual_hours or 0 for task in tasks)
+        billable_hours = sum(task.actual_hours or 0 for task in tasks if task.billable_rate and task.billable_rate > 0)
+        total_revenue = sum((task.actual_hours or 0) * (task.billable_rate or 0) for task in tasks)
+    else:
+        total_hours = report_data['total_hours']
+        billable_hours = report_data['billable_hours']
+        total_revenue = report_data['total_revenue']
     
     # Get filter options
     users = User.query.filter_by(firm_id=firm_id).all()
@@ -189,12 +131,12 @@ def time_tracking_report():
                          projects=projects,
                          total_hours=total_hours,
                          billable_hours=billable_hours,
-                         total_billable_amount=total_billable_amount)
+                         total_billable_amount=total_revenue)
 
 
 @views_bp.route('/kanban')
 def kanban_view():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Get filter parameters
     work_type_filter = request.args.get('work_type')
@@ -208,6 +150,11 @@ def kanban_view():
     if not work_type_filter and work_types:
         return redirect(url_for('views.kanban_view', work_type=work_types[0].id))
     
+    # Use DashboardService for basic kanban data
+    kanban_data = DashboardService.get_kanban_data(firm_id)
+    
+    # Handle advanced filtering (work type, priority, due date)
+    # This logic is specific to the views and not in the service
     current_work_type = None
     kanban_columns = []
     
@@ -231,98 +178,59 @@ def kanban_view():
                     work_type_id=current_work_type.id
                 ).order_by(TaskStatus.position.asc()).all()
     
-    # Base query for projects (not individual tasks)
-    query = Project.query.filter_by(firm_id=firm_id, status='Active')
+    # Apply additional filters to the projects from the service
+    projects = []
+    for column_projects in kanban_data['projects'].values():
+        projects.extend(column_projects)
     
     # Apply work type filter
     if work_type_filter and current_work_type:
-        query = query.filter(Project.work_type_id == current_work_type.id)
+        projects = [p for p in projects if p.work_type_id == current_work_type.id]
     
     # Apply priority filter
     if priority_filter:
-        query = query.filter(Project.priority == priority_filter)
+        projects = [p for p in projects if p.priority == priority_filter]
     
     # Apply due date filters
     today = date.today()
     if due_filter == 'overdue':
-        query = query.filter(Project.due_date < today)
+        projects = [p for p in projects if p.due_date and p.due_date < today]
     elif due_filter == 'today':
-        query = query.filter(Project.due_date == today)
+        projects = [p for p in projects if p.due_date == today]
     elif due_filter == 'this_week':
         week_end = today + timedelta(days=7)
-        query = query.filter(Project.due_date.between(today, week_end))
+        projects = [p for p in projects if p.due_date and today <= p.due_date <= week_end]
     
-    # Get all projects
-    projects = query.order_by(Project.created_at.desc()).all()
-    
-    # Organize projects by current task progress (restored functionality)
-    projects_by_column = {}
-    project_counts = {}
-    
-    if kanban_columns:
+    # Use the service's kanban organization if no special columns are needed
+    if not kanban_columns:
+        projects_by_column = kanban_data['projects']
+        project_counts = {k: len(v) for k, v in projects_by_column.items()}
+    else:
+        # Custom column organization for work type filtering
+        projects_by_column = {}
+        project_counts = {}
+        
         # Initialize columns
         for column in kanban_columns:
             column_id = column.id if hasattr(column, 'id') else column.name
             projects_by_column[column_id] = []
             project_counts[column_id] = 0
         
-        # Add a "Completed" column for finished projects
+        # Add completed column
         projects_by_column['completed'] = []
         project_counts['completed'] = 0
         
-        # Assign projects to columns based on their actual progress
+        # Assign filtered projects to columns
         for project in projects:
             if project.status == 'Completed' or project.progress_percentage == 100:
-                # Completed projects go to a special completed column
                 projects_by_column['completed'].append(project)
                 project_counts['completed'] += 1
-            elif len(kanban_columns) > 0:
-                # Assign based on project's current workflow status (NOT progress percentage)
-                column_placed = False
-                
-                # If project has a current_status_id, find the corresponding template task
-                if project.current_status_id:
-                    # Find the template task that corresponds to this status
-                    for column in kanban_columns:
-                        if hasattr(column, 'default_status_id') and column.default_status_id == project.current_status_id:
-                            column_id = column.id
-                            projects_by_column[column_id].append(project)
-                            project_counts[column_id] += 1
-                            column_placed = True
-                            break
-                
-                # If no specific status match, place in first column as default
-                if not column_placed and kanban_columns:
-                    first_column = kanban_columns[0]
-                    column_id = first_column.id if hasattr(first_column, 'id') else first_column.name
-                    projects_by_column[column_id].append(project)
-                    project_counts[column_id] += 1
-    else:
-        # Fallback if no columns found - use simple status-based columns
-        projects_by_column = {
-            'not_started': [],
-            'in_progress': [],
-            'completed': []
-        }
-        project_counts = {
-            'not_started': 0,
-            'in_progress': 0,
-            'completed': 0
-        }
-        
-        for project in projects:
-            if project.status == 'Completed' or project.progress_percentage >= 100:
-                projects_by_column['completed'].append(project)
-                project_counts['completed'] += 1
-            elif project.progress_percentage == 0:
-                projects_by_column['not_started'].append(project)
-                project_counts['not_started'] += 1
-            else:
-                projects_by_column['in_progress'].append(project)
-                project_counts['in_progress'] += 1
-    
-    # Get filter options
-    users = User.query.filter_by(firm_id=firm_id).all()
+            elif kanban_columns:
+                # Place in first column as default
+                first_column = kanban_columns[0]
+                column_id = first_column.id if hasattr(first_column, 'id') else first_column.name
+                projects_by_column[column_id].append(project)
+                project_counts[column_id] += 1
     
     return render_template('projects/kanban_modern.html', 
                          projects_by_column=projects_by_column,
@@ -330,5 +238,5 @@ def kanban_view():
                          kanban_columns=kanban_columns,
                          current_work_type=current_work_type,
                          work_types=work_types,
-                         users=users,
+                         users=kanban_data['users'],
                          today=date.today())

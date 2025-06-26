@@ -478,6 +478,272 @@ class DocumentService:
         return True, ""
     
     @staticmethod
+    def update_checklist_with_items(checklist_id: int, name: str, description: str,
+                                   items_data: Dict[str, Any], firm_id: int, 
+                                   user_id: int) -> Dict[str, Any]:
+        """
+        Update a checklist and its items in a single transaction
+        
+        Args:
+            checklist_id: The checklist's ID
+            name: Updated checklist name
+            description: Updated checklist description
+            items_data: Dict containing item updates, deletions, and additions
+            firm_id: The firm's ID for security check
+            user_id: The updating user's ID
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            if not checklist:
+                return {
+                    'success': False,
+                    'message': 'Checklist not found or access denied'
+                }
+            
+            # Update basic checklist info
+            checklist.name = name
+            checklist.description = description
+            
+            # Handle deleted items first
+            deleted_item_ids = items_data.get('deleted_item_ids', [])
+            for item_id in deleted_item_ids:
+                if item_id:
+                    item = ChecklistItem.query.filter_by(
+                        id=item_id, 
+                        checklist_id=checklist_id
+                    ).first()
+                    if item:
+                        db.session.delete(item)
+            
+            # Handle existing items updates
+            item_ids = items_data.get('item_ids', [])
+            item_titles = items_data.get('item_titles', [])
+            item_descriptions = items_data.get('item_descriptions', [])
+            item_required = items_data.get('item_required', [])
+            item_sort_orders = items_data.get('item_sort_orders', [])
+            
+            # Update existing items
+            for i, item_id in enumerate(item_ids):
+                if item_id and i < len(item_titles):
+                    item = ChecklistItem.query.filter_by(
+                        id=item_id, 
+                        checklist_id=checklist_id
+                    ).first()
+                    
+                    if item:
+                        item.title = item_titles[i] if i < len(item_titles) else item.title
+                        item.description = item_descriptions[i] if i < len(item_descriptions) else ''
+                        item.is_required = str(i) in item_required
+                        item.sort_order = int(item_sort_orders[i]) if i < len(item_sort_orders) and item_sort_orders[i] else item.sort_order
+                
+                elif not item_id and i < len(item_titles) and item_titles[i].strip():
+                    # This is a new item (no ID but has title)
+                    max_order = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
+                        checklist_id=checklist_id
+                    ).scalar() or 0
+                    
+                    new_item = ChecklistItem(
+                        checklist_id=checklist_id,
+                        title=item_titles[i],
+                        description=item_descriptions[i] if i < len(item_descriptions) else '',
+                        is_required=str(i) in item_required,
+                        sort_order=int(item_sort_orders[i]) if i < len(item_sort_orders) and item_sort_orders[i] else max_order + 1
+                    )
+                    db.session.add(new_item)
+            
+            db.session.commit()
+            
+            # Log activity
+            create_activity_log(
+                action=f'Updated checklist: {name}',
+                user_id=user_id,
+                details=f'Updated checklist and items for {checklist.client.name}'
+            )
+            
+            return {
+                'success': True,
+                'message': 'Checklist and items updated successfully'
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'message': f'Error updating checklist: {str(e)}'
+            }
+
+    @staticmethod
+    def get_document_for_download(document_id: int, firm_id: int) -> Optional[ClientDocument]:
+        """
+        Get a document for download with security verification
+        
+        Args:
+            document_id: The document's ID
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            ClientDocument if found and accessible, None otherwise
+        """
+        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        
+        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            ClientDocument.id == document_id,
+            Client.firm_id == firm_id
+        ).first()
+
+    @staticmethod
+    def upload_file_to_checklist_item(file, token: str, item_id: int) -> Dict[str, Any]:
+        """
+        Handle file upload for checklist items with comprehensive validation and transaction management
+        
+        Args:
+            file: Uploaded file object
+            token: Public checklist token
+            item_id: Checklist item ID
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        import os
+        import uuid
+        import mimetypes
+        from datetime import datetime
+        from werkzeug.utils import secure_filename
+        from models import DocumentChecklist, ChecklistItem, ClientDocument
+        
+        try:
+            # Validate checklist and item exist
+            checklist = DocumentChecklist.query.filter_by(public_token=token).first()
+            if not checklist:
+                return {
+                    'success': False,
+                    'message': 'Invalid checklist'
+                }
+            
+            item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+            if not item:
+                return {
+                    'success': False,
+                    'message': 'Invalid checklist item'
+                }
+            
+            # Validate file
+            if not file or file.filename == '':
+                return {
+                    'success': False,
+                    'message': 'No file selected'
+                }
+            
+            # Validate file type and size
+            original_filename = secure_filename(file.filename)
+            if not original_filename:
+                return {
+                    'success': False,
+                    'message': 'Invalid filename'
+                }
+            
+            # Check file extension
+            if '.' not in original_filename:
+                return {
+                    'success': False,
+                    'message': 'File must have an extension'
+                }
+            
+            file_extension = original_filename.rsplit('.', 1)[1].lower()
+            allowed_extensions = {'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'txt', 'csv', 'xlsx', 'xls'}
+            if file_extension not in allowed_extensions:
+                return {
+                    'success': False,
+                    'message': f'File type .{file_extension} not allowed. Allowed types: {", ".join(allowed_extensions)}'
+                }
+            
+            # Generate unique filename
+            unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+            
+            # Create client-specific subdirectory
+            from flask import current_app
+            client_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], f'client_{checklist.client_id}')
+            os.makedirs(client_upload_dir, exist_ok=True)
+            
+            file_path = os.path.join(client_upload_dir, unique_filename)
+            
+            # Save file
+            file.save(file_path)
+            file_size = os.path.getsize(file_path)
+            
+            # Validate file size (10MB limit)
+            max_file_size = 10 * 1024 * 1024  # 10MB
+            if file_size > max_file_size:
+                os.remove(file_path)  # Clean up
+                return {
+                    'success': False,
+                    'message': 'File size too large. Maximum size is 10MB.'
+                }
+            
+            # Detect MIME type
+            mime_type, _ = mimetypes.guess_type(original_filename)
+            
+            # Database transaction
+            try:
+                # Delete any existing document for this item
+                existing_doc = ClientDocument.query.filter_by(
+                    client_id=checklist.client_id,
+                    checklist_item_id=item_id
+                ).first()
+                
+                if existing_doc:
+                    # Remove old file
+                    if os.path.exists(existing_doc.file_path):
+                        os.remove(existing_doc.file_path)
+                    db.session.delete(existing_doc)
+                
+                # Create new document record
+                document = ClientDocument(
+                    client_id=checklist.client_id,
+                    checklist_item_id=item_id,
+                    filename=unique_filename,
+                    original_filename=original_filename,
+                    file_path=file_path,
+                    file_size=file_size,
+                    mime_type=mime_type,
+                    uploaded_by_client=True
+                )
+                
+                db.session.add(document)
+                
+                # Update item status
+                item.status = 'uploaded'
+                item.updated_at = datetime.utcnow()
+                
+                db.session.commit()
+                
+                return {
+                    'success': True,
+                    'message': 'File uploaded successfully',
+                    'document': {
+                        'id': document.id,
+                        'filename': document.original_filename,
+                        'file_size': document.file_size
+                    }
+                }
+                
+            except Exception as db_error:
+                db.session.rollback()
+                # Clean up file if database operation fails
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                raise db_error
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Upload failed: {str(e)}'
+            }
+
+    @staticmethod
     def get_secure_filename(filename: str) -> str:
         """
         Generate a secure filename for file uploads
