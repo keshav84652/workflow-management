@@ -71,7 +71,6 @@ celery_app.conf.update(
     
     # Monitoring
     worker_send_task_events=True,
-    task_send_sent_event=True,
 )
 
 # Auto-discover tasks from workers modules

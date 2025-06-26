@@ -18,15 +18,15 @@ class BaseEvent(ABC):
     
     All events in the system should inherit from this class.
     """
-    # Event metadata
+    # Context information (put optional fields with defaults last)
+    firm_id: Optional[int] = None
+    user_id: Optional[int] = None
+    
+    # Event metadata (all have defaults)
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     event_type: str = field(init=False)
     timestamp: datetime = field(default_factory=datetime.utcnow)
     version: str = "1.0"
-    
-    # Context information
-    firm_id: Optional[int] = None
-    user_id: Optional[int] = None
     source_system: str = "workflow-management"
     
     # Event payload (to be defined by subclasses)
