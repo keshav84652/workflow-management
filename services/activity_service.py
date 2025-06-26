@@ -1,37 +1,45 @@
 """
 Activity Service for managing activity logs and audit trails
-Centralized business logic for activity tracking
+
+UPDATED: Now uses enhanced ActivityLoggingService for standardized logging.
+This service provides backwards compatibility while delegating to the new infrastructure.
 """
 
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-import importlib.util
-import os
-
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import ActivityLog
+from .base import BaseService
+from .activity_logging_service import ActivityLoggingService
 
 
-class ActivityService:
-    """Service for handling activity logs and audit trails"""
+class ActivityService(BaseService):
+    """
+    Service for handling activity logs and audit trails
+    
+    UPDATED: Now extends BaseService and delegates to ActivityLoggingService
+    for standardized logging patterns.
+    """
     
     @staticmethod
     def create_activity_log(action: str, user_id: int, project_id: Optional[int] = None, 
                           task_id: Optional[int] = None, details: Optional[str] = None) -> None:
-        """Create an activity log entry"""
+        """
+        Create an activity log entry (legacy method for backwards compatibility)
+        
+        NOTE: For new code, consider using ActivityLoggingService.log_entity_operation()
+        which provides better categorization and standardized formatting.
+        """
         try:
             log = ActivityLog(
                 action=action,
                 user_id=user_id,
                 project_id=project_id,
                 task_id=task_id,
-                details=details
+                details=details,
+                timestamp=datetime.utcnow()
             )
             db.session.add(log)
             db.session.commit()
