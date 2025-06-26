@@ -8,9 +8,7 @@ import os
 import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
-
 import importlib.util
-import os
 
 # Import db from root core.py file
 spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))

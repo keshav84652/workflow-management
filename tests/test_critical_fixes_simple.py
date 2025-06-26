@@ -221,7 +221,7 @@ class SimpleCriticalFixesTests(unittest.TestCase):
             # Test with mock session data
             mock_session = {'firm_id': 123, 'user_id': 456}
             
-            with patch('utils.session_helpers.session', mock_session):
+            with patch('utils.consolidated.session', mock_session):
                 firm_id = get_session_firm_id()
                 user_id = get_session_user_id()
                 
@@ -229,11 +229,11 @@ class SimpleCriticalFixesTests(unittest.TestCase):
                 self.assertEqual(user_id, 456)
             
             # Test error handling for missing session data
-            with patch('utils.session_helpers.session', {}):
+            with patch('utils.consolidated.session', {}):
                 # Mock request object properly
                 mock_request = Mock()
                 mock_request.path = '/test/path'
-                with patch('utils.session_helpers.request', mock_request):
+                with patch('utils.consolidated.request', mock_request):
                     with self.assertRaises(ValueError) as context:
                         get_session_firm_id()
                     

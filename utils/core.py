@@ -8,10 +8,7 @@ import string
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
-def generate_access_code(length: int = 8) -> str:
-    """Generate a random access code"""
-    chars = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+# generate_access_code moved to consolidated.py (secure version with secrets module)
 
 def create_activity_log(action: str, user_id: Optional[int] = None, 
                        project_id: Optional[int] = None, 
@@ -218,32 +215,4 @@ def find_or_create_client(name: str, email: str, firm_id: int) -> 'Client':
     return client
 
 
-def format_currency(amount: float) -> str:
-    """Format currency amount to string with dollar sign and commas"""
-    return f"${amount:,.2f}"
-
-
-def format_date(date_obj: datetime) -> str:
-    """Format datetime object to readable string"""
-    if date_obj is None:
-        return ""
-    return date_obj.strftime("%Y-%m-%d")
-
-
-def calculate_business_days(start_date: datetime, end_date: datetime) -> int:
-    """Calculate number of business days between two dates"""
-    from datetime import timedelta
-    
-    if start_date > end_date:
-        return 0
-    
-    business_days = 0
-    current_date = start_date
-    
-    while current_date <= end_date:
-        # Monday = 0, Sunday = 6
-        if current_date.weekday() < 5:  # Monday to Friday
-            business_days += 1
-        current_date += timedelta(days=1)
-    
-    return business_days
+# Date/time utility functions moved to consolidated.py

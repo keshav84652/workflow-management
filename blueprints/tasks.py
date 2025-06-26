@@ -23,7 +23,7 @@ tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
 @tasks_bp.route('/')
 def list_tasks():
-    from services.task_service import TaskService
+    # TaskService already imported at module level
     
     firm_id = get_session_firm_id()
     
@@ -51,7 +51,7 @@ def list_tasks():
 
 @tasks_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_task(id):
-    from services.task_service import TaskService
+    # TaskService already imported at module level
     
     firm_id = get_session_firm_id()
     result = TaskService.delete_task(id, firm_id)
@@ -163,7 +163,7 @@ def view_task(id):
 
 @tasks_bp.route('/<int:id>/comments', methods=['POST'])
 def add_task_comment(id):
-    from services.task_service import TaskService
+    # TaskService already imported at module level
     
     firm_id = get_session_firm_id()
     user_id = get_session_user_id()
