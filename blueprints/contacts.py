@@ -63,23 +63,15 @@ def view_contact(id):
 
 @contacts_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_contact(id):
-    contact = Contact.query.get_or_404(id)
-    
+    user_id = get_session_user_id()
     if request.method == 'POST':
-        contact.first_name = request.form.get('first_name')
-        contact.last_name = request.form.get('last_name')
-        contact.email = request.form.get('email')
-        contact.phone = request.form.get('phone')
-        contact.title = request.form.get('title')
-        contact.company = request.form.get('company')
-        contact.address = request.form.get('address')
-        
-        # TODO: Move to service layer
-        # db.session.commit()
-        
-        flash('Contact updated successfully!', 'success')
-        return redirect(url_for('contacts.view_contact', id=contact.id))
-    
+        result = ContactService().update_contact(id, request.form, user_id)
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('contacts.view_contact', id=id))
+        else:
+            flash(result['message'], 'error')
+    contact = Contact.query.get_or_404(id)
     return render_template('clients/edit_contact.html', contact=contact)
 
 
