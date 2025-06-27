@@ -5,16 +5,10 @@ Administrative functions blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 import os
 from datetime import datetime
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
-from utils import generate_access_code
+from utils.consolidated import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 

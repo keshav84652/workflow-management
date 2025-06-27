@@ -8,20 +8,14 @@ import os
 import json
 from pathlib import Path
 
-import importlib.util
-import os
-
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
     IncomeWorksheet, User, Attachment
 )
-from utils import create_activity_log
+from services.activity_service import ActivityService
 from services.ai_service import AIService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
 
