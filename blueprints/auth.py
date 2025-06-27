@@ -5,7 +5,7 @@ Authentication and session management blueprint
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash, make_response, jsonify
 from datetime import datetime
 from core.db_import import db
-from models import Firm, User
+from services.auth_service import AuthService
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,11 +24,10 @@ def landing():
 
 @auth_bp.route('/login')
 def login():
-    if 'firm_id' in session:
-        if 'user_id' in session:
-            return redirect(url_for('dashboard.main'))
-        else:
-            return redirect(url_for('auth.select_user'))
+    if AuthService.is_authenticated():
+        return redirect(url_for('dashboard.main'))
+    elif AuthService.is_firm_authenticated():
+        return redirect(url_for('auth.select_user'))
     return render_template('auth/login.html')
 
 
@@ -37,84 +36,47 @@ def authenticate():
     access_code = request.form.get('access_code', '').strip()
     email = request.form.get('email', '').strip()
     
-    firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
+    # Use AuthService for authentication
+    auth_service = AuthService()
+    result = auth_service.authenticate_firm(access_code, email)
     
-    if firm:
-        # Make session permanent for better persistence
-        session.permanent = True
-        
-        # Store email in session for tracking
-        session['user_email'] = email
-        session['firm_id'] = firm.id
-        session['firm_name'] = firm.name
-        
-        # For demo access, store email in database for tracking
-        if access_code == 'DEMO2024':
-            try:
-                # Check if email already exists for demo access
-                existing_request = db.session.execute(
-                    db.text("SELECT * FROM demo_access_request WHERE email = :email AND firm_access_code = 'DEMO2024'"),
-                    {'email': email}
-                ).first()
-                
-                if not existing_request:
-                    # Create new demo access record
-                    db.session.execute(
-                        db.text("""
-                            INSERT INTO demo_access_request 
-                            (email, firm_access_code, ip_address, user_agent, granted, granted_at, created_at) 
-                            VALUES (:email, 'DEMO2024', :ip_address, :user_agent, 1, :granted_at, :created_at)
-                        """),
-                        {
-                            'email': email,
-                            'ip_address': request.remote_addr,
-                            'user_agent': request.headers.get('User-Agent', ''),
-                            'granted_at': datetime.utcnow(),
-                            'created_at': datetime.utcnow()
-                        }
-                    )
-                    # TODO: Move to service layer
-                    # db.session.commit()
-            except Exception as e:
-                # Don't block access if demo tracking fails
-                print(f"Demo tracking error: {e}")
-                pass
-        
+    if result['success']:
+        # Create session using AuthService
+        auth_service.create_session(result['firm'], email)
         return redirect(url_for('auth.select_user'))
     else:
-        flash('Invalid access code', 'error')
+        flash(result['message'], 'error')
         return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/select-user')
 def select_user():
-    if 'firm_id' not in session:
+    if not AuthService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     firm_id = session['firm_id']
-    users = User.query.filter_by(firm_id=firm_id).all()
+    # Use AuthService to get users
+    users = AuthService.get_users_for_firm(firm_id)
     return render_template('auth/select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 
 @auth_bp.route('/set-user', methods=['POST'])
 def set_user():
-    if 'firm_id' not in session:
+    if not AuthService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     user_id = request.form.get('user_id')
-    user = User.query.filter_by(id=user_id, firm_id=session['firm_id']).first()
+    firm_id = session['firm_id']
     
-    if user:
-        # Ensure session remains permanent
-        session.permanent = True
-        
-        session['user_id'] = user.id
-        session['user_name'] = user.name
-        session['user_role'] = user.role
-        flash(f'Welcome, {user.name}!', 'success')
+    # Use AuthService to set user in session
+    auth_service = AuthService()
+    result = auth_service.set_user_in_session(int(user_id), firm_id)
+    
+    if result['success']:
+        flash(f'Welcome, {result["user"]["name"]}!', 'success')
         return redirect(url_for('dashboard.main'))
     else:
-        flash('Invalid user selection', 'error')
+        flash(result['message'], 'error')
         return redirect(url_for('auth.select_user'))
 
 
@@ -129,7 +91,8 @@ def switch_user():
 @auth_bp.route('/logout')
 def logout():
     """Logout user with proper cache control and session clearing"""
-    session.clear()
+    # Use AuthService for logout
+    AuthService.logout()
     
     # Create response with proper cache control headers
     response = make_response(redirect(url_for('auth.home')))
@@ -148,7 +111,8 @@ def logout():
 @auth_bp.route('/clear-session')
 def clear_session():
     """Clear session and redirect to landing page with proper cache control"""
-    session.clear()
+    # Use AuthService for session clearing
+    AuthService.logout()
     
     response = make_response(redirect(url_for('auth.home')))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

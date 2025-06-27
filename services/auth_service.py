@@ -64,7 +64,34 @@ class AuthService:
             }
     
 
-    def _track_demo_access(self, email: str) -> None:
+    @staticmethod
+    def authenticate_firm_by_code(access_code: str) -> Optional[Firm]:
+        """
+        Authenticate a firm using access code only
+        
+        Args:
+            access_code: The firm's access code
+            
+        Returns:
+            Firm object if found and active, None otherwise
+        """
+        return Firm.query.filter_by(access_code=access_code, is_active=True).first()
+    
+    @staticmethod
+    def get_users_for_firm(firm_id: int) -> List[User]:
+        """
+        Get all users for a specific firm (static method for blueprint usage)
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            List of User objects for the firm
+        """
+        return User.query.filter_by(firm_id=firm_id).all()
+    
+    @staticmethod
+    def _track_demo_access(email: str) -> None:
         """
         Track demo access requests for analytics
         
@@ -157,7 +184,7 @@ class AuthService:
             Dict containing success status and user data
         """
         try:
-            user = AuthService.get_user_by_id(user_id, firm_id)
+            user = self.get_user_by_id(user_id, firm_id)
             
             if not user:
                 return {
@@ -187,6 +214,7 @@ class AuthService:
             }
     
 
+    @staticmethod
     def is_authenticated() -> bool:
         """
         Check if the current session is authenticated
@@ -197,6 +225,7 @@ class AuthService:
         return 'firm_id' in session and 'user_id' in session
     
 
+    @staticmethod
     def is_firm_authenticated() -> bool:
         """
         Check if a firm is authenticated (but user may not be selected)
@@ -207,6 +236,7 @@ class AuthService:
         return 'firm_id' in session
     
 
+    @staticmethod
     def logout() -> None:
         """
         Clear the session and log out the user
@@ -214,6 +244,7 @@ class AuthService:
         session.clear()
     
 
+    @staticmethod
     def get_current_user_info() -> Dict[str, Any]:
         """
         Get current user information from session
@@ -231,6 +262,7 @@ class AuthService:
         }
     
 
+    @staticmethod
     def require_authentication() -> Optional[str]:
         """
         Check if user is authenticated, return redirect URL if not
