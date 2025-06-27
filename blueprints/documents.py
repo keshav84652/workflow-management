@@ -11,7 +11,7 @@ from werkzeug.utils import secure_filename
 
 from core.db_import import db
 from models import (
-    DocumentChecklist, ChecklistItem, Client, ClientDocument, 
+    DocumentChecklist, ChecklistItem, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
 from services.activity_logging_service import ActivityLoggingService as ActivityService
@@ -29,7 +29,7 @@ def document_checklists():
     
     # Get data using service layer
     checklists = DocumentService.get_checklists_for_firm(firm_id)
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    clients = DocumentService.get_clients_for_firm(firm_id)
     
     return render_template('documents/document_checklists.html', checklists=checklists, clients=clients)
 
@@ -62,7 +62,7 @@ def create_checklist():
             return redirect(url_for('documents.document_checklists'))
     
     # GET request - show form
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    clients = DocumentService.get_clients_for_firm(firm_id)
     return render_template('documents/create_checklist_modern.html', clients=clients)
 
 
@@ -217,10 +217,8 @@ def uploaded_documents():
     """View all uploaded documents across all checklists"""
     firm_id = get_session_firm_id()
     
-    # Get all uploaded documents for this firm
-    documents = ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-        Client.firm_id == firm_id
-    ).order_by(ClientDocument.uploaded_at.desc()).all()
+    # Get all uploaded documents for this firm using service layer
+    documents = DocumentService.get_uploaded_documents(firm_id)
     
     return render_template('documents/uploaded_documents.html', documents=documents)
 

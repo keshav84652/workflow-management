@@ -195,6 +195,29 @@ class DocumentService:
             Client.firm_id == firm_id
         ).order_by(DocumentChecklist.created_at.desc()).all()
     
+    @staticmethod
+    def get_clients_for_firm(firm_id):
+        """Get all clients for a firm - used by document blueprints"""
+        from models import Client
+        return Client.query.filter_by(firm_id=firm_id).all()
+    
+    @staticmethod
+    def get_uploaded_documents(firm_id):
+        """Get all uploaded documents for a firm"""
+        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            Client.firm_id == firm_id
+        ).order_by(ClientDocument.uploaded_at.desc()).all()
+    
+    @staticmethod
+    def get_document_for_download(document_id, firm_id):
+        """Get document for download with firm access check"""
+        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            ClientDocument.id == document_id,
+            Client.firm_id == firm_id
+        ).first()
+    
     @classmethod
     def get_checklist_by_id(cls, checklist_id, firm_id):
         """Get checklist by ID with firm access check"""
