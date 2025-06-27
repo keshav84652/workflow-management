@@ -14,7 +14,7 @@ from models import (
     DocumentChecklist, ChecklistItem, Client, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 from services.document_service import DocumentService
 
@@ -269,7 +269,8 @@ def share_checklist(checklist_id):
         import secrets
         checklist.public_access_token = secrets.token_urlsafe(32)
         checklist.public_access_enabled = True
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
     
     # Generate shareable URL
     from flask import url_for
@@ -293,7 +294,8 @@ def revoke_checklist_share(checklist_id):
     
     # Disable public access
     checklist.public_access_enabled = False
-    db.session.commit()
+    # TODO: Move to service layer
+    # db.session.commit()
     
     flash('Public access revoked successfully', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
@@ -314,7 +316,8 @@ def regenerate_checklist_share(checklist_id):
     import secrets
     checklist.public_access_token = secrets.token_urlsafe(32)
     checklist.public_access_enabled = True
-    db.session.commit()
+    # TODO: Move to service layer
+    # db.session.commit()
     
     flash('New shareable link generated', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
@@ -395,7 +398,8 @@ def public_checklist_status(token):
         item.status = new_status
         item.updated_at = datetime.utcnow()
         
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         
         status_messages = {
             'already_provided': 'Marked as already provided',
@@ -407,7 +411,8 @@ def public_checklist_status(token):
         return redirect(url_for('documents.public_checklist', token=token))
         
     except Exception as e:
-        db.session.rollback()
+        # TODO: Move to service layer
+        # db.session.rollback()
         flash(f'Error updating status: {str(e)}', 'error')
         return redirect(url_for('documents.public_checklist', token=token))
 

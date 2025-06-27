@@ -10,7 +10,7 @@ from models import Project, Template, Task, Client, TaskStatus, TemplateTask, Wo
 from repositories.project_repository import ProjectRepository
 from utils.core import calculate_task_due_date, find_or_create_client
 from utils.session_helpers import get_session_firm_id, get_session_user_id
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from events.publisher import publish_event
 from events.schemas import ProjectCreatedEvent, ProjectUpdatedEvent
 

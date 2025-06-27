@@ -10,7 +10,7 @@ from flask import session
 from core.db_import import db
 from models import Task, Project, User, ActivityLog, TaskComment, TemplateTask
 from repositories.task_repository import TaskRepository
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 from events.publisher import publish_event
 from events.schemas import TaskCreatedEvent, TaskUpdatedEvent

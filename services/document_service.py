@@ -17,15 +17,22 @@ from models import (
     DocumentChecklist, ChecklistItem, Client, ClientDocument,
     ClientUser, Attachment, User, ClientChecklistAccess
 )
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from repositories.document_repository import DocumentRepository
+from repositories.checklist_repository import ChecklistRepository, ChecklistItemRepository
+from repositories.client_repository import ClientRepository
 
 
 class DocumentService:
     """Service class for document and checklist-related business operations"""
     
-    @staticmethod
-    def get_checklists_for_firm(firm_id: int) -> List[DocumentChecklist]:
+    def __init__(self):
+        self.document_repository = DocumentRepository()
+        self.checklist_repository = ChecklistRepository()
+        self.checklist_item_repository = ChecklistItemRepository()
+        self.client_repository = ClientRepository()
+    
+    def get_checklists_for_firm(self, firm_id: int) -> List[DocumentChecklist]:
         """
         Get all document checklists for a firm
         
@@ -35,12 +42,9 @@ class DocumentService:
         Returns:
             List of DocumentChecklist objects for the firm
         """
-        return DocumentChecklist.query.join(Client).filter(
-            Client.firm_id == firm_id
-        ).all()
+        return self.checklist_repository.get_by_firm(firm_id)
     
-    @staticmethod
-    def get_checklist_by_id(checklist_id: int, firm_id: int) -> Optional[DocumentChecklist]:
+    def get_checklist_by_id(self, checklist_id: int, firm_id: int) -> Optional[DocumentChecklist]:
         """
         Get a checklist by ID, ensuring it belongs to the firm
         
@@ -51,13 +55,10 @@ class DocumentService:
         Returns:
             DocumentChecklist object if found and belongs to firm, None otherwise
         """
-        return DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first()
+        return self.checklist_repository.get_by_id_and_firm(checklist_id, firm_id)
     
-    @staticmethod
-    def create_checklist(client_id: int, name: str, description: str, 
+
+    def create_checklist(self, client_id: int, name: str, description: str, 
                         firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Create a new document checklist
@@ -74,7 +75,7 @@ class DocumentService:
         """
         try:
             # Verify client belongs to this firm
-            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+            client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
             if not client:
                 return {
                     'success': False,
@@ -119,8 +120,8 @@ class DocumentService:
                 'checklist': None
             }
     
-    @staticmethod
-    def update_checklist(checklist_id: int, name: str, description: str,
+
+    def update_checklist(self, checklist_id: int, name: str, description: str,
                         firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Update a document checklist's basic information
@@ -136,7 +137,7 @@ class DocumentService:
             Dict containing success status and any error messages
         """
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
@@ -170,8 +171,8 @@ class DocumentService:
                 'message': f'Error updating checklist: {str(e)}'
             }
     
-    @staticmethod
-    def add_checklist_item(checklist_id: int, item_name: str, description: str,
+
+    def add_checklist_item(self, checklist_id: int, item_name: str, description: str,
                           firm_id: int, user_id: int, is_required: bool = True,
                           order_index: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -190,7 +191,7 @@ class DocumentService:
             Dict containing success status and any error messages
         """
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
@@ -199,9 +200,7 @@ class DocumentService:
             
             # If no order specified, add at the end
             if order_index is None:
-                max_order = db.session.query(db.func.max(ChecklistItem.order_index)).filter_by(
-                    checklist_id=checklist_id
-                ).scalar() or 0
+                max_order = self.checklist_item_repository.get_max_sort_order(checklist_id)
                 order_index = max_order + 1
             
             item = ChecklistItem(
@@ -236,8 +235,8 @@ class DocumentService:
                 'message': f'Error adding checklist item: {str(e)}'
             }
     
-    @staticmethod
-    def update_checklist_item(item_id: int, item_name: str, description: str,
+
+    def update_checklist_item(self, item_id: int, item_name: str, description: str,
                              is_required: bool, checklist_id: int, firm_id: int,
                              user_id: int) -> Dict[str, Any]:
         """
@@ -257,17 +256,14 @@ class DocumentService:
         """
         try:
             # Verify checklist belongs to firm
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
                     'message': 'Checklist not found'
                 }
             
-            item = ChecklistItem.query.filter_by(
-                id=item_id,
-                checklist_id=checklist_id
-            ).first()
+            item = self.checklist_item_repository.get_by_id_and_checklist(item_id, checklist_id)
             
             if not item:
                 return {
@@ -303,8 +299,8 @@ class DocumentService:
                 'message': f'Error updating checklist item: {str(e)}'
             }
     
-    @staticmethod
-    def delete_checklist_item(item_id: int, checklist_id: int, firm_id: int,
+
+    def delete_checklist_item(self, item_id: int, checklist_id: int, firm_id: int,
                              user_id: int) -> Dict[str, Any]:
         """
         Delete a checklist item
@@ -320,17 +316,14 @@ class DocumentService:
         """
         try:
             # Verify checklist belongs to firm
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
                     'message': 'Checklist not found'
                 }
             
-            item = ChecklistItem.query.filter_by(
-                id=item_id,
-                checklist_id=checklist_id
-            ).first()
+            item = self.checklist_item_repository.get_by_id_and_checklist(item_id, checklist_id)
             
             if not item:
                 return {
@@ -362,8 +355,8 @@ class DocumentService:
                 'message': f'Error deleting checklist item: {str(e)}'
             }
     
-    @staticmethod
-    def get_checklist_items(checklist_id: int, firm_id: int) -> List[ChecklistItem]:
+
+    def get_checklist_items(self, checklist_id: int, firm_id: int) -> List[ChecklistItem]:
         """
         Get all items for a checklist
         
@@ -375,16 +368,14 @@ class DocumentService:
             List of ChecklistItem objects ordered by order_index
         """
         # Verify checklist belongs to firm first
-        checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+        checklist = self.get_checklist_by_id(checklist_id, firm_id)
         if not checklist:
             return []
         
-        return ChecklistItem.query.filter_by(
-            checklist_id=checklist_id
-        ).order_by(ChecklistItem.order_index).all()
+        return self.checklist_item_repository.get_by_checklist(checklist_id)
     
-    @staticmethod
-    def create_client_access(checklist_id: int, firm_id: int, user_id: int,
+
+    def create_client_access(self, checklist_id: int, firm_id: int, user_id: int,
                             password: Optional[str] = None) -> Dict[str, Any]:
         """
         Create client access for a checklist
@@ -399,7 +390,7 @@ class DocumentService:
             Dict containing success status, access data, and any error messages
         """
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
@@ -448,8 +439,8 @@ class DocumentService:
                 'access': None
             }
     
-    @staticmethod
-    def validate_file_upload(filename: str, file_size: int, 
+
+    def validate_file_upload(self, filename: str, file_size: int, 
                            allowed_extensions: set) -> Tuple[bool, str]:
         """
         Validate file upload requirements
@@ -480,8 +471,8 @@ class DocumentService:
         
         return True, ""
     
-    @staticmethod
-    def update_checklist_with_items(checklist_id: int, name: str, description: str,
+
+    def update_checklist_with_items(self, checklist_id: int, name: str, description: str,
                                    items_data: Dict[str, Any], firm_id: int, 
                                    user_id: int) -> Dict[str, Any]:
         """
@@ -499,7 +490,7 @@ class DocumentService:
             Dict containing success status and any error messages
         """
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+            checklist = self.get_checklist_by_id(checklist_id, firm_id)
             if not checklist:
                 return {
                     'success': False,
@@ -544,9 +535,7 @@ class DocumentService:
                 
                 elif not item_id and i < len(item_titles) and item_titles[i].strip():
                     # This is a new item (no ID but has title)
-                    max_order = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
-                        checklist_id=checklist_id
-                    ).scalar() or 0
+                    max_order = self.checklist_item_repository.get_max_sort_order(checklist_id)
                     
                     new_item = ChecklistItem(
                         checklist_id=checklist_id,
@@ -578,8 +567,8 @@ class DocumentService:
                 'message': f'Error updating checklist: {str(e)}'
             }
 
-    @staticmethod
-    def get_document_for_download(document_id: int, firm_id: int) -> Optional[ClientDocument]:
+
+    def get_document_for_download(self, document_id: int, firm_id: int) -> Optional[ClientDocument]:
         """
         Get a document for download with security verification
         
@@ -596,8 +585,8 @@ class DocumentService:
         document = document_repo.get_by_id(document_id)
         return document
 
-    @staticmethod
-    def upload_file_to_checklist_item(file, token: str, item_id: int) -> Dict[str, Any]:
+
+    def upload_file_to_checklist_item(self, file, token: str, item_id: int) -> Dict[str, Any]:
         """
         Handle file upload for checklist items with comprehensive validation and transaction management
         
@@ -750,8 +739,8 @@ class DocumentService:
                 'message': f'Upload failed: {str(e)}'
             }
 
-    @staticmethod
-    def get_secure_filename(filename: str) -> str:
+
+    def get_secure_filename(self, filename: str) -> str:
         """
         Generate a secure filename for file uploads
         

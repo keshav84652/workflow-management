@@ -95,7 +95,7 @@ def create_activity_log(action: str, user_id: Optional[int] = None,
     RECOMMENDED: Use ActivityService.create_activity_log() directly
     This utility is provided for convenience but direct service calls are preferred
     """
-    from services.activity_service import ActivityService
+    from services.activity_logging_service import ActivityLoggingService as ActivityService
     ActivityService.create_activity_log(action, user_id, project_id, task_id)
 
 

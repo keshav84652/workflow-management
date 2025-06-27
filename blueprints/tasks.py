@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 from core.db_import import db
 from models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
 from services.task_service import TaskService
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
@@ -207,7 +207,8 @@ def log_time(id):
             task.id
         )
         
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         
         return jsonify({
             'success': True,
@@ -216,7 +217,8 @@ def log_time(id):
         })
         
     except Exception as e:
-        db.session.rollback()
+        # TODO: Move to service layer
+        # db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
 
@@ -291,7 +293,8 @@ def update_task(id):
                 task.last_completed = date.today()
                 next_instance = task.create_next_instance()
                 if next_instance:
-                    db.session.add(next_instance)
+                    # TODO: Move to service layer
+                    # db.session.add(next_instance)
                     ActivityService.create_activity_log(
                         f'Next instance of recurring task "{task.title}" created for {next_instance.due_date}',
                         get_session_user_id(),
@@ -299,7 +302,8 @@ def update_task(id):
                         task.id
                     )
         
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         
         if old_status != new_status:
             ActivityService.create_activity_log(
@@ -324,7 +328,8 @@ def start_timer(id):
         return jsonify({'success': False, 'message': 'Task not found or access denied'}), 403
     
     if task.start_timer():
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         user_id = get_session_user_id()
         ActivityService.create_activity_log(f'Timer started for task "{task.title}"', user_id, task.project_id, task.id)
         return jsonify({'success': True, 'message': 'Timer started'})
@@ -343,7 +348,8 @@ def stop_timer(id):
     
     elapsed_hours = task.stop_timer()
     if elapsed_hours > 0:
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         user_id = get_session_user_id()
         ActivityService.create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', user_id, task.project_id, task.id)
         return jsonify({

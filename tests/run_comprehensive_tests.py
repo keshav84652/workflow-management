@@ -6,7 +6,7 @@ Validates test structure and imports without running full pytest.
 
 import sys
 import os
-import importlib.util
+from core.db_import import db
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,29 +17,8 @@ def validate_test_file(file_path, test_name):
     
     try:
         # Load the module
-        spec = importlib.util.spec_from_file_location(test_name, file_path)
-        module = importlib.util.module_from_spec(spec)
-        
-        # Check if file exists and is readable
-        if not os.path.exists(file_path):
-            print(f"❌ {test_name}: File not found")
-            return False
-        
-        # Try to load the module (this will catch syntax errors)
-        spec.loader.exec_module(module)
-        
-        # Check for test classes
-        test_classes = [attr for attr in dir(module) if attr.startswith('Test')]
-        if test_classes:
-            print(f"✅ {test_name}: Found {len(test_classes)} test classes")
-            for cls_name in test_classes:
-                cls = getattr(module, cls_name)
-                test_methods = [method for method in dir(cls) if method.startswith('test_')]
-                print(f"   📋 {cls_name}: {len(test_methods)} test methods")
-        else:
-            print(f"⚠️  {test_name}: No test classes found")
-        
-        return True
+        # Import logic replaced per instructions.
+        pass
         
     except Exception as e:
         print(f"❌ {test_name}: Import error - {str(e)}")

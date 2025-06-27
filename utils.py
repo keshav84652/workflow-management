@@ -38,7 +38,7 @@ def create_activity_log(action, user_id, project_id=None, task_id=None, details=
     DEPRECATED: Use ActivityService.create_activity_log() directly
     This wrapper is provided for backward compatibility only
     """
-    from services.activity_service import ActivityService
+    from services.activity_logging_service import ActivityLoggingService as ActivityService
     ActivityService.create_activity_log(action, user_id, project_id, task_id, details)
 
 def calculate_task_due_date(project_start_date, template_task):

@@ -12,7 +12,7 @@ from werkzeug.utils import secure_filename
 
 from core.db_import import db
 from models import Task, Project, Attachment
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 
 
 class AttachmentService:

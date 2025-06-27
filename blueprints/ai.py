@@ -13,7 +13,7 @@ from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
     IncomeWorksheet, User, Attachment
 )
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.ai_service import AIService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 

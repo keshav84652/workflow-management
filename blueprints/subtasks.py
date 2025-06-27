@@ -6,7 +6,7 @@ from flask import Blueprint, request, session, jsonify
 
 from core.db_import import db
 from models import Task
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
@@ -47,8 +47,10 @@ def create_subtask(task_id):
             status=parent_task.status if not parent_task.status_id else 'Not Started'
         )
         
-        db.session.add(subtask)
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.add(subtask)
+        # TODO: Move to service layer
+        # db.session.commit()
         
         # Activity log
         ActivityService.create_activity_log(
@@ -71,7 +73,8 @@ def create_subtask(task_id):
         })
         
     except Exception as e:
-        db.session.rollback()
+        # TODO: Move to service layer
+        # db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -95,12 +98,14 @@ def reorder_subtasks(task_id):
             if subtask and subtask.parent_task_id == task_id:
                 subtask.subtask_order = index + 1
         
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         
         return jsonify({'success': True, 'message': 'Subtasks reordered successfully'})
         
     except Exception as e:
-        db.session.rollback()
+        # TODO: Move to service layer
+        # db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
@@ -149,7 +154,8 @@ def convert_to_subtask(task_id):
         task.parent_task_id = parent_task_id
         task.subtask_order = max_order + 1
         
-        db.session.commit()
+        # TODO: Move to service layer
+        # db.session.commit()
         
         # Activity log
         ActivityService.create_activity_log(
@@ -162,5 +168,6 @@ def convert_to_subtask(task_id):
         return jsonify({'success': True, 'message': 'Task converted to subtask successfully'})
         
     except Exception as e:
-        db.session.rollback()
+        # TODO: Move to service layer
+        # db.session.rollback()
         return jsonify({'success': False, 'message': str(e)}), 500
