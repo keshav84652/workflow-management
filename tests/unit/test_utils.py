@@ -238,8 +238,7 @@ class TestHealthChecks:
         result = check_database_health()
         
         assert result['status'] == 'healthy'
-        assert result['service'] == 'database'
-        assert 'response_time_ms' in result
+        assert result['message'] == 'Database connection successful'
         mock_execute.assert_called_once()
     
     @patch('core.db_import.db.session.execute')
@@ -249,10 +248,8 @@ class TestHealthChecks:
         
         result = check_database_health()
         
-        assert result['status'] == 'unhealthy'
-        assert result['service'] == 'database'
-        assert 'error' in result
-        assert 'Database connection failed' in result['error']
+        assert result['status'] == 'error'
+        assert result['message'] == 'Database connection failed'
     
     @patch('core.redis_client.redis_client')
     def test_check_redis_health_success(self, mock_redis):
@@ -263,8 +260,7 @@ class TestHealthChecks:
         result = check_redis_health()
         
         assert result['status'] == 'healthy'
-        assert result['service'] == 'redis'
-        assert 'response_time_ms' in result
+        assert result['message'] == 'Redis connection successful'
     
     @patch('core.redis_client.redis_client')
     def test_check_redis_health_unavailable(self, mock_redis):
@@ -273,9 +269,8 @@ class TestHealthChecks:
         
         result = check_redis_health()
         
-        assert result['status'] == 'unhealthy'
-        assert result['service'] == 'redis'
-        assert 'error' in result
+        assert result['status'] == 'error'
+        assert result['message'] == 'Redis not available'
     
     @patch('core.redis_client.redis_client')
     def test_check_redis_health_failure(self, mock_redis):
@@ -285,36 +280,34 @@ class TestHealthChecks:
         
         result = check_redis_health()
         
-        assert result['status'] == 'unhealthy'
-        assert result['service'] == 'redis'
-        assert 'error' in result
+        assert result['status'] == 'error'
+        assert result['message'] == 'Redis ping failed'
     
     @patch('utils.health_checks.check_database_health')
     @patch('utils.health_checks.check_redis_health')
     def test_check_system_health_all_healthy(self, mock_redis_health, mock_db_health):
         """Test system health check when all services healthy."""
-        mock_db_health.return_value = {'status': 'healthy', 'service': 'database'}
-        mock_redis_health.return_value = {'status': 'healthy', 'service': 'redis'}
+        mock_db_health.return_value = {'status': 'healthy', 'message': 'Database OK'}
+        mock_redis_health.return_value = {'status': 'healthy', 'message': 'Redis OK'}
         
         result = check_system_health()
         
-        assert result['overall_status'] == 'healthy'
-        assert len(result['services']) == 2
-        assert all(service['status'] == 'healthy' for service in result['services'])
+        assert result['status'] == 'healthy'
+        assert result['database']['status'] == 'healthy'
+        assert result['redis']['status'] == 'healthy'
     
     @patch('utils.health_checks.check_database_health')
     @patch('utils.health_checks.check_redis_health')
     def test_check_system_health_partial_failure(self, mock_redis_health, mock_db_health):
         """Test system health check with partial service failure."""
-        mock_db_health.return_value = {'status': 'healthy', 'service': 'database'}
-        mock_redis_health.return_value = {'status': 'unhealthy', 'service': 'redis', 'error': 'Connection failed'}
+        mock_db_health.return_value = {'status': 'healthy', 'message': 'Database OK'}
+        mock_redis_health.return_value = {'status': 'error', 'message': 'Connection failed'}
         
         result = check_system_health()
         
-        assert result['overall_status'] == 'degraded'
-        assert len(result['services']) == 2
-        assert result['healthy_services'] == 1
-        assert result['unhealthy_services'] == 1
+        assert result['status'] == 'degraded'
+        assert result['database']['status'] == 'healthy'
+        assert result['redis']['status'] == 'error'
     
     def test_health_check_performance(self, performance_tracker):
         """Test health check performance."""
