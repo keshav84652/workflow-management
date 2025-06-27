@@ -8,18 +8,14 @@ import os
 import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
-import importlib.util
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import (
     DocumentChecklist, ChecklistItem, Client, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
-from utils import create_activity_log, get_session_firm_id, get_session_user_id
+from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 from services.document_service import DocumentService
 
 documents_bp = Blueprint('documents', __name__)

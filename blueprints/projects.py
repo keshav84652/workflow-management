@@ -4,17 +4,13 @@ Project management blueprint
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog, TaskComment, Attachment
-from utils import calculate_task_due_date, find_or_create_client, create_activity_log
 from services.project_service import ProjectService
+from services.task_service import TaskService
+from services.client_service import ClientService
+from services.activity_service import ActivityService
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 
