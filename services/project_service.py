@@ -28,7 +28,7 @@ class ProjectService:
         """Get a project by ID, ensuring it belongs to the firm"""
         return self.project_repository.get_by_id_and_firm(project_id, firm_id)
     
-    @staticmethod
+
     def create_project_from_template(
         template_id: int,
         client_name: str,
@@ -113,7 +113,7 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': f'Error creating project: {str(e)}'}
     
-    @staticmethod
+
     def _create_tasks_from_template(
         project: Project, 
         template: Template, 
@@ -158,7 +158,7 @@ class ProjectService:
             
         return tasks_created
     
-    @staticmethod
+
     def update_project(
         project_id: int,
         name: str,
@@ -200,8 +200,8 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': f'Error updating project: {str(e)}'}
     
-    @staticmethod
-    def delete_project(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def delete_project(self, project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Delete a project and all associated data"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -242,7 +242,7 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': f'Error deleting project: {str(e)}'}
     
-    @staticmethod
+
     def move_project_status(
         project_id: int, 
         status_id: str, 
@@ -351,8 +351,8 @@ class ProjectService:
             print(f"ProjectService.move_project_status error: {error_details}")
             return {'success': False, 'message': f'Error moving project: {str(e)}'}
     
-    @staticmethod
-    def get_project_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_project_statistics(self, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get project statistics for dashboard"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -369,8 +369,8 @@ class ProjectService:
         
         return stats
     
-    @staticmethod
-    def get_project_workflow_progress(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_project_workflow_progress(self, project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get project workflow progress (OpenProject-inspired)"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -411,8 +411,8 @@ class ProjectService:
             'is_overdue': project.is_overdue
         }
     
-    @staticmethod
-    def get_firm_workflow_summary(firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_firm_workflow_summary(self, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get firm-wide workflow summary (OpenProject-inspired dashboard)"""
         if firm_id is None:
             firm_id = get_session_firm_id()

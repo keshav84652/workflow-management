@@ -12,9 +12,12 @@ from models import Project, Task, Client, User, WorkType, TaskStatus
 
 class DashboardService:
     """Service class for dashboard-related business operations"""
+
+    def __init__(self):
+        pass
     
-    @staticmethod
-    def get_dashboard_data(firm_id: int) -> Dict[str, Any]:
+
+    def get_dashboard_data(self, firm_id: int) -> Dict[str, Any]:
         """
         Get comprehensive dashboard data for a firm
         
@@ -72,8 +75,8 @@ class DashboardService:
             'projects_list': projects
         }
     
-    @staticmethod
-    def get_active_projects(firm_id: int) -> List[Project]:
+
+    def get_active_projects(self, firm_id: int) -> List[Project]:
         """
         Get all active projects for a firm
         
@@ -85,8 +88,8 @@ class DashboardService:
         """
         return Project.query.filter_by(firm_id=firm_id, status='Active').all()
     
-    @staticmethod
-    def get_all_tasks_for_firm(firm_id: int) -> List[Task]:
+
+    def get_all_tasks_for_firm(self, firm_id: int) -> List[Task]:
         """
         Get all tasks for a firm (both project and independent tasks)
         
@@ -111,8 +114,8 @@ class DashboardService:
             )
         ).all()
     
-    @staticmethod
-    def filter_tasks_by_dependency_mode(tasks: List[Task]) -> List[Task]:
+
+    def filter_tasks_by_dependency_mode(self, tasks: List[Task]) -> List[Task]:
         """
         Filter tasks based on project dependency mode
         For interdependent projects, only show the first active task
@@ -138,8 +141,8 @@ class DashboardService:
         
         return filtered_tasks
     
-    @staticmethod
-    def get_recent_tasks(firm_id: int, limit: int = 5) -> List[Task]:
+
+    def get_recent_tasks(self, firm_id: int, limit: int = 5) -> List[Task]:
         """
         Get recently created or updated tasks
         
@@ -157,8 +160,8 @@ class DashboardService:
             )
         ).order_by(Task.created_at.desc()).limit(limit).all()
     
-    @staticmethod
-    def get_recent_projects(firm_id: int, limit: int = 5) -> List[Project]:
+
+    def get_recent_projects(self, firm_id: int, limit: int = 5) -> List[Project]:
         """
         Get recently created projects
         
@@ -173,8 +176,8 @@ class DashboardService:
             Project.created_at.desc()
         ).limit(limit).all()
     
-    @staticmethod
-    def get_work_type_status_data(firm_id: int) -> Dict[str, Any]:
+
+    def get_work_type_status_data(self, firm_id: int) -> Dict[str, Any]:
         """
         Get task status distribution by work type
         
@@ -212,8 +215,8 @@ class DashboardService:
         
         return work_type_data
     
-    @staticmethod
-    def get_overdue_tasks(firm_id: int) -> List[Task]:
+
+    def get_overdue_tasks(self, firm_id: int) -> List[Task]:
         """
         Get all overdue tasks for a firm
         
@@ -228,8 +231,8 @@ class DashboardService:
         
         return [task for task in filtered_tasks if task.is_overdue and not task.is_completed]
     
-    @staticmethod
-    def get_tasks_by_priority(firm_id: int) -> Dict[str, List[Task]]:
+
+    def get_tasks_by_priority(self, firm_id: int) -> Dict[str, List[Task]]:
         """
         Get tasks grouped by priority
         
@@ -254,8 +257,8 @@ class DashboardService:
         
         return priority_groups
     
-    @staticmethod
-    def get_tasks_by_status(firm_id: int) -> Dict[str, List[Task]]:
+
+    def get_tasks_by_status(self, firm_id: int) -> Dict[str, List[Task]]:
         """
         Get tasks grouped by status
         
@@ -278,8 +281,8 @@ class DashboardService:
         
         return status_groups
     
-    @staticmethod
-    def get_team_workload(firm_id: int) -> Dict[str, Any]:
+
+    def get_team_workload(self, firm_id: int) -> Dict[str, Any]:
         """
         Get workload distribution across team members
         
@@ -319,8 +322,8 @@ class DashboardService:
         
         return workload_data
     
-    @staticmethod
-    def get_upcoming_deadlines(firm_id: int, days_ahead: int = 7) -> List[Task]:
+
+    def get_upcoming_deadlines(self, firm_id: int, days_ahead: int = 7) -> List[Task]:
         """
         Get tasks with upcoming deadlines
         
@@ -346,8 +349,8 @@ class DashboardService:
         
         return sorted(upcoming_tasks, key=lambda x: x.due_date)
     
-    @staticmethod
-    def get_project_progress_summary(firm_id: int) -> List[Dict[str, Any]]:
+
+    def get_project_progress_summary(self, firm_id: int) -> List[Dict[str, Any]]:
         """
         Get progress summary for all projects
         
@@ -383,8 +386,8 @@ class DashboardService:
         
         return progress_data
     
-    @staticmethod
-    def get_calendar_data(firm_id: int, year: int, month: int) -> Dict[str, Any]:
+
+    def get_calendar_data(self, firm_id: int, year: int, month: int) -> Dict[str, Any]:
         """
         Get calendar data for a specific month with task distribution
         
@@ -454,8 +457,8 @@ class DashboardService:
             'month': month
         }
     
-    @staticmethod
-    def search_tasks_and_projects(firm_id: int, query: str = '', filters: Dict[str, Any] = None) -> Dict[str, Any]:
+
+    def search_tasks_and_projects(self, firm_id: int, query: str = '', filters: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Search tasks and projects with advanced filtering
         
@@ -527,8 +530,8 @@ class DashboardService:
             'total_projects': len(projects)
         }
     
-    @staticmethod
-    def get_time_tracking_report(firm_id: int, start_date: date = None, end_date: date = None) -> Dict[str, Any]:
+
+    def get_time_tracking_report(self, firm_id: int, start_date: date = None, end_date: date = None) -> Dict[str, Any]:
         """
         Generate time tracking report data
         
@@ -624,8 +627,8 @@ class DashboardService:
             'tasks_with_time': tasks
         }
     
-    @staticmethod
-    def get_kanban_data(firm_id: int) -> Dict[str, Any]:
+
+    def get_kanban_data(self, firm_id: int) -> Dict[str, Any]:
         """
         Get kanban board data with projects organized by status
         

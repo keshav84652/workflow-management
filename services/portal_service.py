@@ -18,9 +18,12 @@ from models import (
 
 class PortalService:
     """Service class for client portal-related business operations"""
+
+    def __init__(self):
+        pass
     
-    @staticmethod
-    def authenticate_client(access_code: str) -> Dict[str, Any]:
+
+    def authenticate_client(self, access_code: str) -> Dict[str, Any]:
         """
         Authenticate a client user with access code
         
@@ -65,8 +68,8 @@ class PortalService:
                 'client_user': None
             }
     
-    @staticmethod
-    def get_client_dashboard_data(client_id: int) -> Dict[str, Any]:
+
+    def get_client_dashboard_data(self, client_id: int) -> Dict[str, Any]:
         """
         Get dashboard data for a client
         
@@ -106,7 +109,7 @@ class PortalService:
                 'checklists': []
             }
     
-    @staticmethod
+
     def validate_file_upload(filename: str, file_size: int = None) -> Dict[str, Any]:
         """
         Validate file upload requirements
@@ -155,8 +158,8 @@ class PortalService:
             'message': 'File validation passed'
         }
     
-    @staticmethod
-    def verify_checklist_item_access(item_id: int, client_id: int) -> Dict[str, Any]:
+
+    def verify_checklist_item_access(self, item_id: int, client_id: int) -> Dict[str, Any]:
         """
         Verify that a checklist item belongs to the client
         
@@ -192,7 +195,7 @@ class PortalService:
                 'item': None
             }
     
-    @staticmethod
+
     def upload_client_document(file, item_id: int, client_id: int) -> Dict[str, Any]:
         """
         Handle client document upload
@@ -290,8 +293,8 @@ class PortalService:
                 'message': f'Upload error: {str(e)}'
             }
     
-    @staticmethod
-    def update_item_status(item_id: int, client_id: int, new_status: str) -> Dict[str, Any]:
+
+    def update_item_status(self, item_id: int, client_id: int, new_status: str) -> Dict[str, Any]:
         """
         Update document item status
         
@@ -358,8 +361,8 @@ class PortalService:
                 'message': f'Error updating status: {str(e)}'
             }
     
-    @staticmethod
-    def get_client_document(document_id: int, client_id: int) -> Dict[str, Any]:
+
+    def get_client_document(self, document_id: int, client_id: int) -> Dict[str, Any]:
         """
         Get a client document with access verification
         
@@ -395,8 +398,8 @@ class PortalService:
                 'document': None
             }
     
-    @staticmethod
-    def get_client_by_id(client_id: int) -> Optional[Client]:
+
+    def get_client_by_id(self, client_id: int) -> Optional[Client]:
         """
         Get a client by ID
         
@@ -408,8 +411,8 @@ class PortalService:
         """
         return Client.query.get(client_id)
     
-    @staticmethod
-    def get_client_statistics(client_id: int) -> Dict[str, Any]:
+
+    def get_client_statistics(self, client_id: int) -> Dict[str, Any]:
         """
         Get statistics for a client's document checklists
         
@@ -462,7 +465,7 @@ class PortalService:
                 'statistics': {}
             }
     
-    @staticmethod
+
     def validate_session_data(session_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate client session data

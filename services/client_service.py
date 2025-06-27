@@ -84,7 +84,7 @@ class ClientService:
         except Exception as e:
             return {'success': False, 'message': f'Error creating client: {str(e)}'}
     
-    @staticmethod
+
     def update_client(
         client_id: int,
         name: str,
@@ -136,8 +136,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error updating client: {str(e)}'}
     
-    @staticmethod
-    def delete_client(client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def delete_client(self, client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Delete a client and all associated data"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -171,8 +171,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error deleting client: {str(e)}'}
     
-    @staticmethod
-    def get_client_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_client_statistics(self, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get client statistics for dashboard"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -187,8 +187,8 @@ class ClientService:
         
         return stats
     
-    @staticmethod
-    def find_or_create_client(client_name: str, firm_id: int) -> Client:
+
+    def find_or_create_client(self, client_name: str, firm_id: int) -> Client:
         """Find existing client or create a new one with minimal info"""
         # Check if client already exists
         client = Client.query.filter_by(name=client_name.strip(), firm_id=firm_id).first()
@@ -205,8 +205,8 @@ class ClientService:
         
         return client
     
-    @staticmethod
-    def toggle_client_status(client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def toggle_client_status(self, client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Toggle client active status and update associated projects"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -257,7 +257,7 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error updating client status: {str(e)}'}
     
-    @staticmethod
+
     def associate_contact(
         client_id: int,
         contact_id: int,
@@ -307,8 +307,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error linking contact: {str(e)}'}
     
-    @staticmethod
-    def get_client_with_projects_and_contacts(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_client_with_projects_and_contacts(self, client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get client with associated projects and available contacts for association"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -331,8 +331,8 @@ class ClientService:
             'available_contacts': available_contacts
         }
     
-    @staticmethod
-    def create_client_portal_user(client_id: int, email: Optional[str] = None, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def create_client_portal_user(self, client_id: int, email: Optional[str] = None, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Create client portal access for a client"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -376,8 +376,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error creating client portal access: {str(e)}'}
     
-    @staticmethod
-    def regenerate_client_access_code(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def regenerate_client_access_code(self, client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Regenerate access code for client portal user"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -405,8 +405,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error regenerating access code: {str(e)}'}
     
-    @staticmethod
-    def toggle_client_portal_status(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def toggle_client_portal_status(self, client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Toggle client portal user active status"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -434,8 +434,8 @@ class ClientService:
             db.session.rollback()
             return {'success': False, 'message': f'Error toggling portal status: {str(e)}'}
     
-    @staticmethod
-    def get_client_portal_info(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+
+    def get_client_portal_info(self, client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get client portal information"""
         if firm_id is None:
             firm_id = get_session_firm_id()

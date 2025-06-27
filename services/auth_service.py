@@ -11,9 +11,12 @@ from models import Firm, User, DemoAccessRequest
 
 class AuthService:
     """Service class for authentication-related business operations"""
+
+    def __init__(self):
+        pass
     
-    @staticmethod
-    def authenticate_firm(access_code: str, email: str) -> Dict[str, Any]:
+
+    def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
         """
         Authenticate a firm using access code and optional email
         
@@ -60,8 +63,8 @@ class AuthService:
                 'firm': None
             }
     
-    @staticmethod
-    def _track_demo_access(email: str) -> None:
+
+    def _track_demo_access(self, email: str) -> None:
         """
         Track demo access requests for analytics
         
@@ -97,8 +100,8 @@ class AuthService:
             # Don't block access if demo tracking fails
             print(f"Demo tracking error: {e}")
     
-    @staticmethod
-    def get_firm_users(firm_id: int) -> List[User]:
+
+    def get_firm_users(self, firm_id: int) -> List[User]:
         """
         Get all users for a specific firm
         
@@ -110,8 +113,8 @@ class AuthService:
         """
         return User.query.filter_by(firm_id=firm_id).all()
     
-    @staticmethod
-    def get_user_by_id(user_id: int, firm_id: int) -> Optional[User]:
+
+    def get_user_by_id(self, user_id: int, firm_id: int) -> Optional[User]:
         """
         Get a user by ID, ensuring they belong to the specified firm
         
@@ -124,8 +127,8 @@ class AuthService:
         """
         return User.query.filter_by(id=user_id, firm_id=firm_id).first()
     
-    @staticmethod
-    def create_session(firm_data: Dict[str, Any], email: str) -> None:
+
+    def create_session(self, firm_data: Dict[str, Any], email: str) -> None:
         """
         Create a persistent session for authenticated firm
         
@@ -141,8 +144,8 @@ class AuthService:
         session['firm_id'] = firm_data['id']
         session['firm_name'] = firm_data['name']
     
-    @staticmethod
-    def set_user_in_session(user_id: int, firm_id: int) -> Dict[str, Any]:
+
+    def set_user_in_session(self, user_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Set the selected user in the session
         
@@ -183,7 +186,7 @@ class AuthService:
                 'message': f'Error setting user: {str(e)}'
             }
     
-    @staticmethod
+
     def is_authenticated() -> bool:
         """
         Check if the current session is authenticated
@@ -193,7 +196,7 @@ class AuthService:
         """
         return 'firm_id' in session and 'user_id' in session
     
-    @staticmethod
+
     def is_firm_authenticated() -> bool:
         """
         Check if a firm is authenticated (but user may not be selected)
@@ -203,14 +206,14 @@ class AuthService:
         """
         return 'firm_id' in session
     
-    @staticmethod
+
     def logout() -> None:
         """
         Clear the session and log out the user
         """
         session.clear()
     
-    @staticmethod
+
     def get_current_user_info() -> Dict[str, Any]:
         """
         Get current user information from session
@@ -227,7 +230,7 @@ class AuthService:
             'firm_name': session.get('firm_name')
         }
     
-    @staticmethod
+
     def require_authentication() -> Optional[str]:
         """
         Check if user is authenticated, return redirect URL if not
