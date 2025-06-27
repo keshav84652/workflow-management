@@ -31,8 +31,23 @@ class ClientService:
         return clients
 
     @staticmethod
+    def get_clients_by_firm(firm_id):
+        """Get all clients for a specific firm (raw objects)"""
+        return Client.query.filter_by(firm_id=firm_id).all()
+    
+    @staticmethod
+    def get_active_clients_by_firm(firm_id):
+        """Get all active clients for a specific firm"""
+        return Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    
+    @staticmethod
+    def get_client_by_id_and_firm(client_id, firm_id):
+        """Get client by ID with firm access check"""
+        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        
+    @staticmethod
     def get_clients_for_firm(firm_id):
-        """Get all clients for a firm"""
+        """Get all clients for a firm (formatted for API)"""
         clients = Client.query.filter_by(firm_id=firm_id).all()
         return [{
             'id': client.id,

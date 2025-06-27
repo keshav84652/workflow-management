@@ -198,14 +198,14 @@ def view_document_analysis(client_id):
     """View document analysis for a client"""
     firm_id = get_session_firm_id()
     
-    # Get client and verify access
-    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    # Get client and verify access using service layer
+    client = DocumentService.get_client_by_id_and_firm(client_id, firm_id)
+    if not client:
+        flash('Client not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     # Get all checklists and documents for this client
-    checklists = DocumentChecklist.query.filter_by(
-        client_id=client_id, 
-        firm_id=firm_id
-    ).all()
+    checklists = DocumentService.get_checklists_by_client_and_firm(client_id, firm_id)
     
     return render_template('documents/document_analysis.html', 
                          client=client, 
@@ -228,10 +228,10 @@ def checklist_stats_api(checklist_id):
     """API endpoint for real-time checklist statistics"""
     firm_id = get_session_firm_id()
     
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     stats = {
         'total_items': len(checklist.items),
@@ -284,11 +284,11 @@ def regenerate_checklist_share(checklist_id):
 @documents_bp.route('/checklist/<token>')
 def public_checklist(token):
     """Public view of checklist for client access"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    # Find checklist by token using service layer
+    checklist = DocumentService.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     return render_template('documents/public_checklist.html', checklist=checklist)
 
@@ -296,11 +296,11 @@ def public_checklist(token):
 @documents_bp.route('/checklist/<token>/upload', methods=['POST'])
 def public_checklist_upload(token):
     """Handle public document upload via shared link"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    # Find checklist by token using service layer
+    checklist = DocumentService.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     item_id = request.form.get('item_id')
     file = request.files.get('file')
@@ -323,11 +323,11 @@ def public_checklist_upload(token):
 @documents_bp.route('/checklist/<token>/status', methods=['POST'])
 def public_checklist_status(token):
     """Update document status via public link"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    # Find checklist by token using service layer
+    checklist = DocumentService.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     item_id = request.form.get('item_id')
     new_status = request.form.get('status')
@@ -346,14 +346,11 @@ def refresh_checklists_data():
     """API endpoint to get refreshed checklist data"""
     firm_id = get_session_firm_id()
     
-    # Get all checklists for the firm
-    checklists = DocumentChecklist.query.join(Client).filter(
-        Client.firm_id == firm_id,
-        DocumentChecklist.is_active == True
-    ).order_by(DocumentChecklist.created_at.desc()).all()
+    # Get all checklists for the firm using service layer
+    checklists = DocumentService.get_active_checklists_with_client_filter(firm_id)
     
-    # Get all clients for the firm
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    # Get all clients for the firm using service layer
+    clients = DocumentService.get_clients_for_firm(firm_id)
     
     # Calculate clients with access
     clients_with_access = [c for c in clients if any(

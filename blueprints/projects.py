@@ -10,6 +10,8 @@ from models import Project, Template, Task, Client, TaskStatus, TemplateTask, Wo
 from services.project_service import ProjectService
 from services.task_service import TaskService
 from services.client_service import ClientService
+from services.template_service import TemplateService
+from services.user_service import UserService
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -59,8 +61,8 @@ def create_project():
             return redirect(url_for('projects.create_project'))
     
     firm_id = get_session_firm_id()
-    templates = Template.query.filter_by(firm_id=firm_id).all()
-    clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+    templates = TemplateService.get_templates_by_firm(firm_id)
+    clients = ClientService.get_active_clients_by_firm(firm_id)
     return render_template('projects/create_project.html', templates=templates, clients=clients)
 
 
@@ -74,8 +76,8 @@ def view_project(id):
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
-    tasks = Task.query.filter_by(project_id=id).order_by(Task.due_date.asc()).all()
-    activity_logs = ActivityLog.query.filter_by(project_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
+    tasks = TemplateService.get_tasks_by_project(id)
+    activity_logs = TemplateService.get_activity_logs_for_project(id, limit=10)
     
     return render_template('projects/view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
@@ -129,7 +131,7 @@ def edit_project(id):
             return redirect(url_for('projects.edit_project', id=id))
     
     # GET request - show form
-    users = User.query.filter_by(firm_id=firm_id).all()
+    users = UserService.get_users_by_firm(firm_id)
     return render_template('projects/edit_project.html', project=project, users=users)
 
 @projects_bp.route('/<int:id>/delete', methods=['POST'])

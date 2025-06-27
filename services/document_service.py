@@ -218,6 +218,36 @@ class DocumentService:
             Client.firm_id == firm_id
         ).first()
     
+    @staticmethod
+    def get_client_by_id_and_firm(client_id, firm_id):
+        """Get client by ID with firm access check"""
+        from models import Client
+        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+    
+    @staticmethod
+    def get_checklists_by_client_and_firm(client_id, firm_id):
+        """Get checklists for specific client and firm"""
+        return DocumentChecklist.query.filter_by(
+            client_id=client_id,
+            firm_id=firm_id
+        ).all()
+    
+    @staticmethod
+    def get_checklist_by_token(token):
+        """Get checklist by public access token"""
+        return DocumentChecklist.query.filter_by(
+            public_access_token=token,
+            public_access_enabled=True
+        ).first()
+    
+    @staticmethod
+    def get_active_checklists_with_client_filter(firm_id):
+        """Get active checklists with client join for firm"""
+        return DocumentChecklist.query.join(Client).filter(
+            Client.firm_id == firm_id,
+            DocumentChecklist.is_active == True
+        ).order_by(DocumentChecklist.created_at.desc()).all()
+    
     @classmethod
     def get_checklist_by_id(cls, checklist_id, firm_id):
         """Get checklist by ID with firm access check"""

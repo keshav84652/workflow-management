@@ -18,8 +18,9 @@ def list_users():
     
     # Use standardized session management
     firm_id = SessionService.get_current_firm_id()
-    # Note: AdminService doesn't have get_users_for_firm yet, using direct query for now
-    users = User.query.filter_by(firm_id=firm_id).all()
+    # Use UserService for getting users
+    from services.user_service import UserService
+    users = UserService.get_users_by_firm(firm_id)
     return render_template('admin/users.html', users=users)
 
 

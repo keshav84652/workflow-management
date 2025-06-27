@@ -8,6 +8,9 @@ from datetime import datetime, date, timedelta
 from core.db_import import db
 from models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
 from services.task_service import TaskService
+from services.user_service import UserService
+from services.project_service import ProjectService
+from services.template_service import TemplateService
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -39,8 +42,8 @@ def list_tasks():
     tasks = [item['task'] for item in task_data_list]
     
     # Get filter options
-    users = User.query.filter_by(firm_id=firm_id).all()
-    projects = Project.query.filter_by(firm_id=firm_id).all()
+    users = UserService.get_users_by_firm(firm_id)
+    projects = ProjectService.get_projects_by_firm(firm_id)
     
     return render_template('tasks/tasks_modern.html', tasks=tasks, users=users, projects=projects, today=date.today())
 
@@ -90,8 +93,8 @@ def create_task():
     
     # GET request - show form
     firm_id = get_session_firm_id()
-    projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
-    users = User.query.filter_by(firm_id=firm_id).all()
+    projects = ProjectService.get_active_projects(firm_id)
+    users = UserService.get_users_by_firm(firm_id)
     
     # Pre-select project if provided
     selected_project = request.args.get('project_id')
@@ -133,12 +136,12 @@ def edit_task(id):
             return redirect(url_for('tasks.edit_task', id=id))
     
     # GET request - show form
-    users = User.query.filter_by(firm_id=firm_id).all()
+    users = UserService.get_users_by_firm(firm_id)
     
     # Get other tasks in the same project for dependency selection
     project_tasks = []
     if task.project_id:
-        project_tasks = Task.query.filter_by(project_id=task.project_id).order_by(Task.title).all()
+        project_tasks = TemplateService.get_project_tasks_for_dependency(task.project_id)
     
     return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
@@ -155,10 +158,10 @@ def view_task(id):
         return redirect(url_for('tasks.list_tasks'))
     
     # Get task activity logs
-    activity_logs = ActivityLog.query.filter_by(task_id=id).order_by(ActivityLog.timestamp.desc()).limit(10).all()
+    activity_logs = TemplateService.get_activity_logs_for_task(id, limit=10)
     
     # Get task comments
-    comments = TaskComment.query.filter_by(task_id=id).order_by(TaskComment.created_at.desc()).all()
+    comments = TemplateService.get_task_comments(id)
     
     return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
 

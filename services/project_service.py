@@ -182,6 +182,11 @@ class ProjectService:
         return ProjectService.get_project_by_id_and_firm(project_id, firm_id)
     
     @staticmethod
+    def get_projects_by_firm(firm_id):
+        """Get all projects for firm (alias for consistency)"""
+        return ProjectService.get_projects_for_firm(firm_id)
+    
+    @staticmethod
     def move_project_status(project_id, status_id, firm_id, user_id=None):
         """Move project to different status for Kanban board"""
         try:
