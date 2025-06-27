@@ -10,6 +10,7 @@ from flask import session
 from core.db_import import db
 from models import Task, Project, User, ActivityLog, TaskComment, TemplateTask
 from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 
 class TaskService:
@@ -29,7 +30,7 @@ class TaskService:
     def update_task_status(task_id: int, status: str, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Update task status"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             task = TaskService.get_task_by_id(task_id, firm_id)
@@ -57,7 +58,7 @@ class TaskService:
     def get_task_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get task statistics for dashboard"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         tasks = TaskService.get_tasks_for_firm(firm_id)
         
@@ -467,10 +468,8 @@ class TaskService:
             
             # Activity log
             if project_id:
-                from utils import create_activity_log
                 create_activity_log(f'Task "{task.title}" created', user_id, project_id, task.id)
             else:
-                from utils import create_activity_log
                 create_activity_log(f'Independent task "{task.title}" created', user_id, None, task.id)
             
             return {
@@ -619,18 +618,14 @@ class TaskService:
                 new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
                 assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
                 if task.project_id:
-                    from utils import create_activity_log
-                    create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
+                        create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
                 else:
-                    from utils import create_activity_log
-                    create_activity_log(assignee_log_msg, user_id, None, task.id)
+                        create_activity_log(assignee_log_msg, user_id, None, task.id)
             
             # General activity log
             if task.project_id:
-                from utils import create_activity_log
                 create_activity_log(f'Task "{task.title}" updated', user_id, task.project_id, task.id)
             else:
-                from utils import create_activity_log
                 create_activity_log(f'Independent task "{task.title}" updated', user_id, None, task.id)
             
             return {
@@ -1175,8 +1170,7 @@ class TaskService:
                     task.status = updates['status']
                     if old_status != task.status:
                         # Log status change
-                        from utils import create_activity_log
-                        create_activity_log(
+                                create_activity_log(
                             f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1190,8 +1184,7 @@ class TaskService:
                     new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
                     if old_assignee_name != new_assignee_name:
                         # Log assignee change
-                        from utils import create_activity_log
-                        create_activity_log(
+                                create_activity_log(
                             f'Task "{task.title}" assignee changed from "{old_assignee_name}" to "{new_assignee_name}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1204,8 +1197,7 @@ class TaskService:
                     task.priority = updates['priority']
                     if old_priority != task.priority:
                         # Log priority change
-                        from utils import create_activity_log
-                        create_activity_log(
+                                create_activity_log(
                             f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1266,7 +1258,6 @@ class TaskService:
             deleted_count = 0
             for task in tasks:
                 # Log deletion
-                from utils import create_activity_log
                 create_activity_log(
                     f'Task "{task.title}" deleted (bulk operation)',
                     user_id,

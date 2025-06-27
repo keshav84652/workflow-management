@@ -4,22 +4,17 @@ Main dashboard blueprint
 
 from flask import Blueprint, render_template, session
 from datetime import datetime, date, timedelta
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Project, Task, Client, User, WorkType, TaskStatus
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
 
 @dashboard_bp.route('/dashboard')
 def main():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     projects = Project.query.filter_by(firm_id=firm_id, status='Active').all()
     
     # Get all tasks first - include both project tasks and independent tasks

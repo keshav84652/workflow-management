@@ -9,7 +9,8 @@ import os
 
 from core.db_import import db
 from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
-from utils import generate_access_code, create_activity_log
+from utils.consolidated import generate_access_code
+from services.activity_service import ActivityService
 
 
 class AdminService:

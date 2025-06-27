@@ -414,7 +414,7 @@ def public_checklist_status(token):
 @documents_bp.route("/api/checklists/refresh")
 def refresh_checklists_data():
     """API endpoint to get refreshed checklist data"""
-    firm_id = session["firm_id"]
+    firm_id = get_session_firm_id()
     
     # Get all checklists for the firm
     checklists = DocumentChecklist.query.join(Client).filter(

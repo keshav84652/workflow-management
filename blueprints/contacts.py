@@ -7,13 +7,14 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from core.db_import import db
 from models import Contact, ClientContact, Client
 from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 contacts_bp = Blueprint('contacts', __name__, url_prefix='/contacts')
 
 
 @contacts_bp.route('/')
 def list_contacts():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Get only contacts associated with clients from this firm
     contacts_query = db.session.query(Contact).join(ClientContact).join(Client).filter(
@@ -57,7 +58,7 @@ def create_contact():
 @contacts_bp.route('/<int:id>')
 def view_contact(id):
     contact = Contact.query.get_or_404(id)
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Get clients associated with this contact for this firm
     associated_clients = db.session.query(Client).join(ClientContact).filter(
@@ -90,7 +91,7 @@ def edit_contact(id):
 
 @contacts_bp.route('/<int:contact_id>/clients/<int:client_id>/associate', methods=['POST'])
 def associate_contact_client(contact_id, client_id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Verify client belongs to firm
     client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
@@ -116,7 +117,7 @@ def associate_contact_client(contact_id, client_id):
 
 @contacts_bp.route('/<int:contact_id>/clients/<int:client_id>/disassociate', methods=['POST'])
 def disassociate_contact_client(contact_id, client_id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Verify client belongs to firm
     client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()

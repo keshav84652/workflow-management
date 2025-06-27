@@ -7,6 +7,7 @@ from flask import Blueprint, request, session, jsonify
 from core.db_import import db
 from models import Task
 from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
 
@@ -17,9 +18,9 @@ def create_subtask(task_id):
     parent_task = Task.query.get_or_404(task_id)
     
     # Check access
-    if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+    if parent_task.project and parent_task.project.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+    elif not parent_task.project and parent_task.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -39,7 +40,7 @@ def create_subtask(task_id):
             parent_task_id=task_id,
             subtask_order=max_order + 1,
             project_id=parent_task.project_id,
-            firm_id=parent_task.firm_id or session['firm_id'],
+            firm_id=parent_task.firm_id or get_session_firm_id(),
             assignee_id=parent_task.assignee_id,  # Default to parent's assignee
             priority=parent_task.priority,  # Inherit priority
             status_id=parent_task.status_id,  # Inherit status system
@@ -80,9 +81,9 @@ def reorder_subtasks(task_id):
     parent_task = Task.query.get_or_404(task_id)
     
     # Check access
-    if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+    if parent_task.project and parent_task.project.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+    elif not parent_task.project and parent_task.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -109,9 +110,9 @@ def convert_to_subtask(task_id):
     task = Task.query.get_or_404(task_id)
     
     # Check access
-    if task.project and task.project.firm_id != session['firm_id']:
+    if task.project and task.project.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not task.project and task.firm_id != session['firm_id']:
+    elif not task.project and task.firm_id != get_session_firm_id():
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     
     try:
@@ -125,9 +126,9 @@ def convert_to_subtask(task_id):
             return jsonify({'success': False, 'message': 'Parent task not found'}), 404
         
         # Check that parent task belongs to same firm
-        if parent_task.project and parent_task.project.firm_id != session['firm_id']:
+        if parent_task.project and parent_task.project.firm_id != get_session_firm_id():
             return jsonify({'success': False, 'message': 'Access denied'}), 403
-        elif not parent_task.project and parent_task.firm_id != session['firm_id']:
+        elif not parent_task.project and parent_task.firm_id != get_session_firm_id():
             return jsonify({'success': False, 'message': 'Access denied'}), 403
         
         # Prevent circular relationships

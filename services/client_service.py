@@ -41,7 +41,7 @@ class ClientService:
     ) -> Dict[str, Any]:
         """Create a new client"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             client = Client(
@@ -89,7 +89,7 @@ class ClientService:
     ) -> Dict[str, Any]:
         """Update an existing client"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             client = ClientService.get_client_by_id(client_id, firm_id)
@@ -123,7 +123,7 @@ class ClientService:
     def delete_client(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Delete a client and all associated data"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             client = ClientService.get_client_by_id(client_id, firm_id)
@@ -158,7 +158,7 @@ class ClientService:
     def get_client_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get client statistics for dashboard"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         clients = ClientService.get_clients_for_firm(firm_id)
         

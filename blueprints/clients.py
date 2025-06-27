@@ -5,13 +5,14 @@ Client management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from services.client_service import ClientService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
 
 
 @clients_bp.route('/')
 def list_clients():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     clients = ClientService.get_clients_for_firm(firm_id)
     return render_template('clients/clients.html', clients=clients)
 
@@ -19,7 +20,7 @@ def list_clients():
 @clients_bp.route('/create', methods=['GET', 'POST'])
 def create_client():
     if request.method == 'POST':
-        firm_id = session['firm_id']
+        firm_id = get_session_firm_id()
         
         result = ClientService.create_client(
             name=request.form.get('name'),
@@ -45,7 +46,7 @@ def create_client():
 
 @clients_bp.route('/<int:id>')
 def view_client(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = ClientService.get_client_with_projects_and_contacts(id, firm_id)
     if not result['success']:
@@ -59,7 +60,7 @@ def view_client(id):
 
 @clients_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_client(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     client = ClientService.get_client_by_id(id, firm_id)
     if not client:
@@ -92,7 +93,7 @@ def edit_client(id):
 
 @clients_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_client(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     result = ClientService.delete_client(id, firm_id)
     

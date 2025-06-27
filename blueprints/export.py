@@ -6,14 +6,9 @@ from flask import Blueprint, jsonify, request, session, Response
 from datetime import date
 import csv
 import io
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 from models import Task, Project, Client
 
 export_bp = Blueprint('export', __name__, url_prefix='/export')
@@ -21,7 +16,7 @@ export_bp = Blueprint('export', __name__, url_prefix='/export')
 
 @export_bp.route('/tasks')
 def export_tasks():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     format_type = request.args.get('format', 'csv')
     
     # Get all tasks for the firm
@@ -72,7 +67,7 @@ def export_tasks():
 
 @export_bp.route('/projects')
 def export_projects():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     format_type = request.args.get('format', 'csv')
     
     # Get all projects for the firm
@@ -121,7 +116,7 @@ def export_projects():
 
 @export_bp.route('/clients')
 def export_clients():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     format_type = request.args.get('format', 'csv')
     
     # Get all clients for the firm

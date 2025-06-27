@@ -11,13 +11,14 @@ from services.project_service import ProjectService
 from services.task_service import TaskService
 from services.client_service import ClientService
 from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 
 
 @projects_bp.route('/')
 def list_projects():
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     projects = ProjectService.get_projects_for_firm(firm_id)
     return render_template('projects/projects.html', projects=projects)
 
@@ -57,7 +58,7 @@ def create_project():
             flash(result['message'], 'error')
             return redirect(url_for('projects.create_project'))
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     templates = Template.query.filter_by(firm_id=firm_id).all()
     clients = Client.query.filter_by(firm_id=firm_id, is_active=True).all()
     return render_template('projects/create_project.html', templates=templates, clients=clients)
@@ -65,7 +66,7 @@ def create_project():
 
 @projects_bp.route('/<int:id>')
 def view_project(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Use service layer to get project
     project = ProjectService.get_project_by_id(id, firm_id)
@@ -81,7 +82,7 @@ def view_project(id):
 
 @projects_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_project(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Use service layer to get project
     project = ProjectService.get_project_by_id(id, firm_id)
@@ -133,7 +134,7 @@ def edit_project(id):
 
 @projects_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_project(id):
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
     # Use service layer to delete project
     result = ProjectService.delete_project(id, firm_id)
@@ -162,7 +163,7 @@ def move_project_status(id):
     if auth_redirect:
         return jsonify({'success': False, 'message': 'Authentication required'}), 401
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     data = request.get_json()
     status_id = data.get('status_id')
     

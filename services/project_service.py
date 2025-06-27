@@ -7,7 +7,9 @@ from typing import Optional, List, Dict, Any
 from flask import session
 from core.db_import import db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
-from utils import calculate_task_due_date, find_or_create_client, create_activity_log
+from utils import calculate_task_due_date, find_or_create_client
+from utils.session_helpers import get_session_firm_id, get_session_user_id
+from services.activity_service import ActivityService
 
 
 class ProjectService:
@@ -41,7 +43,7 @@ class ProjectService:
             Dict with 'success', 'project_id', 'message', and optionally 'new_client'
         """
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             # Find or create client
@@ -89,7 +91,7 @@ class ProjectService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=session.get('user_id'),
                 firm_id=firm_id,
                 action='create',
@@ -165,7 +167,7 @@ class ProjectService:
     ) -> Dict[str, Any]:
         """Update an existing project"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             project = ProjectService.get_project_by_id(project_id, firm_id)
@@ -182,7 +184,7 @@ class ProjectService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=session.get('user_id'),
                 firm_id=firm_id,
                 action='update',
@@ -199,7 +201,7 @@ class ProjectService:
     def delete_project(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Delete a project and all associated data"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             project = ProjectService.get_project_by_id(project_id, firm_id)
@@ -221,7 +223,7 @@ class ProjectService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=session.get('user_id'),
                 firm_id=firm_id,
                 action='delete',
@@ -245,7 +247,7 @@ class ProjectService:
     ) -> Dict[str, Any]:
         """Move project to a different status (for Kanban)"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         try:
             project = ProjectService.get_project_by_id(project_id, firm_id)
@@ -325,7 +327,7 @@ class ProjectService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 action=f'Moved project "{project.name}" to status: {status_name}',
                 user_id=session.get('user_id'),
                 project_id=project.id
@@ -350,7 +352,7 @@ class ProjectService:
     def get_project_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get project statistics for dashboard"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         projects = ProjectService.get_projects_for_firm(firm_id)
         
@@ -368,7 +370,7 @@ class ProjectService:
     def get_project_workflow_progress(project_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get project workflow progress (OpenProject-inspired)"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         project = ProjectService.get_project_by_id(project_id, firm_id)
         if not project:
@@ -410,7 +412,7 @@ class ProjectService:
     def get_firm_workflow_summary(firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get firm-wide workflow summary (OpenProject-inspired dashboard)"""
         if firm_id is None:
-            firm_id = session['firm_id']
+            firm_id = get_session_firm_id()
         
         projects = ProjectService.get_projects_for_firm(firm_id)
         

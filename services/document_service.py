@@ -15,7 +15,7 @@ from models import (
     DocumentChecklist, ChecklistItem, Client, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
-from utils import create_activity_log
+from services.activity_service import ActivityService
 
 
 class DocumentService:
@@ -91,7 +91,7 @@ class DocumentService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=user_id,
                 firm_id=firm_id,
                 action='create',
@@ -148,7 +148,7 @@ class DocumentService:
             
             # Create activity log if name changed
             if old_name != name:
-                create_activity_log(
+                ActivityService.create_activity_log(
                     user_id=user_id,
                     firm_id=firm_id,
                     action='update',
@@ -213,7 +213,7 @@ class DocumentService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=user_id,
                 firm_id=firm_id,
                 action='create',
@@ -281,7 +281,7 @@ class DocumentService:
             
             # Create activity log if name changed
             if old_name != item_name:
-                create_activity_log(
+                ActivityService.create_activity_log(
                     user_id=user_id,
                     firm_id=firm_id,
                     action='update',
@@ -340,7 +340,7 @@ class DocumentService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=user_id,
                 firm_id=firm_id,
                 action='delete',
@@ -420,7 +420,7 @@ class DocumentService:
             db.session.commit()
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 user_id=user_id,
                 firm_id=firm_id,
                 action='create',
@@ -557,7 +557,7 @@ class DocumentService:
             db.session.commit()
             
             # Log activity
-            create_activity_log(
+            ActivityService.create_activity_log(
                 action=f'Updated checklist: {name}',
                 user_id=user_id,
                 details=f'Updated checklist and items for {checklist.client.name}'
