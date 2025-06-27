@@ -9,7 +9,7 @@ from core.db_import import db
 from models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
 from services.task_service import TaskService
 from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 

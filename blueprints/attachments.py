@@ -5,7 +5,7 @@ File attachment handling blueprint
 from flask import Blueprint, request, redirect, url_for, session, flash, jsonify, send_file, current_app
 
 from services.attachment_service import AttachmentService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 attachments_bp = Blueprint('attachments', __name__, url_prefix='/attachments')
 

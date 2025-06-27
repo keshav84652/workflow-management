@@ -7,7 +7,7 @@ from datetime import date
 import csv
 import io
 
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 from services.export_service import ExportService
 
 export_bp = Blueprint('export', __name__, url_prefix='/export')

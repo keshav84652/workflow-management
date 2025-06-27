@@ -5,7 +5,7 @@ Main dashboard blueprint
 from flask import Blueprint, render_template, session
 
 from services.dashboard_service import DashboardService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 dashboard_bp = Blueprint('dashboard', __name__)
 

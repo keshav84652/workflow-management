@@ -11,7 +11,7 @@ from services.project_service import ProjectService
 from services.task_service import TaskService
 from services.client_service import ClientService
 from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 

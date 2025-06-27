@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from core.db_import import db
 from models import Contact, ClientContact, Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 contacts_bp = Blueprint('contacts', __name__, url_prefix='/contacts')
 

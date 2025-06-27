@@ -12,7 +12,7 @@ from services.user_service import UserService
 from services.project_service import ProjectService
 from services.views_service import ViewsService
 from services.worktype_service import WorkTypeService
-from utils.session_helpers import get_session_firm_id
+from utils.consolidated import get_session_firm_id
 
 views_bp = Blueprint('views', __name__)
 

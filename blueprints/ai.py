@@ -15,7 +15,7 @@ from models import (
 )
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.ai_service import AIService
-from utils.session_helpers import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
 
