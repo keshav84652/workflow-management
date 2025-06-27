@@ -3,16 +3,10 @@ Contact management blueprint
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Contact, ClientContact, Client
-from utils import create_activity_log
+from services.activity_service import ActivityService
 
 contacts_bp = Blueprint('contacts', __name__, url_prefix='/contacts')
 
@@ -182,7 +176,7 @@ def link_contact_client(contact_id):
     db.session.add(client_contact)
     db.session.commit()
     
-    create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
+    ActivityService.create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
     flash('Client linked successfully!', 'success')
     
     return redirect(url_for('contacts.view_contact', id=contact_id))

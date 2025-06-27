@@ -3,16 +3,10 @@ Subtask management blueprint
 """
 
 from flask import Blueprint, request, session, jsonify
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Task
-from utils import create_activity_log
+from services.activity_service import ActivityService
 
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
 
@@ -56,7 +50,7 @@ def create_subtask(task_id):
         db.session.commit()
         
         # Activity log
-        create_activity_log(
+        ActivityService.create_activity_log(
             f'Subtask "{title}" created for task "{parent_task.title}"',
             session['user_id'],
             parent_task.project_id,
@@ -157,7 +151,7 @@ def convert_to_subtask(task_id):
         db.session.commit()
         
         # Activity log
-        create_activity_log(
+        ActivityService.create_activity_log(
             f'Task "{task.title}" converted to subtask of "{parent_task.title}"',
             session['user_id'],
             parent_task.project_id,
