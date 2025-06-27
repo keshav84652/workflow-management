@@ -38,7 +38,7 @@ def ai_services_status():
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     try:
         firm_id = get_session_firm_id()
@@ -65,7 +65,7 @@ def analyze_document(document_id):
 @ai_bp.route('/api/document-analysis/<int:document_id>', methods=['GET', 'POST'])
 def get_document_analysis(document_id):
     """Get or trigger analysis for a document"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     try:
         firm_id = get_session_firm_id()
@@ -86,7 +86,7 @@ def get_document_analysis(document_id):
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
 def analyze_checklist(checklist_id):
     """Analyze all documents in a checklist"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     try:
         firm_id = get_session_firm_id()
@@ -127,7 +127,7 @@ def analyze_checklist(checklist_id):
 @ai_bp.route('/api/export-checklist-analysis/<int:checklist_id>', methods=['GET'])
 def export_checklist_analysis(checklist_id):
     """Export checklist analysis results"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     import tempfile
     
     try:
@@ -160,7 +160,7 @@ def export_checklist_analysis(checklist_id):
 @ai_bp.route('/api/generate-income-worksheet/<int:checklist_id>', methods=['POST'])
 def generate_income_worksheet(checklist_id):
     """Generate income worksheet from analyzed documents"""
-    from utils import get_session_firm_id, get_session_user_id
+    from utils.consolidated import get_session_firm_id, get_session_user_id
     
     try:
         firm_id = get_session_firm_id()
@@ -181,7 +181,7 @@ def generate_income_worksheet(checklist_id):
 @ai_bp.route('/download-income-worksheet/<int:checklist_id>')
 def download_income_worksheet(checklist_id):
     """Download generated income worksheet"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     import tempfile
     
     try:
@@ -214,7 +214,7 @@ def download_income_worksheet(checklist_id):
 @ai_bp.route('/api/saved-income-worksheet/<int:checklist_id>')
 def get_saved_income_worksheet(checklist_id):
     """Get saved income worksheet data"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     try:
         firm_id = get_session_firm_id()
@@ -237,7 +237,7 @@ def get_saved_income_worksheet(checklist_id):
 @ai_bp.route('/download-saved-worksheet/<int:worksheet_id>')
 def download_saved_worksheet(worksheet_id):
     """Download a specific saved worksheet"""
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     import tempfile
     
     try:

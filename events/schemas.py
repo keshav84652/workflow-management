@@ -516,3 +516,81 @@ class DocumentUpdatedEvent:
             'source_system': self.source_system,
             'payload': self.get_payload()
         }
+
+
+class ProjectCreatedEvent:
+    """Event fired when a new project is created"""
+    def __init__(self, project_id: int, firm_id: int, name: str, client_id: Optional[int] = None, status: str = "Not Started"):
+        self.project_id = project_id
+        self.firm_id = firm_id
+        self.name = name
+        self.client_id = client_id
+        self.status = status
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'project_id': self.project_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'client_id': self.client_id,
+            'status': self.status
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
+class ProjectUpdatedEvent:
+    """Event fired when a project is updated"""
+    def __init__(self, project_id: int, firm_id: int, name: str, changes: Dict[str, Any], client_id: Optional[int] = None):
+        self.project_id = project_id
+        self.firm_id = firm_id
+        self.name = name
+        self.changes = changes
+        self.client_id = client_id
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'project_id': self.project_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'changes': self.changes,
+            'client_id': self.client_id
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }

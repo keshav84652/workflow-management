@@ -7,23 +7,26 @@ from typing import Optional, List, Dict, Any
 from flask import session
 from core.db_import import db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
+from repositories.project_repository import ProjectRepository
 from utils.core import calculate_task_due_date, find_or_create_client
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 from services.activity_service import ActivityService
-
+from events.publisher import publish_event
+from events.schemas import ProjectCreatedEvent, ProjectUpdatedEvent
 
 class ProjectService:
     """Service class for project-related business operations"""
     
-    @staticmethod
-    def get_projects_for_firm(firm_id: int) -> List[Project]:
-        """Get all projects for a firm"""
-        return Project.query.filter_by(firm_id=firm_id).all()
+    def __init__(self):
+        self.project_repository = ProjectRepository()
     
-    @staticmethod
-    def get_project_by_id(project_id: int, firm_id: int) -> Optional[Project]:
+    def get_projects_for_firm(self, firm_id: int) -> List[Project]:
+        """Get all projects for a firm"""
+        return self.project_repository.get_by_firm(firm_id)
+    
+    def get_project_by_id(self, project_id: int, firm_id: int) -> Optional[Project]:
         """Get a project by ID, ensuring it belongs to the firm"""
-        return Project.query.filter_by(id=project_id, firm_id=firm_id).first()
+        return self.project_repository.get_by_id_and_firm(project_id, firm_id)
     
     @staticmethod
     def create_project_from_template(
