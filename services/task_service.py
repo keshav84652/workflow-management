@@ -190,8 +190,8 @@ class TaskService:
         
         return tasks
     
-    @staticmethod
-    def create_task_from_form(form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+
+    def create_task_from_form(self, form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Create a task from form data with comprehensive validation and processing
         
@@ -293,7 +293,7 @@ class TaskService:
                 'message': f'Error processing form data: {str(e)}'
             }
     
-    @staticmethod
+
     def create_task(title: str, description: str, firm_id: int, user_id: int,
                    project_id: Optional[int] = None, assignee_id: Optional[int] = None,
                    priority: str = 'Medium', due_date: Optional[date] = None,
@@ -406,8 +406,8 @@ class TaskService:
                 'message': f'Error creating task: {str(e)}'
             }
     
-    @staticmethod
-    def get_task_by_id_with_access_check(task_id: int, firm_id: int) -> Optional[Task]:
+
+    def get_task_by_id_with_access_check(self, task_id: int, firm_id: int) -> Optional[Task]:
         """
         Get a task by ID with access control for both project and independent tasks
         
@@ -430,8 +430,8 @@ class TaskService:
         
         return task
     
-    @staticmethod
-    def update_task_from_form(task_id: int, form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+
+    def update_task_from_form(self, task_id: int, form_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Update a task from form data with comprehensive validation and processing
         
@@ -568,8 +568,8 @@ class TaskService:
                 'message': f'Error updating task: {str(e)}'
             }
     
-    @staticmethod
-    def update_task(task_id: int, firm_id: int, updates: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+
+    def update_task(self, task_id: int, firm_id: int, updates: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """
         Update a task with the provided changes
         
@@ -644,8 +644,8 @@ class TaskService:
                 'message': f'Error updating task: {str(e)}'
             }
     
-    @staticmethod
-    def delete_task(task_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
+
+    def delete_task(self, task_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Delete a task and its associated data
         
@@ -693,8 +693,8 @@ class TaskService:
                 'message': f'Error deleting task: {str(e)}'
             }
     
-    @staticmethod
-    def add_task_comment(task_id: int, firm_id: int, comment_text: str, user_id: int) -> Dict[str, Any]:
+
+    def add_task_comment(self, task_id: int, firm_id: int, comment_text: str, user_id: int) -> Dict[str, Any]:
         """
         Add a comment to a task
         
@@ -756,8 +756,8 @@ class TaskService:
                 'message': f'Error adding comment: {str(e)}'
             }
     
-    @staticmethod
-    def _handle_sequential_dependencies(task: Task, old_status: str, new_status: str) -> None:
+
+    def _handle_sequential_dependencies(self, task: Task, old_status: str, new_status: str) -> None:
         """Handle sequential task dependencies when task status changes"""
         if not task.project_id or not task.project:
             return
@@ -807,8 +807,8 @@ class TaskService:
                         next_task.id
                     )
     
-    @staticmethod
-    def get_task_dependencies_optimized(task_ids: List[int], firm_id: int) -> Dict[int, Dict[str, Any]]:
+
+    def get_task_dependencies_optimized(self, task_ids: List[int], firm_id: int) -> Dict[int, Dict[str, Any]]:
         """
         Get dependency information for multiple tasks efficiently to avoid N+1 queries
         
@@ -895,8 +895,8 @@ class TaskService:
         
         return result
     
-    @staticmethod
-    def get_tasks_with_dependency_info(firm_id: int, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+
+    def get_tasks_with_dependency_info(self, firm_id: int, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
         """
         Get tasks with all dependency information pre-calculated to avoid N+1 queries
         
@@ -932,8 +932,8 @@ class TaskService:
         
         return result
     
-    @staticmethod
-    def calculate_task_due_date(project_start_date: date, template_task: TemplateTask) -> Optional[date]:
+
+    def calculate_task_due_date(self, project_start_date: date, template_task: TemplateTask) -> Optional[date]:
         """Calculate due date for a task based on project start and template settings"""
         if template_task.days_from_start:
             return project_start_date + timedelta(days=template_task.days_from_start)
@@ -941,7 +941,7 @@ class TaskService:
             return TaskService.calculate_next_due_date(template_task.recurrence_rule, project_start_date)
         return None
     
-    @staticmethod
+
     def calculate_next_due_date(recurrence_rule: str, base_date: Optional[date] = None) -> Optional[date]:
         """Calculate next due date based on recurrence rule"""
         if not recurrence_rule:
@@ -998,7 +998,7 @@ class TaskService:
         
         return None
     
-    @staticmethod
+
     def process_recurring_tasks() -> Dict[str, Any]:
         """Process both template-based and standalone recurring tasks"""
         try:
@@ -1058,8 +1058,8 @@ class TaskService:
                 'error': f'Failed to process recurring tasks: {str(e)}'
             }
     
-    @staticmethod
-    def bulk_update_tasks(task_ids: List[int], updates: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
+
+    def bulk_update_tasks(self, task_ids: List[int], updates: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Bulk update multiple tasks with the provided changes
         
@@ -1152,8 +1152,8 @@ class TaskService:
                 'message': f'Error updating tasks: {str(e)}'
             }
     
-    @staticmethod
-    def bulk_delete_tasks(task_ids: List[int], firm_id: int, user_id: int) -> Dict[str, Any]:
+
+    def bulk_delete_tasks(self, task_ids: List[int], firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Bulk delete multiple tasks and their associated data
         
