@@ -33,27 +33,18 @@ def list_contacts():
     return render_template('clients/contacts.html', contacts=firm_contacts)
 
 
+from services.contact_service import ContactService
+
 @contacts_bp.route('/create', methods=['GET', 'POST'])
 def create_contact():
     if request.method == 'POST':
-        contact = Contact(
-            first_name=request.form.get('first_name'),
-            last_name=request.form.get('last_name'),
-            email=request.form.get('email'),
-            phone=request.form.get('phone'),
-            title=request.form.get('title'),
-            company=request.form.get('company'),
-            address=request.form.get('address')
-        )
-        
-        # TODO: Move to service layer
-        # db.session.add(contact)
-        # TODO: Move to service layer
-        # db.session.commit()
-        
-        flash('Contact created successfully!', 'success')
-        return redirect(url_for('contacts.list_contacts'))
-    
+        user_id = get_session_user_id()
+        result = ContactService().create_contact(request.form, user_id)
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('contacts.list_contacts'))
+        else:
+            flash(result['message'], 'error')
     return render_template('clients/create_contact.html')
 
 
