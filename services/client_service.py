@@ -37,7 +37,8 @@ class ClientService:
         contact_person: Optional[str] = None,
         tax_id: Optional[str] = None,
         notes: Optional[str] = None,
-        firm_id: Optional[int] = None
+        firm_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Create a new client"""
         if firm_id is None:
@@ -61,7 +62,7 @@ class ClientService:
             # Create activity log
             ActivityService.create_activity_log(
                 action=f'Created client "{client.name}"',
-                user_id=session.get('user_id')
+                user_id=user_id
             )
             
             return {
@@ -85,7 +86,8 @@ class ClientService:
         contact_person: Optional[str] = None,
         tax_id: Optional[str] = None,
         notes: Optional[str] = None,
-        firm_id: Optional[int] = None
+        firm_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Update an existing client"""
         if firm_id is None:
@@ -110,7 +112,7 @@ class ClientService:
             # Create activity log
             ActivityService.create_activity_log(
                 action=f'Updated client "{client.name}"',
-                user_id=session.get('user_id')
+                user_id=user_id
             )
             
             return {'success': True, 'message': 'Client updated successfully'}
@@ -120,7 +122,7 @@ class ClientService:
             return {'success': False, 'message': f'Error updating client: {str(e)}'}
     
     @staticmethod
-    def delete_client(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+    def delete_client(client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Delete a client and all associated data"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -142,7 +144,7 @@ class ClientService:
             # Create activity log
             ActivityService.create_activity_log(
                 action=f'Deleted client "{client_name}" and {project_count} associated projects',
-                user_id=session.get('user_id')
+                user_id=user_id
             )
             
             return {
@@ -189,7 +191,7 @@ class ClientService:
         return client
     
     @staticmethod
-    def toggle_client_status(client_id: int, firm_id: Optional[int] = None) -> Dict[str, Any]:
+    def toggle_client_status(client_id: int, firm_id: Optional[int] = None, user_id: Optional[int] = None) -> Dict[str, Any]:
         """Toggle client active status and update associated projects"""
         if firm_id is None:
             firm_id = get_session_firm_id()
@@ -227,7 +229,7 @@ class ClientService:
             else:
                 action += f' - {len(projects)} projects reactivated'
             
-            ActivityService.create_activity_log(action, get_session_user_id())
+            ActivityService.create_activity_log(action, user_id)
             
             return {
                 'success': True,
@@ -242,11 +244,12 @@ class ClientService:
     
     @staticmethod
     def associate_contact(
-        client_id: int, 
-        contact_id: int, 
-        relationship_type: str, 
+        client_id: int,
+        contact_id: int,
+        relationship_type: str,
         is_primary: bool = False,
-        firm_id: Optional[int] = None
+        firm_id: Optional[int] = None,
+        user_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Associate a contact with a client"""
         if firm_id is None:
@@ -280,7 +283,7 @@ class ClientService:
             contact = Contact.query.get(contact_id)
             ActivityService.create_activity_log(
                 f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}',
-                get_session_user_id()
+                user_id
             )
             
             return {'success': True, 'message': 'Contact linked successfully!'}

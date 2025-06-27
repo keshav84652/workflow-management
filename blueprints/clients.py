@@ -21,7 +21,7 @@ def list_clients():
 def create_client():
     if request.method == 'POST':
         firm_id = get_session_firm_id()
-        
+        user_id = get_session_user_id()
         result = ClientService.create_client(
             name=request.form.get('name'),
             email=request.form.get('email'),
@@ -31,7 +31,8 @@ def create_client():
             entity_type=request.form.get('entity_type', 'Individual'),
             tax_id=request.form.get('tax_id'),
             notes=request.form.get('notes'),
-            firm_id=firm_id
+            firm_id=firm_id,
+            user_id=user_id
         )
         
         if result['success']:
@@ -78,7 +79,8 @@ def edit_client(id):
             entity_type=request.form.get('entity_type'),
             tax_id=request.form.get('tax_id'),
             notes=request.form.get('notes'),
-            firm_id=firm_id
+            firm_id=firm_id,
+            user_id=user_id
         )
         
         if result['success']:
@@ -94,8 +96,8 @@ def edit_client(id):
 @clients_bp.route('/<int:id>/delete', methods=['POST'])
 def delete_client(id):
     firm_id = get_session_firm_id()
-    
-    result = ClientService.delete_client(id, firm_id)
+    user_id = get_session_user_id()
+    result = ClientService.delete_client(id, firm_id, user_id=user_id)
     
     if result['success']:
         return jsonify({
@@ -113,7 +115,8 @@ def delete_client(id):
 
 @clients_bp.route('/<int:id>/mark_inactive', methods=['POST'])
 def mark_client_inactive(id):
-    result = ClientService.toggle_client_status(id)
+    user_id = get_session_user_id()
+    result = ClientService.toggle_client_status(id, user_id=user_id)
     
     if result['success']:
         return jsonify({
@@ -140,11 +143,13 @@ def associate_client_contact(client_id):
         flash('Please select a contact', 'error')
         return redirect(url_for('clients.view_client', id=client_id))
     
+    user_id = get_session_user_id()
     result = ClientService.associate_contact(
         client_id=client_id,
         contact_id=int(contact_id),
         relationship_type=relationship_type,
-        is_primary=is_primary
+        is_primary=is_primary,
+        user_id=user_id
     )
     
     if result['success']:

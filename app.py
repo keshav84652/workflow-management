@@ -10,14 +10,14 @@ import uuid
 
 # Import configuration and core utilities
 from config import get_config
+from core.db_import import db
 import importlib.util
 import os
 
-# Import db from root core.py file  
+# Import migrate and create_directories from root core.py
 spec = importlib.util.spec_from_file_location("core", "core.py")
 core_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(core_module)
-db = core_module.db
 migrate = core_module.migrate
 create_directories = core_module.create_directories
 
@@ -99,7 +99,10 @@ def handle_server_error(e):
     else:
         return redirect(url_for('auth.login'))
 
-from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
+from utils.consolidated import generate_access_code
+from services.activity_service import ActivityService
+from services.task_service import TaskService
+from services.client_service import ClientService
 
 
 # AI Analysis Helper Functions
@@ -248,7 +251,7 @@ def check_and_update_project_completion(project_id):
     # If all tasks are completed, mark project as completed
     if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
         project.status = 'Completed'
-        create_activity_log(
+        ActivityService.create_activity_log(
             f'Project "{project.name}" automatically marked as completed (all tasks finished)',
             session.get('user_id', 1),
             project_id
@@ -256,7 +259,7 @@ def check_and_update_project_completion(project_id):
     # If project was marked completed but has incomplete tasks, reactivate it
     elif project.status == 'Completed' and completed_tasks < total_tasks:
         project.status = 'Active'
-        create_activity_log(
+        ActivityService.create_activity_log(
             f'Project "{project.name}" reactivated (incomplete tasks detected)',
             session.get('user_id', 1),
             project_id
