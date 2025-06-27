@@ -12,70 +12,17 @@ from utils.session_helpers import get_session_firm_id, get_session_user_id
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
 
 
+from services.task_service import TaskService
+
 @subtasks_bp.route('/<int:task_id>/subtasks/create', methods=['POST'])
 def create_subtask(task_id):
-    """Create a new subtask for a parent task"""
-    parent_task = Task.query.get_or_404(task_id)
-    
-    # Check access
-    if parent_task.project and parent_task.project.firm_id != get_session_firm_id():
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    elif not parent_task.project and parent_task.firm_id != get_session_firm_id():
-        return jsonify({'success': False, 'message': 'Access denied'}), 403
-    
-    try:
-        title = request.json.get('title', '').strip()
-        description = request.json.get('description', '').strip()
-        
-        if not title:
-            return jsonify({'success': False, 'message': 'Title is required'}), 400
-        
-        # Get next subtask order
-        max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=task_id).scalar() or 0
-        
-        # Create subtask
-        subtask = Task(
-            title=title,
-            description=description,
-            parent_task_id=task_id,
-            subtask_order=max_order + 1,
-            project_id=parent_task.project_id,
-            firm_id=parent_task.firm_id or get_session_firm_id(),
-            assignee_id=parent_task.assignee_id,  # Default to parent's assignee
-            priority=parent_task.priority,  # Inherit priority
-            status_id=parent_task.status_id,  # Inherit status system
-            status=parent_task.status if not parent_task.status_id else 'Not Started'
-        )
-        
-        # TODO: Move to service layer
-        # db.session.add(subtask)
-        # TODO: Move to service layer
-        # db.session.commit()
-        
-        # Activity log
-        ActivityService.create_activity_log(
-            f'Subtask "{title}" created for task "{parent_task.title}"',
-            session['user_id'],
-            parent_task.project_id,
-            parent_task.id
-        )
-        
-        return jsonify({
-            'success': True,
-            'subtask': {
-                'id': subtask.id,
-                'title': subtask.title,
-                'description': subtask.description,
-                'status': subtask.current_status,
-                'assignee_name': subtask.assignee.name if subtask.assignee else 'Unassigned',
-                'created_at': subtask.created_at.strftime('%m/%d/%Y %I:%M %p')
-            }
-        })
-        
-    except Exception as e:
-        # TODO: Move to service layer
-        # db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)}), 500
+    user_id = get_session_user_id()
+    title = request.json.get('title', '').strip()
+    description = request.json.get('description', '').strip()
+    if not title:
+        return jsonify({'success': False, 'message': 'Title is required'}), 400
+    result = TaskService().create_subtask(task_id, title, description, user_id)
+    return jsonify(result)
 
 
 @subtasks_bp.route('/<int:task_id>/subtasks/reorder', methods=['POST'])
