@@ -11,13 +11,24 @@ from core.db_import import db
 from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
 from utils.consolidated import generate_access_code
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from repositories.firm_repository import FirmRepository
+from repositories.user_repository import UserRepository
+from repositories.template_repository import TemplateRepository
+from repositories.task_repository import TaskRepository
+from repositories.project_repository import ProjectRepository
 
 
 class AdminService:
     """Service class for administrative business operations"""
     
-    @staticmethod
-    def authenticate_admin(password: str) -> Dict[str, Any]:
+    def __init__(self):
+        self.firm_repository = FirmRepository()
+        self.user_repository = UserRepository()
+        self.template_repository = TemplateRepository()
+        self.task_repository = TaskRepository()
+        self.project_repository = ProjectRepository()
+    
+    def authenticate_admin(self, password: str) -> Dict[str, Any]:
         """
         Authenticate admin user with password
         
@@ -40,8 +51,8 @@ class AdminService:
                 'message': 'Invalid admin password'
             }
     
-    @staticmethod
-    def is_admin_authenticated() -> bool:
+
+    def is_admin_authenticated(self) -> bool:
         """
         Check if current session has admin privileges
         
@@ -50,39 +61,39 @@ class AdminService:
         """
         return session.get('admin', False)
     
-    @staticmethod
-    def set_admin_session() -> None:
+
+    def set_admin_session(self) -> None:
         """Set admin authentication in session"""
         session['admin'] = True
     
-    @staticmethod
-    def clear_admin_session() -> None:
+
+    def clear_admin_session(self) -> None:
         """Clear admin authentication from session"""
         session.pop('admin', None)
     
-    @staticmethod
-    def get_all_firms() -> List[Firm]:
+
+    def get_all_firms(self) -> List[Firm]:
         """
         Get all firms in the system
         
         Returns:
             List of all Firm objects
         """
-        return Firm.query.all()
+        return self.firm_repository.get_all()
     
-    @staticmethod
-    def get_firm_statistics() -> Dict[str, Any]:
+
+    def get_firm_statistics(self) -> Dict[str, Any]:
         """
         Get system-wide statistics
         
         Returns:
             Dictionary containing various system statistics
         """
-        total_firms = Firm.query.count()
-        active_firms = Firm.query.filter_by(is_active=True).count()
-        total_users = User.query.count()
-        total_projects = Project.query.count()
-        total_tasks = Task.query.count()
+        total_firms = self.firm_repository.count()
+        active_firms = self.firm_repository.count(is_active=True)
+        total_users = self.user_repository.count()
+        total_projects = self.project_repository.count()
+        total_tasks = self.task_repository.count()
         
         return {
             'total_firms': total_firms,
@@ -93,8 +104,8 @@ class AdminService:
             'total_tasks': total_tasks
         }
     
-    @staticmethod
-    def generate_firm_access_code(firm_name: str) -> Dict[str, Any]:
+
+    def generate_firm_access_code(self, firm_name: str) -> Dict[str, Any]:
         """
         Generate a new access code for a firm
         
@@ -141,8 +152,8 @@ class AdminService:
                 'firm': None
             }
     
-    @staticmethod
-    def toggle_firm_status(firm_id: int) -> Dict[str, Any]:
+
+    def toggle_firm_status(self, firm_id: int) -> Dict[str, Any]:
         """
         Toggle a firm's active status
         
@@ -176,8 +187,8 @@ class AdminService:
                 'message': f'Error updating firm status: {str(e)}'
             }
     
-    @staticmethod
-    def get_templates_for_firm(firm_id: int) -> List[Template]:
+
+    def get_templates_for_firm(self, firm_id: int) -> List[Template]:
         """
         Get all templates for a specific firm
         
@@ -187,10 +198,10 @@ class AdminService:
         Returns:
             List of Template objects for the firm
         """
-        return Template.query.filter_by(firm_id=firm_id).all()
+        return self.template_repository.get_by_firm(firm_id)
     
-    @staticmethod
-    def create_template(name: str, description: str, task_dependency_mode: bool,
+
+    def create_template(self, name: str, description: str, task_dependency_mode: bool,
                        firm_id: int, tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Create a new template with tasks
@@ -257,8 +268,8 @@ class AdminService:
                 'template': None
             }
     
-    @staticmethod
-    def get_template_by_id(template_id: int, firm_id: int) -> Optional[Template]:
+
+    def get_template_by_id(self, template_id: int, firm_id: int) -> Optional[Template]:
         """
         Get a template by ID, ensuring it belongs to the firm
         
@@ -269,10 +280,10 @@ class AdminService:
         Returns:
             Template object if found and belongs to firm, None otherwise
         """
-        return Template.query.filter_by(id=template_id, firm_id=firm_id).first()
+        return self.template_repository.get_by_id_and_firm(template_id, firm_id)
     
-    @staticmethod
-    def update_template(template_id: int, name: str, description: str,
+
+    def update_template(self, template_id: int, name: str, description: str,
                        task_dependency_mode: bool, firm_id: int,
                        tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -331,8 +342,8 @@ class AdminService:
                 'message': f'Error updating template: {str(e)}'
             }
     
-    @staticmethod
-    def delete_template(template_id: int, firm_id: int) -> Dict[str, Any]:
+
+    def delete_template(self, template_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Delete a template and all its associated tasks
         
@@ -377,8 +388,8 @@ class AdminService:
                 'message': f'Error deleting template: {str(e)}'
             }
     
-    @staticmethod
-    def get_work_types_for_firm(firm_id: int) -> List[WorkType]:
+
+    def get_work_types_for_firm(self, firm_id: int) -> List[WorkType]:
         """
         Get all work types for a specific firm
         
@@ -390,8 +401,8 @@ class AdminService:
         """
         return WorkType.query.filter_by(firm_id=firm_id).all()
     
-    @staticmethod
-    def get_work_type_usage_stats(firm_id: int) -> Dict[int, int]:
+
+    def get_work_type_usage_stats(self, firm_id: int) -> Dict[int, int]:
         """
         Get usage statistics for work types (number of tasks using each work type)
         
@@ -413,8 +424,8 @@ class AdminService:
         
         return usage_stats
     
-    @staticmethod
-    def create_work_type(name: str, description: str, firm_id: int) -> Dict[str, Any]:
+
+    def create_work_type(self, name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new work type with default statuses
         
@@ -470,8 +481,8 @@ class AdminService:
                 'work_type': None
             }
     
-    @staticmethod
-    def update_work_type(work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
+
+    def update_work_type(self, work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Update an existing work type
         
@@ -508,8 +519,8 @@ class AdminService:
                 'message': f'Error updating work type: {str(e)}'
             }
     
-    @staticmethod
-    def create_task_status(work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
+
+    def create_task_status(self, work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new task status for a work type
         
@@ -565,7 +576,7 @@ class AdminService:
                 'status': None
             }
     
-    @staticmethod
+
     def update_task_status(status_id: int, name: str, color: str, position: int,
                           is_default: bool, is_terminal: bool, firm_id: int) -> Dict[str, Any]:
         """
@@ -611,8 +622,8 @@ class AdminService:
                 'message': f'Error updating status: {str(e)}'
             }
     
-    @staticmethod
-    def create_user(name: str, role: str, firm_id: int) -> Dict[str, Any]:
+
+    def create_user(self, name: str, role: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new user for a firm
         
