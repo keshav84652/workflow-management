@@ -257,27 +257,11 @@ def checklist_stats_api(checklist_id):
 def share_checklist(checklist_id):
     """Generate shareable link for public checklist access"""
     firm_id = get_session_firm_id()
-    
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Generate or get existing access token
-    if not checklist.public_access_token:
-        import secrets
-        checklist.public_access_token = secrets.token_urlsafe(32)
-        checklist.public_access_enabled = True
-        # TODO: Move to service layer
-        # db.session.commit()
-    
-    # Generate shareable URL
+    checklist = DocumentService.generate_share_token(checklist_id, firm_id)
     from flask import url_for
     share_url = url_for('documents.public_checklist', token=checklist.public_access_token, _external=True)
-    
-    return render_template('documents/share_checklist.html', 
-                         checklist=checklist, 
+    return render_template('documents/share_checklist.html',
+                         checklist=checklist,
                          share_url=share_url)
 
 
@@ -285,18 +269,7 @@ def share_checklist(checklist_id):
 def revoke_checklist_share(checklist_id):
     """Revoke public access to checklist"""
     firm_id = get_session_firm_id()
-    
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Disable public access
-    checklist.public_access_enabled = False
-    # TODO: Move to service layer
-    # db.session.commit()
-    
+    DocumentService.revoke_share(checklist_id, firm_id)
     flash('Public access revoked successfully', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
 
@@ -305,20 +278,7 @@ def revoke_checklist_share(checklist_id):
 def regenerate_checklist_share(checklist_id):
     """Regenerate shareable token for checklist"""
     firm_id = get_session_firm_id()
-    
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Generate new token
-    import secrets
-    checklist.public_access_token = secrets.token_urlsafe(32)
-    checklist.public_access_enabled = True
-    # TODO: Move to service layer
-    # db.session.commit()
-    
+    DocumentService.regenerate_share_token(checklist_id, firm_id)
     flash('New shareable link generated', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
 
