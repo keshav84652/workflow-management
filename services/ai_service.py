@@ -526,8 +526,8 @@ class AIService:
         return combined
     
     
-    @staticmethod
-    def save_analysis_results(document_id: int, results: Dict[str, Any]) -> bool:
+
+    def save_analysis_results(self, document_id: int, results: Dict[str, Any]) -> bool:
         """Save analysis results to database session without committing. Caller must handle transaction."""
         try:
             document = ClientDocument.query.get(document_id)
@@ -843,8 +843,8 @@ class AIService:
         except Exception as e:
             raise
     
-    @staticmethod
-    def export_checklist_analysis(checklist_id: int, firm_id: int) -> Dict[str, Any]:
+
+    def export_checklist_analysis(self, checklist_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Export checklist analysis results as structured data
         
@@ -897,8 +897,8 @@ class AIService:
                 'error': f'Export failed: {str(e)}'
             }
     
-    @staticmethod
-    def get_income_worksheet_for_download(checklist_id: int, firm_id: int) -> Dict[str, Any]:
+
+    def get_income_worksheet_for_download(self, checklist_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Get income worksheet data formatted for download
         
@@ -943,7 +943,7 @@ class AIService:
                 'error': f'Download preparation failed: {str(e)}'
             }
     
-    @staticmethod
+
     def get_ai_services_status(config) -> Dict[str, Any]:
         """
         Check the status of AI services

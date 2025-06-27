@@ -15,13 +15,13 @@ class DatabaseService:
     Centralized database operations and transaction management
     """
     
-    @staticmethod
+
     def get_db():
         """Get the database instance"""
         return db
     
-    @staticmethod
-    def execute_with_transaction(operation: Callable[[], Any]) -> Dict[str, Any]:
+
+    def execute_with_transaction(self, operation: Callable[[], Any]) -> Dict[str, Any]:
         """
         Execute operation with proper transaction handling
         
@@ -53,7 +53,7 @@ class SessionService:
     Centralized session management and access control
     """
     
-    @staticmethod
+
     def get_current_firm_id() -> int:
         """
         Get current user's firm ID from session
@@ -70,7 +70,7 @@ class SessionService:
                            f"User may need to log in again. Request path: {request.path}")
         return session['firm_id']
     
-    @staticmethod
+
     def get_current_user_id() -> int:
         """
         Get current user ID from session
@@ -87,8 +87,8 @@ class SessionService:
                            f"User may need to log in again. Request path: {request.path}")
         return session['user_id']
     
-    @staticmethod
-    def require_firm_access(firm_id: int) -> bool:
+
+    def require_firm_access(self, firm_id: int) -> bool:
         """
         Verify current user has access to the specified firm
         
@@ -107,7 +107,7 @@ class SessionService:
                            f"but tried to access firm {firm_id}")
         return True
     
-    @staticmethod
+
     def get_current_context() -> Dict[str, int]:
         """
         Get current user and firm context
@@ -126,8 +126,8 @@ class ValidationService:
     Common validation patterns for services
     """
     
-    @staticmethod
-    def validate_required_fields(data: Dict[str, Any], required_fields: list) -> Dict[str, Any]:
+
+    def validate_required_fields(self, data: Dict[str, Any], required_fields: list) -> Dict[str, Any]:
         """
         Validate that required fields are present and not empty
         
@@ -162,7 +162,7 @@ class ValidationService:
         
         return {'valid': True, 'message': 'Validation passed'}
     
-    @staticmethod
+
     def validate_positive_integer(value: Any, field_name: str) -> Dict[str, Any]:
         """
         Validate that value is a positive integer

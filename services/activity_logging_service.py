@@ -44,7 +44,7 @@ class ActivityLoggingService:
         'REOPEN': 'Reopened'
     }
     
-    @staticmethod
+
     def log_entity_operation(
         entity_type: str,
         operation: str, 
@@ -105,7 +105,7 @@ class ActivityLoggingService:
             print(f"Warning: Failed to create activity log: {e}")
             db.session.rollback()
     
-    @staticmethod
+
     def log_task_operation(
         operation: str,
         task_id: int,
@@ -128,7 +128,7 @@ class ActivityLoggingService:
             task_id=task_id
         )
     
-    @staticmethod
+
     def log_project_operation(
         operation: str,
         project_id: int,
@@ -149,7 +149,7 @@ class ActivityLoggingService:
             project_id=project_id
         )
     
-    @staticmethod
+
     def log_client_operation(
         operation: str,
         client_id: int,
@@ -169,7 +169,7 @@ class ActivityLoggingService:
             user_id=user_id
         )
     
-    @staticmethod
+
     def log_document_operation(
         operation: str,
         document_id: int,
@@ -191,7 +191,7 @@ class ActivityLoggingService:
             project_id=project_id
         )
     
-    @staticmethod
+
     def log_ai_operation(
         operation: str,
         target_id: int,
@@ -213,7 +213,7 @@ class ActivityLoggingService:
             project_id=project_id
         )
     
-    @staticmethod
+
     def log_bulk_operation(
         entity_type: str,
         operation: str,
