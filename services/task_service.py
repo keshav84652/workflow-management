@@ -48,3 +48,44 @@ class TaskService:
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
+
+    def reorder_subtasks(self, task_id, subtask_ids, user_id):
+        try:
+            for index, subtask_id in enumerate(subtask_ids):
+                subtask = Task.query.get(subtask_id)
+                if subtask and subtask.parent_task_id == task_id:
+                    subtask.subtask_order = index + 1
+            db.session.commit()
+            return {'success': True, 'message': 'Subtasks reordered successfully'}
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
+
+    def convert_to_subtask(self, task_id, parent_task_id, user_id):
+        try:
+            task = Task.query.get_or_404(task_id)
+            parent_task = Task.query.get(parent_task_id)
+            if not parent_task:
+                return {'success': False, 'message': 'Parent task not found'}, 404
+            # Prevent circular relationships
+            if parent_task_id == task_id:
+                return {'success': False, 'message': 'Cannot make task a subtask of itself'}, 400
+            current = parent_task
+            while current.parent_task:
+                if current.parent_task.id == task_id:
+                    return {'success': False, 'message': 'Cannot create circular subtask relationship'}, 400
+                current = current.parent_task
+            max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
+            task.parent_task_id = parent_task_id
+            task.subtask_order = max_order + 1
+            db.session.commit()
+            self.activity_logger.create_activity_log(
+                f'Task \"{task.title}\" converted to subtask of \"{parent_task.title}\"',
+                user_id,
+                parent_task.project_id,
+                parent_task.id
+            )
+            return {'success': True, 'message': 'Task converted to subtask successfully'}
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
