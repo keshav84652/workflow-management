@@ -8,8 +8,11 @@ from flask import session
 from core.db_import import db
 from models import Client, Project, Contact, ActivityLog, ClientContact, ClientUser
 from services.activity_service import ActivityService
-from utils import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
+
+from events.publisher import publish_event
+from events.schemas import ClientCreatedEvent, ClientUpdatedEvent
 
 class ClientService:
     """Service class for client-related business operations"""
@@ -58,6 +61,12 @@ class ClientService:
             )
             db.session.add(client)
             db.session.commit()
+            publish_event(ClientCreatedEvent(
+                client_id=client.id,
+                firm_id=client.firm_id,
+                name=client.name,
+                is_active=client.is_active
+            ))
             
             # Create activity log
             ActivityService.create_activity_log(
@@ -108,6 +117,12 @@ class ClientService:
             client.notes = notes
             
             db.session.commit()
+            publish_event(ClientUpdatedEvent(
+                client_id=client.id,
+                firm_id=client.firm_id,
+                name=client.name,
+                is_active=client.is_active
+            ))
             
             # Create activity log
             ActivityService.create_activity_log(

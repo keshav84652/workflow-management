@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 from flask import session
 from core.db_import import db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
-from utils import calculate_task_due_date, find_or_create_client
+from utils.core import calculate_task_due_date, find_or_create_client
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 from services.activity_service import ActivityService
 

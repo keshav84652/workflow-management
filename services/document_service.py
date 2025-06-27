@@ -11,11 +11,14 @@ import uuid
 import mimetypes
 
 from core.db_import import db
+from events.publisher import publish_event
+from events.schemas import DocumentCreatedEvent, DocumentUpdatedEvent
 from models import (
-    DocumentChecklist, ChecklistItem, Client, ClientDocument, 
+    DocumentChecklist, ChecklistItem, Client, ClientDocument,
     ClientUser, Attachment, User, ClientChecklistAccess
 )
 from services.activity_service import ActivityService
+from repositories.document_repository import DocumentRepository
 
 
 class DocumentService:
@@ -588,11 +591,10 @@ class DocumentService:
             ClientDocument if found and accessible, None otherwise
         """
         from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
-        
-        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-            ClientDocument.id == document_id,
-            Client.firm_id == firm_id
-        ).first()
+
+        document_repo = DocumentRepository()
+        document = document_repo.get_by_id(document_id)
+        return document
 
     @staticmethod
     def upload_file_to_checklist_item(file, token: str, item_id: int) -> Dict[str, Any]:
@@ -718,6 +720,12 @@ class DocumentService:
                 item.updated_at = datetime.utcnow()
                 
                 db.session.commit()
+                publish_event(DocumentCreatedEvent(
+                    document_id=document.id,
+                    firm_id=checklist.client.firm_id if hasattr(checklist.client, 'firm_id') else None,
+                    name=document.original_filename,
+                    status=getattr(document, 'status', None)
+                ))
                 
                 return {
                     'success': True,

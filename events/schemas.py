@@ -6,6 +6,79 @@ Event definitions for core business events.
 from datetime import datetime
 from typing import Dict, Any, Optional, List
 
+class ClientCreatedEvent:
+    """Event fired when a new client is created"""
+    def __init__(self, client_id: int, firm_id: int, name: str, is_active: bool):
+        self.client_id = client_id
+        self.firm_id = firm_id
+        self.name = name
+        self.is_active = is_active
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'client_id': self.client_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'is_active': self.is_active
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
+class ClientUpdatedEvent:
+    """Event fired when a client is updated"""
+    def __init__(self, client_id: int, firm_id: int, name: str, is_active: bool):
+        self.client_id = client_id
+        self.firm_id = firm_id
+        self.name = name
+        self.is_active = is_active
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'client_id': self.client_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'is_active': self.is_active
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
 
 class TaskCreatedEvent:
     """Event fired when a new task is created"""
@@ -287,6 +360,50 @@ class DocumentAnalysisFailedEvent:
         }
 
 
+class TaskDeletedEvent:
+    """Event fired when a task is deleted"""
+    
+    def __init__(self, task_id: int, task_title: str, priority: str = "Medium", 
+                 project_id: Optional[int] = None, assigned_to: Optional[int] = None, 
+                 firm_id: Optional[int] = None, user_id: Optional[int] = None):
+        self.task_id = task_id
+        self.task_title = task_title
+        self.priority = priority
+        self.project_id = project_id
+        self.assigned_to = assigned_to
+        self.firm_id = firm_id
+        self.user_id = user_id
+        
+        # Event metadata
+        import uuid
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+    
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'task_id': self.task_id,
+            'task_title': self.task_title,
+            'project_id': self.project_id,
+            'assigned_to': self.assigned_to,
+            'priority': self.priority
+        }
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'user_id': self.user_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
 class ErrorEvent:
     """Event fired when system errors occur"""
     
@@ -324,6 +441,78 @@ class ErrorEvent:
             'version': self.version,
             'firm_id': self.firm_id,
             'user_id': self.user_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+class DocumentCreatedEvent:
+    """Event fired when a new document is created"""
+    def __init__(self, document_id: int, firm_id: int, name: str, status: str):
+        self.document_id = document_id
+        self.firm_id = firm_id
+        self.name = name
+        self.status = status
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> dict:
+        return {
+            'document_id': self.document_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'status': self.status
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
+            'source_system': self.source_system,
+            'payload': self.get_payload()
+        }
+
+
+class DocumentUpdatedEvent:
+    """Event fired when a document is updated"""
+    def __init__(self, document_id: int, firm_id: int, name: str, status: str):
+        self.document_id = document_id
+        self.firm_id = firm_id
+        self.name = name
+        self.status = status
+
+        # Event metadata
+        import uuid
+        from datetime import datetime
+        self.event_id = str(uuid.uuid4())
+        self.event_type = self.__class__.__name__
+        self.timestamp = datetime.utcnow()
+        self.version = "1.0"
+        self.source_system = "workflow-management"
+
+    def get_payload(self) -> dict:
+        return {
+            'document_id': self.document_id,
+            'firm_id': self.firm_id,
+            'name': self.name,
+            'status': self.status
+        }
+
+    def to_dict(self) -> dict:
+        return {
+            'event_id': self.event_id,
+            'event_type': self.event_type,
+            'timestamp': self.timestamp.isoformat(),
+            'version': self.version,
+            'firm_id': self.firm_id,
             'source_system': self.source_system,
             'payload': self.get_payload()
         }

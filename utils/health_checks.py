@@ -11,14 +11,7 @@ def check_database_health() -> Dict[str, Any]:
     """Check database connectivity and return status"""
     try:
         # Import db here to avoid circular imports
-        import importlib.util
-        import os
-
-        # Import db from root core.py file
-        spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-        core_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(core_module)
-        db = core_module.db
+        from core.db_import import db
         
         # Attempt a simple database query
         result = db.session.execute('SELECT 1').scalar()
@@ -44,6 +37,11 @@ def check_redis_health() -> Dict[str, Any]:
         return {'status': 'healthy', 'message': 'Redis connection successful'}
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
+
+
+def check_service_health() -> Dict[str, Any]:
+    """Check individual service health - alias for check_system_health"""
+    return check_system_health()
 
 
 def check_system_health() -> Dict[str, Any]:

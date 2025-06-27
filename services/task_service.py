@@ -13,6 +13,9 @@ from services.activity_service import ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 
+from events.publisher import publish_event
+from events.schemas import TaskCreatedEvent, TaskUpdatedEvent
+
 class TaskService:
     """Service class for task-related business operations"""
     
@@ -42,7 +45,7 @@ class TaskService:
             db.session.commit()
             
             # Create activity log
-            ActivityService.create_activity_log(
+            ActivityService.ActivityService.create_activity_log(
                 action=f'Updated task "{task.title}" status from {old_status} to {status}',
                 user_id=session.get('user_id'),
                 task_id=task_id
@@ -465,12 +468,18 @@ class TaskService:
             
             db.session.add(task)
             db.session.commit()
+            publish_event(TaskCreatedEvent(
+                task_id=task.id,
+                firm_id=task.firm_id,
+                title=task.title,
+                status=task.status
+            ))
             
             # Activity log
             if project_id:
-                create_activity_log(f'Task "{task.title}" created', user_id, project_id, task.id)
+                ActivityService.create_activity_log(f'Task "{task.title}" created', user_id, project_id, task.id)
             else:
-                create_activity_log(f'Independent task "{task.title}" created', user_id, None, task.id)
+                ActivityService.create_activity_log(f'Independent task "{task.title}" created', user_id, None, task.id)
             
             return {
                 'success': True,
@@ -612,21 +621,27 @@ class TaskService:
             TaskService._handle_sequential_dependencies(task, original_status, new_status)
             
             db.session.commit()
+            publish_event(TaskUpdatedEvent(
+                task_id=task.id,
+                firm_id=task.firm_id,
+                title=task.title,
+                status=task.status
+            ))
             
             # Log assignee change if it occurred
             if original_assignee_id != new_assignee_id:
                 new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
                 assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
                 if task.project_id:
-                        create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
+                        ActivityService.create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
                 else:
-                        create_activity_log(assignee_log_msg, user_id, None, task.id)
+                        ActivityService.create_activity_log(assignee_log_msg, user_id, None, task.id)
             
             # General activity log
             if task.project_id:
-                create_activity_log(f'Task "{task.title}" updated', user_id, task.project_id, task.id)
+                ActivityService.create_activity_log(f'Task "{task.title}" updated', user_id, task.project_id, task.id)
             else:
-                create_activity_log(f'Independent task "{task.title}" updated', user_id, None, task.id)
+                ActivityService.create_activity_log(f'Independent task "{task.title}" updated', user_id, None, task.id)
             
             return {
                 'success': True,
@@ -645,7 +660,7 @@ class TaskService:
             }
     
     @staticmethod
-    def update_task(task_id: int, firm_id: int, updates: Dict[str, Any]) -> Dict[str, Any]:
+    def update_task(task_id: int, firm_id: int, updates: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """
         Update a task with the provided changes
         
@@ -653,6 +668,7 @@ class TaskService:
             task_id: The task's ID
             firm_id: The firm's ID for security check
             updates: Dictionary of field updates
+            user_id: The user making the update
             
         Returns:
             Dict containing success status and any error messages
@@ -683,6 +699,12 @@ class TaskService:
                 TaskService._handle_sequential_dependencies(task, original_status, updates['status'])
             
             db.session.commit()
+            publish_event(TaskUpdatedEvent(
+                task_id=task.id,
+                firm_id=task.firm_id,
+                title=task.title,
+                status=task.status
+            ))
             
             # Log specific changes
             if original_assignee_id != task.assignee_id:
@@ -691,15 +713,15 @@ class TaskService:
                 assignee_log_msg = f'Task "{task.title}" assignee changed from "{original_assignee_name}" to "{new_assignee_name}"'
                 
                 if task.project_id:
-                    create_activity_log(assignee_log_msg, session['user_id'], task.project_id, task.id)
+                    ActivityService.create_activity_log(assignee_log_msg, user_id, task.project_id, task.id)
                 else:
-                    create_activity_log(assignee_log_msg, session['user_id'], None, task.id)
+                    ActivityService.create_activity_log(assignee_log_msg, user_id, None, task.id)
             
             # General activity log
             if task.project_id:
-                create_activity_log(f'Task "{task.title}" updated', session['user_id'], task.project_id, task.id)
+                ActivityService.create_activity_log(f'Task "{task.title}" updated', user_id, task.project_id, task.id)
             else:
-                create_activity_log(f'Independent task "{task.title}" updated', session['user_id'], None, task.id)
+                ActivityService.create_activity_log(f'Independent task "{task.title}" updated', user_id, None, task.id)
             
             return {
                 'success': True,
@@ -714,13 +736,14 @@ class TaskService:
             }
     
     @staticmethod
-    def delete_task(task_id: int, firm_id: int) -> Dict[str, Any]:
+    def delete_task(task_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
         """
         Delete a task and its associated data
         
         Args:
             task_id: The task's ID
             firm_id: The firm's ID for security check
+            user_id: The user performing the deletion
             
         Returns:
             Dict containing success status and any error messages
@@ -738,9 +761,9 @@ class TaskService:
             
             # Create activity log before deletion
             if project_id:
-                create_activity_log(f'Task "{task_title}" deleted', session['user_id'], project_id)
+                ActivityService.create_activity_log(f'Task "{task_title}" deleted', user_id, project_id)
             else:
-                create_activity_log(f'Independent task "{task_title}" deleted', session['user_id'])
+                ActivityService.create_activity_log(f'Independent task "{task_title}" deleted', user_id)
             
             # Delete associated comments first
             TaskComment.query.filter_by(task_id=task_id).delete()
@@ -798,7 +821,7 @@ class TaskService:
             db.session.add(comment)
             
             # Create activity log
-            create_activity_log(
+            ActivityService.create_activity_log(
                 f'Comment added to task "{task.title}"',
                 user_id,
                 task.project_id if task.project_id else None,
@@ -854,7 +877,7 @@ class TaskService:
                 prev_task = project_tasks[i]
                 if prev_task.status != 'Completed':
                     prev_task.status = 'Completed'
-                    create_activity_log(
+                    ActivityService.create_activity_log(
                         f'Task "{prev_task.title}" auto-completed due to sequential dependency',
                         session.get('user_id', 1),
                         task.project_id,
@@ -868,7 +891,7 @@ class TaskService:
                 next_task = project_tasks[i]
                 if next_task.status == 'Completed':
                     next_task.status = 'Not Started'
-                    create_activity_log(
+                    ActivityService.create_activity_log(
                         f'Task "{next_task.title}" reset due to sequential dependency',
                         session.get('user_id', 1),
                         task.project_id,
@@ -1170,7 +1193,7 @@ class TaskService:
                     task.status = updates['status']
                     if old_status != task.status:
                         # Log status change
-                                create_activity_log(
+                                ActivityService.create_activity_log(
                             f'Task "{task.title}" status changed from "{old_status}" to "{task.status}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1184,7 +1207,7 @@ class TaskService:
                     new_assignee_name = task.assignee.name if task.assignee else 'Unassigned'
                     if old_assignee_name != new_assignee_name:
                         # Log assignee change
-                                create_activity_log(
+                                ActivityService.create_activity_log(
                             f'Task "{task.title}" assignee changed from "{old_assignee_name}" to "{new_assignee_name}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1197,7 +1220,7 @@ class TaskService:
                     task.priority = updates['priority']
                     if old_priority != task.priority:
                         # Log priority change
-                                create_activity_log(
+                                ActivityService.create_activity_log(
                             f'Task "{task.title}" priority changed from "{old_priority}" to "{task.priority}" (bulk update)',
                             user_id,
                             task.project_id if task.project_id else None,
@@ -1258,7 +1281,7 @@ class TaskService:
             deleted_count = 0
             for task in tasks:
                 # Log deletion
-                create_activity_log(
+                ActivityService.create_activity_log(
                     f'Task "{task.title}" deleted (bulk operation)',
                     user_id,
                     task.project_id if task.project_id else None,

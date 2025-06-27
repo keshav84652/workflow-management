@@ -17,13 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from flask import Flask
 from config import TestingConfig
 
-# Import db from root core.py file (not core/ directory)
-import sys
-import importlib.util
-core_spec = importlib.util.spec_from_file_location("core_module", "core.py")
-core_module = importlib.util.module_from_spec(core_spec)
-core_spec.loader.exec_module(core_module)
-db = core_module.db
+# Import db from centralized db_import module
+from core.db_import import db
 # Import all models to ensure relationships are properly registered
 import models
 from models import (

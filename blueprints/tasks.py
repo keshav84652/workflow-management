@@ -49,7 +49,8 @@ def delete_task(id):
     # TaskService already imported at module level
     
     firm_id = get_session_firm_id()
-    result = TaskService.delete_task(id, firm_id)
+    user_id = get_session_user_id()
+    result = TaskService.delete_task(id, firm_id, user_id)
     
     if result['success']:
         return jsonify({
@@ -324,7 +325,8 @@ def start_timer(id):
     
     if task.start_timer():
         db.session.commit()
-        ActivityService.create_activity_log(f'Timer started for task "{task.title}"', get_session_user_id(), task.project_id, task.id)
+        user_id = get_session_user_id()
+        ActivityService.create_activity_log(f'Timer started for task "{task.title}"', user_id, task.project_id, task.id)
         return jsonify({'success': True, 'message': 'Timer started'})
     else:
         return jsonify({'success': False, 'message': 'Timer already running'})
@@ -342,9 +344,10 @@ def stop_timer(id):
     elapsed_hours = task.stop_timer()
     if elapsed_hours > 0:
         db.session.commit()
-        ActivityService.create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', get_session_user_id(), task.project_id, task.id)
+        user_id = get_session_user_id()
+        ActivityService.create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', user_id, task.project_id, task.id)
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': f'Timer stopped - {elapsed_hours:.2f}h logged',
             'elapsed_hours': elapsed_hours,
             'total_hours': task.actual_hours

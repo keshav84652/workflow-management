@@ -11,7 +11,7 @@ import time
 from utils.error_handling import CircuitBreaker, CircuitState, GracefulDegradation
 from utils.health_checks import check_database_health, check_redis_health, check_system_health
 from utils.session_helpers import get_session_firm_id, get_session_user_id
-from utils.core import format_currency, format_date, calculate_business_days
+from utils.consolidated import format_currency, format_date, calculate_business_days
 
 
 class TestCircuitBreaker:
@@ -230,7 +230,7 @@ class TestGracefulDegradation:
 class TestHealthChecks:
     """Test health check utilities."""
     
-    @patch('core.db.session.execute')
+    @patch('core.db_import.db.session.execute')
     def test_check_database_health_success(self, mock_execute):
         """Test successful database health check."""
         mock_execute.return_value.scalar.return_value = 1
@@ -242,7 +242,7 @@ class TestHealthChecks:
         assert 'response_time_ms' in result
         mock_execute.assert_called_once()
     
-    @patch('core.db.session.execute')
+    @patch('core.db_import.db.session.execute')
     def test_check_database_health_failure(self, mock_execute):
         """Test database health check failure."""
         mock_execute.side_effect = Exception("Database connection failed")
@@ -320,7 +320,7 @@ class TestHealthChecks:
         """Test health check performance."""
         performance_tracker.start('health_check')
         
-        with patch('core.db.session.execute') as mock_execute:
+        with patch('core.db_import.db.session.execute') as mock_execute:
             mock_execute.return_value.scalar.return_value = 1
             
             result = check_database_health()
@@ -460,7 +460,7 @@ class TestUtilityIntegration:
             return result
         
         # Mock successful health check
-        with patch('core.db.session.execute') as mock_execute:
+        with patch('core.db_import.db.session.execute') as mock_execute:
             mock_execute.return_value.scalar.return_value = 1
             
             result = health_check_function()
