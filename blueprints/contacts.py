@@ -15,21 +15,8 @@ contacts_bp = Blueprint('contacts', __name__, url_prefix='/contacts')
 @contacts_bp.route('/')
 def list_contacts():
     firm_id = get_session_firm_id()
-    
-    # Get only contacts associated with clients from this firm
-    contacts_query = db.session.query(Contact).join(ClientContact).join(Client).filter(
-        Client.firm_id == firm_id
-    ).distinct()
-    
-    firm_contacts = contacts_query.all()
-    
-    # Add client count for each contact (only count clients from this firm)
-    for contact in firm_contacts:
-        contact.client_count = db.session.query(ClientContact).join(Client).filter(
-            ClientContact.contact_id == contact.id,
-            Client.firm_id == firm_id
-        ).count()
-    
+    contact_service = ContactService()
+    firm_contacts = contact_service.list_contacts(firm_id)
     return render_template('clients/contacts.html', contacts=firm_contacts)
 
 
@@ -50,16 +37,10 @@ def create_contact():
 
 @contacts_bp.route('/<int:id>')
 def view_contact(id):
-    contact = Contact.query.get_or_404(id)
     firm_id = get_session_firm_id()
-    
-    # Get clients associated with this contact for this firm
-    associated_clients = db.session.query(Client).join(ClientContact).filter(
-        ClientContact.contact_id == id,
-        Client.firm_id == firm_id
-    ).all()
-    
-    return render_template('clients/view_contact.html', contact=contact, associated_clients=associated_clients)
+    contact_service = ContactService()
+    result = contact_service.view_contact(id, firm_id)
+    return render_template('clients/view_contact.html', contact=result['contact'], associated_clients=result['associated_clients'])
 
 @contacts_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 def edit_contact(id):
@@ -71,8 +52,9 @@ def edit_contact(id):
             return redirect(url_for('contacts.view_contact', id=id))
         else:
             flash(result['message'], 'error')
-    contact = Contact.query.get_or_404(id)
-    return render_template('clients/edit_contact.html', contact=contact)
+    contact_service = ContactService()
+    result = contact_service.view_contact(id, get_session_firm_id())
+    return render_template('clients/edit_contact.html', contact=result['contact'])
 
 
 @contacts_bp.route('/<int:contact_id>/clients/<int:client_id>/associate', methods=['POST'])

@@ -104,10 +104,30 @@ class ProjectRepository(CachedRepository[Project]):
         
         project.current_status_id = status_id
         project.updated_at = datetime.utcnow()
-        db.session.commit()
-        self._invalidate_cache(project_id)
+        # Note: Transaction commit is handled by service layer
         
         return project
+    
+    def get_count_by_firm(self, firm_id: int) -> int:
+        """Get total count of projects for a firm"""
+        return self.count(firm_id=firm_id)
+    
+    def get_recent_projects(self, firm_id: int, limit: int = 10) -> List[Project]:
+        """Get most recent projects for a firm"""
+        return Project.query.filter(
+            Project.firm_id == firm_id
+        ).order_by(Project.created_at.desc()).limit(limit).all()
+    
+    def get_projects_by_firm(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> List[Project]:
+        """Get projects for a firm with optional filters"""
+        query = Project.query.filter(Project.firm_id == firm_id)
+        
+        if filters:
+            # Apply status filter if provided
+            if 'status' in filters and filters['status']:
+                query = query.filter(Project.status == filters['status'])
+        
+        return query.order_by(Project.created_at.desc()).all()
     
     def update_progress(self, project_id: int, firm_id: int, progress_percentage: int) -> Optional[Project]:
         """Update project progress percentage"""
@@ -117,7 +137,6 @@ class ProjectRepository(CachedRepository[Project]):
         
         project.progress_percentage = max(0, min(100, progress_percentage))
         project.updated_at = datetime.utcnow()
-        db.session.commit()
-        self._invalidate_cache(project_id)
+        # Note: Transaction commit is handled by service layer
         
         return project

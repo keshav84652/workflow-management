@@ -6,6 +6,7 @@ Provides abstraction layer for data access operations.
 from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any, Generic, TypeVar
 from datetime import datetime
+from core.db_import import db
 
 
 T = TypeVar('T')
@@ -89,7 +90,6 @@ class SqlAlchemyRepository(BaseRepository[T]):
         
         entity = self.model_class(**valid_data)
         db.session.add(entity)
-        db.session.commit()
         return entity
     
     def update(self, entity_id: int, data: Dict[str, Any]) -> Optional[T]:
@@ -105,7 +105,6 @@ class SqlAlchemyRepository(BaseRepository[T]):
             if hasattr(entity, field):
                 setattr(entity, field, value)
         
-        db.session.commit()
         return entity
     
     def delete(self, entity_id: int) -> bool:
@@ -115,7 +114,6 @@ class SqlAlchemyRepository(BaseRepository[T]):
             return False
         
         db.session.delete(entity)
-        db.session.commit()
         return True
     
     def exists(self, entity_id: int) -> bool:

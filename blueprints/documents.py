@@ -334,47 +334,14 @@ def public_checklist_status(token):
     item_id = request.form.get('item_id')
     new_status = request.form.get('status')
     
-    if new_status not in ['already_provided', 'not_applicable', 'pending']:
-        flash('Invalid status selected', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    result = DocumentService.update_checklist_item_status(token, item_id, new_status)
     
-    item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first_or_404()
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
     
-    try:
-        # If changing from uploaded status, remove the uploaded file
-        if item.status == 'uploaded' and new_status != 'uploaded':
-            existing_doc = ClientDocument.query.filter_by(
-                client_id=checklist.client_id,
-                checklist_item_id=item_id
-            ).first()
-            
-            if existing_doc:
-                # Remove file
-                if os.path.exists(existing_doc.file_path):
-                    os.remove(existing_doc.file_path)
-                db.session.delete(existing_doc)
-        
-        # Update status
-        item.status = new_status
-        item.updated_at = datetime.utcnow()
-        
-        # TODO: Move to service layer
-        # db.session.commit()
-        
-        status_messages = {
-            'already_provided': 'Marked as already provided',
-            'not_applicable': 'Marked as not applicable',
-            'pending': 'Reset to pending'
-        }
-        
-        flash(status_messages.get(new_status, 'Status updated'), 'success')
-        return redirect(url_for('documents.public_checklist', token=token))
-        
-    except Exception as e:
-        # TODO: Move to service layer
-        # db.session.rollback()
-        flash(f'Error updating status: {str(e)}', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    return redirect(url_for('documents.public_checklist', token=token))
 
 @documents_bp.route("/api/checklists/refresh")
 def refresh_checklists_data():

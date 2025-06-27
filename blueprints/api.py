@@ -18,7 +18,8 @@ from services.client_service import ClientService
 def search_clients():
     firm_id = SessionService.get_current_firm_id()
     query = request.args.get('q', '').strip()
-    results = ClientService.search_clients(firm_id, query)
+    client_service = ClientService()
+    results = client_service.search_clients(firm_id, query)
     return jsonify(results)
 
 
@@ -27,7 +28,8 @@ from services.project_service import ProjectService
 @api_bp.route('/project/<int:project_id>/progress', methods=['GET'])
 def get_project_progress(project_id):
     firm_id = SessionService.get_current_firm_id()
-    result = ProjectService.get_project_progress(project_id, firm_id)
+    project_service = ProjectService()
+    result = project_service.get_project_progress(project_id, firm_id)
     if isinstance(result, tuple):
         # Error with status code
         return jsonify(result[0]), result[1]
@@ -37,5 +39,6 @@ def get_project_progress(project_id):
 @api_bp.route('/clients')
 def api_clients():
     firm_id = SessionService.get_current_firm_id()
-    results = ClientService.get_clients_for_firm(firm_id)
+    client_service = ClientService()
+    results = client_service.get_clients_for_firm(firm_id)
     return jsonify(results)

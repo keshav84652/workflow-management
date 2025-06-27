@@ -64,11 +64,18 @@ class SessionService:
         Raises:
             ValueError: If no firm_id in session or user not authenticated
         """
-        if 'firm_id' not in session:
-            available_keys = list(session.keys())
-            raise ValueError(f"No firm_id in session. Available session keys: {available_keys}. "
-                           f"User may need to log in again. Request path: {request.path}")
-        return session['firm_id']
+        try:
+            if 'firm_id' not in session:
+                available_keys = list(session.keys())
+                try:
+                    request_path = request.path
+                except RuntimeError:
+                    request_path = "No request context"
+                raise ValueError(f"No firm_id in session. Available session keys: {available_keys}. "
+                               f"User may need to log in again. Request path: {request_path}")
+            return session['firm_id']
+        except RuntimeError:
+            raise RuntimeError("No Flask application context available. Cannot access session.")
     
 
     def get_current_user_id() -> int:
@@ -81,11 +88,18 @@ class SessionService:
         Raises:
             ValueError: If no user_id in session or user not authenticated
         """
-        if 'user_id' not in session:
-            available_keys = list(session.keys())
-            raise ValueError(f"No user_id in session. Available session keys: {available_keys}. "
-                           f"User may need to log in again. Request path: {request.path}")
-        return session['user_id']
+        try:
+            if 'user_id' not in session:
+                available_keys = list(session.keys())
+                try:
+                    request_path = request.path
+                except RuntimeError:
+                    request_path = "No request context"
+                raise ValueError(f"No user_id in session. Available session keys: {available_keys}. "
+                               f"User may need to log in again. Request path: {request_path}")
+            return session['user_id']
+        except RuntimeError:
+            raise RuntimeError("No Flask application context available. Cannot access session.")
     
 
     def require_firm_access(self, firm_id: int) -> bool:

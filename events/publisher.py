@@ -47,20 +47,30 @@ class EventPublisher:
         start_time = time.time()
         
         try:
-            # Set default context if not provided
-            if not event.firm_id:
-                from flask import session
-                event.firm_id = session.get('firm_id')
-            if not event.user_id:
-                from flask import session
-                event.user_id = session.get('user_id')
+            # Set default context if not provided (only if attributes exist)
+            if hasattr(event, 'firm_id') and getattr(event, 'firm_id', None) is None:
+                try:
+                    from flask import session
+                    event.firm_id = session.get('firm_id')
+                except (RuntimeError, ImportError):
+                    # No Flask application context available
+                    pass
+            if hasattr(event, 'user_id') and getattr(event, 'user_id', None) is None:
+                try:
+                    from flask import session
+                    event.user_id = session.get('user_id')
+                except (RuntimeError, ImportError):
+                    # No Flask application context available
+                    pass
             
             # Use default channel if not specified
             target_channel = channel or self.default_channel
             
             # Try to publish to Redis
             if self.redis_client and self.redis_client.is_available():
-                success = self.redis_client.publish(target_channel, event.to_json())
+                import json
+                event_json = json.dumps(event.to_dict())
+                success = self.redis_client.publish(target_channel, event_json)
                 
                 if success:
                     logger.info(f"Published event {event.event_type} to channel {target_channel}")
@@ -111,8 +121,8 @@ class EventPublisher:
                 'channel': channel,
                 'published_at': datetime.utcnow().isoformat(),
                 'processing_time_ms': processing_time * 1000,
-                'firm_id': event.firm_id,
-                'user_id': event.user_id
+                'firm_id': getattr(event, 'firm_id', None),
+                'user_id': getattr(event, 'user_id', None)
             }
             
             # Store with 24 hour expiration
@@ -173,7 +183,9 @@ class EventPublisher:
                 event = event_registry.create_event_from_dict(entry['event'])
                 
                 if event:
-                    success = self.redis_client.publish(entry['channel'], event.to_json())
+                    import json
+                    event_json = json.dumps(event.to_dict())
+                    success = self.redis_client.publish(entry['channel'], event_json)
                     if success:
                         successful_count += 1
                         logger.info(f"Successfully retried event {event.event_type}")

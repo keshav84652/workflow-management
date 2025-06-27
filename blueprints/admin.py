@@ -50,7 +50,7 @@ def dashboard():
 @admin_bp.route('/templates')
 def templates():
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     firm_id = get_session_firm_id()
     templates = AdminService.get_templates_for_firm(firm_id)
@@ -61,7 +61,7 @@ def templates():
 def create_template():
     if request.method == 'POST':
         from services.admin_service import AdminService
-        from utils import get_session_firm_id
+        from utils.consolidated import get_session_firm_id
         
         firm_id = get_session_firm_id()
         
@@ -100,7 +100,7 @@ def create_template():
 @admin_bp.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 def edit_template(id):
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     firm_id = get_session_firm_id()
     template = AdminService.get_template_by_id(id, firm_id)
@@ -161,7 +161,7 @@ def generate_access_code_route():
 @admin_bp.route('/work_types', methods=['GET'])
 def admin_work_types():
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         flash('Access denied', 'error')
@@ -179,7 +179,7 @@ def admin_work_types():
 @admin_bp.route('/work_types/create', methods=['POST'])
 def admin_create_work_type():
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
@@ -201,7 +201,7 @@ def admin_create_work_type():
 @admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
@@ -223,7 +223,7 @@ def admin_edit_work_type(work_type_id):
 @admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
 def admin_create_status(work_type_id):
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
@@ -246,7 +246,7 @@ def admin_create_status(work_type_id):
 def admin_edit_status(status_id):
     """Edit a task status"""
     from services.admin_service import AdminService
-    from utils import get_session_firm_id
+    from utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
@@ -276,9 +276,6 @@ def admin_process_recurring():
     if session.get('user_role') != 'Admin':
         return jsonify({'error': 'Access denied'}), 403
     
-    try:
-        from utils import process_recurring_tasks
-        process_recurring_tasks()
-        return jsonify({'success': True, 'message': 'Recurring tasks processed successfully'})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+    # TODO: Implement recurring task processing in appropriate service
+    # This functionality was not implemented in the original utils
+    return jsonify({'success': False, 'message': 'Recurring task processing not yet implemented'})

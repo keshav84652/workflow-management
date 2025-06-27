@@ -72,7 +72,7 @@ class TaskRepository(CachedRepository[Task]):
     def get_project_tasks(self, project_id: int, firm_id: int, 
                          include_completed: bool = False) -> List[Task]:
         """Get all tasks for a specific project"""
-        query = Task.query.filter(
+        query = Task.query.join(Project).filter(
             Task.project_id == project_id,
             Project.firm_id == firm_id
         )
@@ -173,7 +173,7 @@ class TaskRepository(CachedRepository[Task]):
         )
         
         db.session.add(task)
-        db.session.commit()
+        # Note: Transaction commit is handled by service layer
         return task
     
     def bulk_update(self, task_ids: List[int], updates: Dict[str, Any], 
@@ -197,16 +197,15 @@ class TaskRepository(CachedRepository[Task]):
         updated_count = 0
         
         for task in tasks:
+            task_updated = False
             for field, value in valid_fields.items():
                 if hasattr(task, field):
                     setattr(task, field, value)
-                    updated_count += 1
+                    task_updated = True
+            if task_updated:
+                updated_count += 1
         
-        db.session.commit()
-        
-        # Invalidate cache for all updated tasks
-        for task in tasks:
-            self._invalidate_cache(task.id)
+        # Note: Transaction commit is handled by service layer
         
         return {
             'success': True,
@@ -234,12 +233,45 @@ class TaskRepository(CachedRepository[Task]):
         for task in tasks:
             db.session.delete(task)
             deleted_count += 1
-            self._invalidate_cache(task.id)
         
-        db.session.commit()
+        # Note: Transaction commit is handled by service layer
         
         return {
             'success': True,
             'message': f'Successfully deleted {deleted_count} tasks',
             'deleted_count': deleted_count
         }
+    
+    def get_tasks_by_firm(self, firm_id: int, limit: Optional[int] = None) -> List[Task]:
+        """
+        Get all tasks for a firm with proper ordering
+        CRITICAL: This method should return ALL tasks, filtering is done in service layer
+        """
+        query = Task.query.outerjoin(Project).filter(
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).order_by(
+            Task.due_date.asc().nullslast(),
+            db.case(
+                (Task.priority == 'High', 1),
+                (Task.priority == 'Medium', 2),  
+                (Task.priority == 'Low', 3),
+                else_=4
+            )
+        )
+        
+        if limit:
+            query = query.limit(limit)
+            
+        return query.all()
+    
+    def get_recent_tasks(self, firm_id: int, limit: int = 5) -> List[Task]:
+        """Get recent tasks for a firm"""
+        return Task.query.outerjoin(Project).filter(
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).order_by(Task.created_at.desc()).limit(limit).all()

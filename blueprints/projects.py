@@ -164,10 +164,11 @@ def move_project_status(id):
         return jsonify({'success': False, 'message': 'Authentication required'}), 401
     
     firm_id = get_session_firm_id()
+    user_id = get_session_user_id()
     data = request.get_json()
     status_id = data.get('status_id')
     
-    result = ProjectService.move_project_status(id, status_id, firm_id)
+    result = ProjectService.move_project_status(id, status_id, firm_id, user_id)
     
     if result['success']:
         return jsonify(result)

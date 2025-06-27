@@ -3,12 +3,68 @@ DocumentService: Handles all business logic for documents and checklists, includ
 """
 
 from core.db_import import db
-from models import DocumentChecklist, Client
+from models import DocumentChecklist, Client, ChecklistItem, ClientDocument
+from datetime import datetime
 import secrets
 
 class DocumentService:
-    @staticmethod
-    def generate_share_token(checklist_id, firm_id):
+    @classmethod
+    def update_checklist_item_status(token, item_id, new_status):
+        """Update checklist item status via public token"""
+        try:
+            # Find checklist by token
+            checklist = DocumentChecklist.query.filter_by(
+                public_access_token=token,
+                public_access_enabled=True
+            ).first()
+            
+            if not checklist:
+                return {'success': False, 'message': 'Invalid or expired access token'}
+            
+            # Validate status
+            if new_status not in ['already_provided', 'not_applicable', 'pending']:
+                return {'success': False, 'message': 'Invalid status selected'}
+            
+            item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+            if not item:
+                return {'success': False, 'message': 'Checklist item not found'}
+            
+            # If changing from uploaded status, remove the uploaded file
+            if item.status == 'uploaded' and new_status != 'uploaded':
+                existing_doc = ClientDocument.query.filter_by(
+                    client_id=checklist.client_id,
+                    checklist_item_id=item_id
+                ).first()
+                
+                if existing_doc:
+                    # Remove file
+                    import os
+                    if os.path.exists(existing_doc.file_path):
+                        os.remove(existing_doc.file_path)
+                    db.session.delete(existing_doc)
+            
+            # Update status
+            item.status = new_status
+            item.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            status_messages = {
+                'already_provided': 'Marked as already provided',
+                'not_applicable': 'Marked as not applicable',
+                'pending': 'Reset to pending'
+            }
+            
+            return {
+                'success': True,
+                'message': status_messages.get(new_status, 'Status updated')
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error updating status: {str(e)}'}
+    
+    def generate_share_token(self, checklist_id, firm_id):
         checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
             Client.firm_id == firm_id
@@ -19,7 +75,7 @@ class DocumentService:
             db.session.commit()
         return checklist
 
-    @staticmethod
+    @classmethod
     def revoke_share(checklist_id, firm_id):
         checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
@@ -29,7 +85,7 @@ class DocumentService:
         db.session.commit()
         return checklist
 
-    @staticmethod
+    @classmethod
     def regenerate_share_token(checklist_id, firm_id):
         checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
@@ -39,3 +95,110 @@ class DocumentService:
         checklist.public_access_enabled = True
         db.session.commit()
         return checklist
+    
+    @classmethod
+    def create_checklist(cls, name, description=None, client_id=None, firm_id=None, user_id=None):
+        """Create a new document checklist"""
+        try:
+            if not name or not name.strip():
+                return {'success': False, 'error': 'Checklist name is required'}
+            
+            checklist = DocumentChecklist(
+                name=name.strip(),
+                description=description,
+                client_id=client_id,
+                created_by=user_id
+            )
+            
+            db.session.add(checklist)
+            db.session.commit()
+            
+            # Publish document creation event
+            from events.schemas import DocumentCreatedEvent
+            from events.publisher import publish_event
+            event = DocumentCreatedEvent(
+                document_id=checklist.id,
+                firm_id=firm_id or 0,
+                name=checklist.name,
+                status='pending'
+            )
+            publish_event(event)
+            
+            return {
+                'success': True,
+                'checklist_id': checklist.id,
+                'message': 'Checklist created successfully'
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}
+    
+    @classmethod
+    def add_checklist_item(cls, checklist_id, name, description=None, firm_id=None, user_id=None):
+        """Add item to checklist"""
+        try:
+            if not name or not name.strip():
+                return {'success': False, 'error': 'Item name is required'}
+            
+            item = ChecklistItem(
+                title=name.strip(),
+                description=description,
+                checklist_id=checklist_id,
+                status='pending'
+            )
+            
+            db.session.add(item)
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'item_id': item.id,
+                'message': 'Checklist item added successfully'
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}
+    
+    @classmethod
+    def upload_file_to_checklist_item(cls, item_id, file_path, original_filename, firm_id=None, user_id=None):
+        """Upload file to checklist item"""
+        try:
+            item = ChecklistItem.query.get(item_id)
+            if not item:
+                return {'success': False, 'error': 'Checklist item not found'}
+            
+            # Create document record
+            document = ClientDocument(
+                file_path=file_path,
+                original_filename=original_filename,
+                client_id=item.checklist.client_id,
+                checklist_item_id=item_id,
+                uploaded_by=user_id
+            )
+            
+            db.session.add(document)
+            item.status = 'uploaded'
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'message': 'File uploaded successfully'
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'error': str(e)}
+    
+    @staticmethod
+    def get_checklists_for_firm(firm_id):
+        """Get all checklists for a firm"""
+        return DocumentChecklist.query.join(Client).filter(
+            Client.firm_id == firm_id
+        ).order_by(DocumentChecklist.created_at.desc()).all()
+    
+    @classmethod
+    def get_checklist_by_id(cls, checklist_id, firm_id):
+        """Get checklist by ID with firm access check"""
+        return DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()

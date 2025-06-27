@@ -28,7 +28,8 @@ class AdminService:
         self.task_repository = TaskRepository()
         self.project_repository = ProjectRepository()
     
-    def authenticate_admin(self, password: str) -> Dict[str, Any]:
+    @staticmethod
+    def authenticate_admin(password: str) -> Dict[str, Any]:
         """
         Authenticate admin user with password
         
@@ -52,7 +53,8 @@ class AdminService:
             }
     
 
-    def is_admin_authenticated(self) -> bool:
+    @staticmethod
+    def is_admin_authenticated() -> bool:
         """
         Check if current session has admin privileges
         
@@ -62,38 +64,42 @@ class AdminService:
         return session.get('admin', False)
     
 
-    def set_admin_session(self) -> None:
+    @staticmethod
+    def set_admin_session() -> None:
         """Set admin authentication in session"""
         session['admin'] = True
     
 
-    def clear_admin_session(self) -> None:
+    @staticmethod
+    def clear_admin_session() -> None:
         """Clear admin authentication from session"""
         session.pop('admin', None)
     
 
-    def get_all_firms(self) -> List[Firm]:
+    @staticmethod
+    def get_all_firms() -> List[Firm]:
         """
         Get all firms in the system
         
         Returns:
             List of all Firm objects
         """
-        return self.firm_repository.get_all()
+        return Firm.query.order_by(Firm.created_at.desc()).all()
     
 
-    def get_firm_statistics(self) -> Dict[str, Any]:
+    @staticmethod
+    def get_firm_statistics() -> Dict[str, Any]:
         """
         Get system-wide statistics
         
         Returns:
             Dictionary containing various system statistics
         """
-        total_firms = self.firm_repository.count()
-        active_firms = self.firm_repository.count(is_active=True)
-        total_users = self.user_repository.count()
-        total_projects = self.project_repository.count()
-        total_tasks = self.task_repository.count()
+        total_firms = Firm.query.count()
+        active_firms = Firm.query.filter_by(is_active=True).count()
+        total_users = User.query.count()
+        total_projects = Project.query.count()
+        total_tasks = Task.query.count()
         
         return {
             'total_firms': total_firms,
@@ -105,7 +111,8 @@ class AdminService:
         }
     
 
-    def generate_firm_access_code(self, firm_name: str) -> Dict[str, Any]:
+    @staticmethod
+    def generate_firm_access_code(firm_name: str) -> Dict[str, Any]:
         """
         Generate a new access code for a firm
         
@@ -153,7 +160,8 @@ class AdminService:
             }
     
 
-    def toggle_firm_status(self, firm_id: int) -> Dict[str, Any]:
+    @staticmethod
+    def toggle_firm_status(firm_id: int) -> Dict[str, Any]:
         """
         Toggle a firm's active status
         
@@ -188,7 +196,8 @@ class AdminService:
             }
     
 
-    def get_templates_for_firm(self, firm_id: int) -> List[Template]:
+    @staticmethod
+    def get_templates_for_firm(firm_id: int) -> List[Template]:
         """
         Get all templates for a specific firm
         
@@ -198,10 +207,11 @@ class AdminService:
         Returns:
             List of Template objects for the firm
         """
-        return self.template_repository.get_by_firm(firm_id)
+        return Template.query.filter_by(firm_id=firm_id).order_by(Template.created_at.desc()).all()
     
 
-    def create_template(self, name: str, description: str, task_dependency_mode: bool,
+    @staticmethod
+    def create_template(name: str, description: str, task_dependency_mode: bool,
                        firm_id: int, tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Create a new template with tasks
@@ -269,7 +279,8 @@ class AdminService:
             }
     
 
-    def get_template_by_id(self, template_id: int, firm_id: int) -> Optional[Template]:
+    @staticmethod
+    def get_template_by_id(template_id: int, firm_id: int) -> Optional[Template]:
         """
         Get a template by ID, ensuring it belongs to the firm
         
@@ -280,10 +291,11 @@ class AdminService:
         Returns:
             Template object if found and belongs to firm, None otherwise
         """
-        return self.template_repository.get_by_id_and_firm(template_id, firm_id)
+        return Template.query.filter_by(id=template_id, firm_id=firm_id).first()
     
 
-    def update_template(self, template_id: int, name: str, description: str,
+    @staticmethod
+    def update_template(template_id: int, name: str, description: str,
                        task_dependency_mode: bool, firm_id: int,
                        tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -389,7 +401,8 @@ class AdminService:
             }
     
 
-    def get_work_types_for_firm(self, firm_id: int) -> List[WorkType]:
+    @staticmethod
+    def get_work_types_for_firm(firm_id: int) -> List[WorkType]:
         """
         Get all work types for a specific firm
         
@@ -402,7 +415,8 @@ class AdminService:
         return WorkType.query.filter_by(firm_id=firm_id).all()
     
 
-    def get_work_type_usage_stats(self, firm_id: int) -> Dict[int, int]:
+    @staticmethod
+    def get_work_type_usage_stats(firm_id: int) -> Dict[int, int]:
         """
         Get usage statistics for work types (number of tasks using each work type)
         
@@ -425,7 +439,8 @@ class AdminService:
         return usage_stats
     
 
-    def create_work_type(self, name: str, description: str, firm_id: int) -> Dict[str, Any]:
+    @staticmethod
+    def create_work_type(name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new work type with default statuses
         
@@ -482,7 +497,8 @@ class AdminService:
             }
     
 
-    def update_work_type(self, work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
+    @staticmethod
+    def update_work_type(work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Update an existing work type
         
@@ -520,7 +536,8 @@ class AdminService:
             }
     
 
-    def create_task_status(self, work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
+    @staticmethod
+    def create_task_status(work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new task status for a work type
         

@@ -85,8 +85,7 @@ class ChecklistRepository(CachedRepository[DocumentChecklist]):
             return None
         
         checklist.is_active = is_active
-        db.session.commit()
-        self._invalidate_cache(checklist_id)
+        # Note: Transaction commit is handled by service layer
         
         return checklist
 
@@ -118,8 +117,7 @@ class ChecklistItemRepository(CachedRepository[ChecklistItem]):
         
         item.status = status
         item.updated_at = datetime.utcnow()
-        db.session.commit()
-        self._invalidate_cache(item_id)
+        # Note: Transaction commit is handled by service layer
         
         return item
     
@@ -141,10 +139,9 @@ class ChecklistItemRepository(CachedRepository[ChecklistItem]):
                     item = self.get_by_id_and_checklist(item_id, checklist_id)
                     if item:
                         item.sort_order = new_order
-                        self._invalidate_cache(item_id)
             
-            db.session.commit()
+            # Note: Transaction commit is handled by service layer
             return True
         except Exception:
-            db.session.rollback()
+            # Note: Transaction rollback is handled by service layer
             return False

@@ -210,6 +210,16 @@ class EventRegistry:
         """
         event_type = event_class.__name__
         self._event_types[event_type] = event_class
+
+    def clear_handlers(self, event_type: str):
+        """
+        Clear all handlers for a specific event type
+
+        Args:
+            event_type: Type of event to clear handlers for
+        """
+        if event_type in self._handlers:
+            del self._handlers[event_type]
     
     def register_handler(self, event_type: str, handler: EventHandler):
         """

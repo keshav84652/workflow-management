@@ -30,8 +30,7 @@ class TemplateRepository(CachedRepository[Template]):
         """Create a new template"""
         template = Template(**kwargs)
         db.session.add(template)
-        db.session.commit()
-        self._invalidate_cache(template.id)
+        # Note: Transaction commit is handled by service layer
         return template
 
     def update(self, template_id: int, **kwargs) -> Optional[Template]:
@@ -42,6 +41,5 @@ class TemplateRepository(CachedRepository[Template]):
         for key, value in kwargs.items():
             if hasattr(template, key):
                 setattr(template, key, value)
-        db.session.commit()
-        self._invalidate_cache(template_id)
+        # Note: Transaction commit is handled by service layer
         return template

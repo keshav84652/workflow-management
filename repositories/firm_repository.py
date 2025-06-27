@@ -27,8 +27,7 @@ class FirmRepository(CachedRepository[Firm]):
         """Create a new firm"""
         firm = Firm(name=name, **kwargs)
         db.session.add(firm)
-        db.session.commit()
-        self._invalidate_cache(firm.id)
+        # Note: Transaction commit is handled by service layer
         return firm
 
     def update(self, firm_id: int, **kwargs) -> Optional[Firm]:
@@ -39,6 +38,5 @@ class FirmRepository(CachedRepository[Firm]):
         for key, value in kwargs.items():
             if hasattr(firm, key):
                 setattr(firm, key, value)
-        db.session.commit()
-        self._invalidate_cache(firm_id)
+        # Note: Transaction commit is handled by service layer
         return firm

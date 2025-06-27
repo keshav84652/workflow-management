@@ -46,6 +46,10 @@ class UserRepository(CachedRepository[User]):
             'inactive': inactive
         }
     
+    def get_count_by_firm(self, firm_id: int) -> int:
+        """Get total count of users for a firm"""
+        return self.count(firm_id=firm_id)
+    
     def get_by_id_and_firm(self, user_id: int, firm_id: int) -> Optional[User]:
         """Get user by ID ensuring it belongs to the firm"""
         return User.query.filter(

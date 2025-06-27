@@ -53,6 +53,10 @@ class ClientRepository(CachedRepository[Client]):
             Client.firm_id == firm_id
         ).first()
     
+    def get_active_count(self, firm_id: int) -> int:
+        """Get count of active clients for a firm"""
+        return self.count(firm_id=firm_id, is_active=True)
+    
     def update_client_status(self, client_id: int, firm_id: int, is_active: bool) -> Optional[Client]:
         """Update client active status"""
         client = self.get_by_id_and_firm(client_id, firm_id)
@@ -60,7 +64,6 @@ class ClientRepository(CachedRepository[Client]):
             return None
         
         client.is_active = is_active
-        db.session.commit()
-        self._invalidate_cache(client_id)
+        # Note: Transaction commit is handled by service layer
         
         return client

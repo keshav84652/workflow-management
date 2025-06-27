@@ -34,6 +34,5 @@ class ActivityLogRepository(CachedRepository[ActivityLog]):
             timestamp=datetime.utcnow()
         )
         db.session.add(log)
-        db.session.commit()
-        self._invalidate_cache(log.id)
+        # Note: Transaction commit is handled by service layer
         return log

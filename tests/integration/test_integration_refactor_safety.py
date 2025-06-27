@@ -29,7 +29,7 @@ from core.db_import import db
 
 # Import models
 from models import (
-    User, Firm, Client, Project, Task, ProjectStatus, 
+    User, Firm, Client, Project, Task, 
     DocumentChecklist, ChecklistItem, ClientDocument
 )
 

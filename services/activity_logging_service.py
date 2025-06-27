@@ -71,11 +71,19 @@ class ActivityLoggingService:
             task_id: Related task ID if applicable
         """
         try:
-            # Get defaults from session if not provided
+            # Get defaults from session if not provided, but handle missing context gracefully
             if user_id is None:
-                user_id = SessionService.get_current_user_id()
+                try:
+                    user_id = SessionService.get_current_user_id()
+                except (RuntimeError, ValueError):
+                    # No session context available (e.g., during testing or CLI operations)
+                    user_id = None
             if firm_id is None:
-                firm_id = SessionService.get_current_firm_id()
+                try:
+                    firm_id = SessionService.get_current_firm_id()
+                except (RuntimeError, ValueError):
+                    # No session context available
+                    firm_id = None
             
             # Format standardized action message
             entity_display = entity_name or f"{entity_type} #{entity_id}"

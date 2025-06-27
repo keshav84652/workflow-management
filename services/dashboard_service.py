@@ -4,17 +4,23 @@ Dashboard service layer for business logic
 
 from typing import Dict, Any, List
 from datetime import datetime, date, timedelta
-from flask import session
 
-from core.db_import import db
-from models import Project, Task, Client, User, WorkType, TaskStatus
+from core.db_import import db  # Add missing db import
+from repositories.task_repository import TaskRepository
+from repositories.project_repository import ProjectRepository
+from repositories.client_repository import ClientRepository
+from repositories.user_repository import UserRepository
+from models import Project, Task, User  # Temporary import for old methods
 
 
 class DashboardService:
     """Service class for dashboard-related business operations"""
 
     def __init__(self):
-        pass
+        self.task_repository = TaskRepository()
+        self.project_repository = ProjectRepository()
+        self.client_repository = ClientRepository()
+        self.user_repository = UserRepository()
     
 
     def get_dashboard_data(self, firm_id: int) -> Dict[str, Any]:
@@ -27,69 +33,113 @@ class DashboardService:
         Returns:
             Dictionary containing all dashboard statistics and data
         """
-        # Get basic counts
-        projects = DashboardService.get_active_projects(firm_id)
-        all_tasks = DashboardService.get_all_tasks_for_firm(firm_id)
-        filtered_tasks = DashboardService.filter_tasks_by_dependency_mode(all_tasks)
-        
-        # Calculate task statistics
-        total_tasks = len(filtered_tasks)
-        completed_tasks = len([task for task in filtered_tasks if task.is_completed])
-        overdue_tasks = len([task for task in filtered_tasks if task.is_overdue and not task.is_completed])
-        in_progress_tasks = len([task for task in filtered_tasks if task.status == 'In Progress'])
-        
-        # Get client count
-        active_clients = Client.query.filter_by(firm_id=firm_id, is_active=True).count()
-        
-        # Get user count
-        users_count = User.query.filter_by(firm_id=firm_id).count()
-        
-        # Get recent tasks and projects
-        recent_tasks = DashboardService.get_recent_tasks(firm_id, limit=5)
-        recent_projects = DashboardService.get_recent_projects(firm_id, limit=5)
-        
-        # Get work type data
-        work_type_data = DashboardService.get_work_type_status_data(firm_id)
-        
-        return {
-            'projects': {
-                'active': len(projects),
-                'total': Project.query.filter_by(firm_id=firm_id).count()
-            },
-            'tasks': {
-                'active': total_tasks - completed_tasks,
-                'total': total_tasks,
-                'completed': completed_tasks,
-                'overdue': overdue_tasks,
-                'in_progress': in_progress_tasks
-            },
-            'clients': {
-                'active': active_clients
-            },
-            'users': {
-                'count': users_count
-            },
-            'recent_tasks': recent_tasks,
-            'recent_projects': recent_projects,
-            'work_type_data': work_type_data,
-            'projects_list': projects
-        }
+        try:
+            # Get basic counts using repositories
+            projects = self.project_repository.get_projects_by_firm(firm_id, filters={'status': 'Active'})
+            all_tasks = self.task_repository.get_tasks_by_firm(firm_id)
+            filtered_tasks = self._filter_tasks_by_dependency_mode(all_tasks)
+            
+            # Calculate task statistics
+            total_tasks = len(filtered_tasks)
+            completed_tasks = len([task for task in filtered_tasks if task.is_completed])
+            overdue_tasks = len([task for task in filtered_tasks if task.is_overdue and not task.is_completed])
+            in_progress_tasks = len([task for task in filtered_tasks if task.status == 'In Progress'])
+            
+            # Get counts using repositories
+            active_clients = self.client_repository.get_active_count(firm_id)
+            users_count = self.user_repository.get_count_by_firm(firm_id)
+            total_projects = self.project_repository.get_count_by_firm(firm_id)
+            
+            # Get recent data using repositories
+            recent_tasks = self.task_repository.get_recent_tasks(firm_id, limit=5)
+            recent_projects = self.project_repository.get_recent_projects(firm_id, limit=5)
+            
+            # Get work type data (TODO: create WorkTypeRepository)
+            work_type_data = self._get_work_type_status_data(firm_id)
+            
+            return {
+                'projects': {
+                    'active': len(projects),
+                    'total': total_projects
+                },
+                'tasks': {
+                    'active': total_tasks - completed_tasks,
+                    'total': total_tasks,
+                    'completed': completed_tasks,
+                    'overdue': overdue_tasks,
+                    'in_progress': in_progress_tasks
+                },
+                'clients': {
+                    'active': active_clients
+                },
+                'users': {
+                    'count': users_count
+                },
+                'recent_tasks': recent_tasks,
+                'recent_projects': recent_projects,
+                'work_type_data': work_type_data,
+                'projects_list': projects,
+                'filtered_tasks': filtered_tasks  # Add actual filtered task list
+            }
+            
+        except Exception as e:
+            # Log error and return safe fallback
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting dashboard data for firm {firm_id}: {e}")
+            
+            return {
+                'projects': {'active': 0, 'total': 0},
+                'tasks': {'active': 0, 'total': 0, 'completed': 0, 'overdue': 0, 'in_progress': 0},
+                'clients': {'active': 0},
+                'users': {'count': 0},
+                'recent_tasks': [],
+                'recent_projects': [],
+                'work_type_data': {},
+                'projects_list': [],
+                'error': 'Unable to load dashboard data'
+            }
     
 
-    def get_active_projects(self, firm_id: int) -> List[Project]:
+    def _filter_tasks_by_dependency_mode(self, tasks: List) -> List:
         """
-        Get all active projects for a firm
+        Filter tasks based on project dependency mode
+        For interdependent projects, only show the first active task
         
         Args:
-            firm_id: The firm's ID
+            tasks: List of Task objects to filter
             
         Returns:
-            List of active Project objects
+            List of filtered Task objects
         """
-        return Project.query.filter_by(firm_id=firm_id, status='Active').all()
+        filtered_tasks = []
+        seen_projects = set()
+        
+        for task in tasks:
+            if task.project and task.project.task_dependency_mode:
+                # For interdependent projects, only count the first active task per project
+                if task.project_id not in seen_projects and not task.is_completed:
+                    filtered_tasks.append(task)
+                    seen_projects.add(task.project_id)
+            else:
+                # For independent tasks or non-interdependent projects, count all tasks
+                filtered_tasks.append(task)
+        
+        return filtered_tasks
     
+    def _get_work_type_status_data(self, firm_id: int) -> Dict[str, Any]:
+        """
+        Get work type data (temporary until WorkTypeRepository is created)
+        TODO: Move to WorkTypeRepository
+        """
+        try:
+            from models import WorkType
+            work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+            return {wt.name: {'name': wt.name, 'color': wt.color} for wt in work_types}
+        except Exception:
+            return {}
 
-    def get_all_tasks_for_firm(self, firm_id: int) -> List[Task]:
+    def get_all_tasks_for_firm(self, firm_id: int) -> List:
         """
         Get all tasks for a firm (both project and independent tasks)
         
@@ -115,7 +165,7 @@ class DashboardService:
         ).all()
     
 
-    def filter_tasks_by_dependency_mode(self, tasks: List[Task]) -> List[Task]:
+    def filter_tasks_by_dependency_mode(self, tasks: List) -> List:
         """
         Filter tasks based on project dependency mode
         For interdependent projects, only show the first active task
@@ -142,7 +192,7 @@ class DashboardService:
         return filtered_tasks
     
 
-    def get_recent_tasks(self, firm_id: int, limit: int = 5) -> List[Task]:
+    def get_recent_tasks(self, firm_id: int, limit: int = 5) -> List:
         """
         Get recently created or updated tasks
         
@@ -161,7 +211,7 @@ class DashboardService:
         ).order_by(Task.created_at.desc()).limit(limit).all()
     
 
-    def get_recent_projects(self, firm_id: int, limit: int = 5) -> List[Project]:
+    def get_recent_projects(self, firm_id: int, limit: int = 5) -> List:
         """
         Get recently created projects
         
@@ -216,7 +266,7 @@ class DashboardService:
         return work_type_data
     
 
-    def get_overdue_tasks(self, firm_id: int) -> List[Task]:
+    def get_overdue_tasks(self, firm_id: int) -> List:
         """
         Get all overdue tasks for a firm
         
@@ -232,7 +282,7 @@ class DashboardService:
         return [task for task in filtered_tasks if task.is_overdue and not task.is_completed]
     
 
-    def get_tasks_by_priority(self, firm_id: int) -> Dict[str, List[Task]]:
+    def get_tasks_by_priority(self, firm_id: int) -> Dict[str, List]:
         """
         Get tasks grouped by priority
         
@@ -258,7 +308,7 @@ class DashboardService:
         return priority_groups
     
 
-    def get_tasks_by_status(self, firm_id: int) -> Dict[str, List[Task]]:
+    def get_tasks_by_status(self, firm_id: int) -> Dict[str, List]:
         """
         Get tasks grouped by status
         
@@ -323,7 +373,7 @@ class DashboardService:
         return workload_data
     
 
-    def get_upcoming_deadlines(self, firm_id: int, days_ahead: int = 7) -> List[Task]:
+    def get_upcoming_deadlines(self, firm_id: int, days_ahead: int = 7) -> List:
         """
         Get tasks with upcoming deadlines
         
@@ -654,24 +704,55 @@ class DashboardService:
         
         for project in projects:
             # Determine which column the project belongs to based on status
-            if project.current_status_id == 1:  # Not Started
-                column = 'not_started'
-            elif project.current_status_id == 2:  # In Progress
-                column = 'in_progress'
-            elif project.current_status_id == 3:  # Needs Review
-                column = 'needs_review'
-            elif project.current_status_id == 4:  # Completed
-                column = 'completed'
-            else:
-                # Fallback logic based on progress percentage
-                if project.progress_percentage >= 100:
-                    column = 'completed'
-                elif project.progress_percentage >= 75:
-                    column = 'needs_review'
-                elif project.progress_percentage > 0:
-                    column = 'in_progress'
-                else:
+            column = 'not_started'  # Default fallback
+            
+            # First try to use current_status_id if it exists and is not null
+            if hasattr(project, 'current_status_id') and project.current_status_id is not None:
+                # Map status IDs to columns - this assumes standard status mapping
+                # TODO: Make this more flexible by querying TaskStatus table
+                if project.current_status_id == 1:  # Not Started
                     column = 'not_started'
+                elif project.current_status_id == 2:  # In Progress
+                    column = 'in_progress'
+                elif project.current_status_id == 3:  # Needs Review
+                    column = 'needs_review'
+                elif project.current_status_id == 4:  # Completed
+                    column = 'completed'
+                else:
+                    # For any other status ID, use progress percentage
+                    try:
+                        progress = project.progress_percentage
+                        if progress >= 100:
+                            column = 'completed'
+                        elif progress >= 75:
+                            column = 'needs_review'
+                        elif progress > 0:
+                            column = 'in_progress'
+                        else:
+                            column = 'not_started'
+                    except:
+                        column = 'not_started'
+            else:
+                # Fallback: Use project.status field and progress percentage
+                if hasattr(project, 'status'):
+                    if project.status == 'Completed':
+                        column = 'completed'
+                    elif project.status == 'Active':
+                        # Use progress percentage to determine column for active projects
+                        try:
+                            progress = project.progress_percentage
+                            if progress >= 100:
+                                column = 'completed'
+                            elif progress >= 75:
+                                column = 'needs_review'
+                            elif progress > 0:
+                                column = 'in_progress'
+                            else:
+                                column = 'not_started'
+                        except:
+                            column = 'not_started'
+                    else:
+                        column = 'not_started'
             
             kanban_data[column].append(project)
         

@@ -68,6 +68,5 @@ class AttachmentRepository(CachedRepository[Attachment]):
             return False
         
         db.session.delete(attachment)
-        db.session.commit()
-        self._invalidate_cache(attachment_id)
+        # Note: Transaction commit is handled by service layer
         return True

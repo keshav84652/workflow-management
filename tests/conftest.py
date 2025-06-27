@@ -85,7 +85,7 @@ def test_firm(app):
 def test_user(app):
     """Provide test user data."""
     with app.app_context():
-        return User.query.filter_by(username="testuser").first()
+        return User.query.filter_by(name="Test User").first()
 
 
 @pytest.fixture(scope="session")
@@ -148,8 +148,7 @@ def _create_test_data():
     
     # Create user
     test_user = User(
-        username="testuser",
-        email="test@example.com",
+        name="Test User",
         role="Admin",
         firm_id=test_firm.id
     )
@@ -169,20 +168,24 @@ def _create_test_data():
         firm_id=test_firm.id
     )
     db.session.add(work_type)
+    db.session.flush()  # Get work_type.id
     
     # Create task statuses
     task_statuses = [
-        ("Not Started", "#gray"),
-        ("In Progress", "#blue"), 
-        ("Review", "#orange"),
-        ("Completed", "#green")
+        ("Not Started", "#gray", True),  # is_default
+        ("In Progress", "#blue", False), 
+        ("Review", "#orange", False),
+        ("Completed", "#green", False)
     ]
     
-    for name, color in task_statuses:
+    for i, (name, color, is_default) in enumerate(task_statuses):
         status = TaskStatus(
             name=name,
             color=color,
-            firm_id=test_firm.id
+            firm_id=test_firm.id,
+            work_type_id=work_type.id,
+            position=i,
+            is_default=is_default
         )
         db.session.add(status)
     
@@ -194,7 +197,6 @@ def _create_test_data():
     test_project = Project(
         name="Test Tax Return",
         client_id=test_client.id,
-        assigned_user_id=test_user.id,
         work_type_id=work_type.id,
         firm_id=test_firm.id
     )
@@ -204,8 +206,8 @@ def _create_test_data():
     test_task = Task(
         title="Review Documents",
         project_id=test_project.id,
-        assigned_user_id=test_user.id,
-        status="pending",
+        assignee_id=test_user.id,
+        status="Not Started",
         firm_id=test_firm.id
     )
     db.session.add(test_task)
@@ -214,14 +216,14 @@ def _create_test_data():
     test_checklist = DocumentChecklist(
         name="Tax Documents",
         client_id=test_client.id,
-        created_by=test_user.id,
-        firm_id=test_firm.id
+        created_by=test_user.id
     )
     db.session.add(test_checklist)
+    db.session.flush()  # Get checklist.id
     
     # Create checklist item
     test_checklist_item = ChecklistItem(
-        name="W-2 Forms",
+        title="W-2 Forms",
         description="Employee W-2 tax forms",
         checklist_id=test_checklist.id,
         status="pending"
@@ -232,8 +234,7 @@ def _create_test_data():
     template = Template(
         name="Standard Tax Return",
         description="Standard template for tax returns",
-        firm_id=test_firm.id,
-        created_by=test_user.id
+        firm_id=test_firm.id
     )
     db.session.add(template)
     
@@ -312,5 +313,5 @@ def authenticated_session(client, test_user, test_firm):
     with client.session_transaction() as sess:
         sess['user_id'] = test_user.id
         sess['firm_id'] = test_firm.id
-        sess['username'] = test_user.username
+        sess['user_name'] = test_user.name
     return client
