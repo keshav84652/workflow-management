@@ -14,7 +14,7 @@ def create_activity_log(action: str, user_id: Optional[int] = None,
                        project_id: Optional[int] = None, 
                        task_id: Optional[int] = None) -> None:
     """Create an activity log entry"""
-    from core import db
+    from core.db_import import db
     from models import ActivityLog
     
     log = ActivityLog(
@@ -33,7 +33,7 @@ def create_activity_log(action: str, user_id: Optional[int] = None,
 
 def process_recurring_tasks() -> Dict[str, Any]:
     """Process recurring tasks"""
-    from core import db
+    from core.db_import import db
     from models import Task, TemplateTask
     
     try:
@@ -182,7 +182,7 @@ def calculate_task_due_date(project_start_date: datetime,
 
 def find_or_create_client(name: str, email: str, firm_id: int) -> 'Client':
     """Find or create a client by name and email"""
-    from core import db
+    from core.db_import import db
     from models import Client
     
     # Try to find by exact email match first

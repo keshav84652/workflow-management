@@ -215,7 +215,7 @@ class SimpleCriticalFixesTests(unittest.TestCase):
     
     def test_session_helper_functions(self):
         """Test that session helper functions work correctly"""
-        from utils import get_session_firm_id, get_session_user_id
+        from utils.consolidated import get_session_firm_id, get_session_user_id
         
         with self.app.test_request_context():
             # Test with mock session data

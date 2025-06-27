@@ -9,40 +9,46 @@ import calendar
 from flask import session
 from core.db_import import db
 from models import Task, Project, User, ActivityLog, TaskComment, TemplateTask
+from repositories.task_repository import TaskRepository
 from services.activity_service import ActivityService
 from utils.session_helpers import get_session_firm_id, get_session_user_id
-
-
 from events.publisher import publish_event
 from events.schemas import TaskCreatedEvent, TaskUpdatedEvent
 
 class TaskService:
     """Service class for task-related business operations"""
     
-    @staticmethod
-    def get_tasks_for_firm(firm_id: int) -> List[Task]:
+    def __init__(self):
+        self.task_repository = TaskRepository()
+    
+    def get_tasks_for_firm(self, firm_id: int) -> List[Task]:
         """Get all tasks for a firm"""
-        return Task.query.filter_by(firm_id=firm_id).all()
+        return self.task_repository.get_all(firm_id=firm_id)
     
-    @staticmethod
-    def get_task_by_id(task_id: int, firm_id: int) -> Optional[Task]:
+    def get_task_by_id(self, task_id: int, firm_id: int) -> Optional[Task]:
         """Get a task by ID, ensuring it belongs to the firm"""
-        return Task.query.filter_by(id=task_id, firm_id=firm_id).first()
+        task = self.task_repository.get_by_id(task_id)
+        # Verify firm ownership
+        if task and hasattr(task, 'firm_id') and task.firm_id != firm_id:
+            return None
+        return task
     
-    @staticmethod
-    def update_task_status(task_id: int, status: str, firm_id: Optional[int] = None) -> Dict[str, Any]:
+    def update_task_status(self, task_id: int, status: str, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Update task status"""
         if firm_id is None:
             firm_id = get_session_firm_id()
         
         try:
-            task = TaskService.get_task_by_id(task_id, firm_id)
+            task = self.get_task_by_id(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found'}
             
             old_status = task.status
-            task.status = status
-            db.session.commit()
+            
+            # Use repository for update
+            updated_task = self.task_repository.update(task_id, {'status': status})
+            if not updated_task:
+                return {'success': False, 'message': 'Failed to update task'}
             
             # Create activity log
             ActivityService.ActivityService.create_activity_log(
@@ -51,140 +57,36 @@ class TaskService:
                 task_id=task_id
             )
             
+            # Publish event
+            event = TaskUpdatedEvent(
+                task_id=task_id,
+                task_title=task.title,
+                changes={'status': {'old': old_status, 'new': status}},
+                priority=task.priority or 'Medium',
+                project_id=task.project_id,
+                assigned_to=task.assignee_id,
+                firm_id=firm_id,
+                user_id=session.get('user_id')
+            )
+            publish_event(event)
+            
             return {'success': True, 'message': f'Task status updated to {status}'}
             
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': f'Error updating task: {str(e)}'}
     
-    @staticmethod
-    def get_task_statistics(firm_id: Optional[int] = None) -> Dict[str, Any]:
+    def get_task_statistics(self, firm_id: Optional[int] = None) -> Dict[str, Any]:
         """Get task statistics for dashboard"""
         if firm_id is None:
             firm_id = get_session_firm_id()
         
-        tasks = TaskService.get_tasks_for_firm(firm_id)
-        
-        stats = {
-            'total': len(tasks),
-            'not_started': len([t for t in tasks if t.status == 'Not Started']),
-            'in_progress': len([t for t in tasks if t.status == 'In Progress']),
-            'completed': len([t for t in tasks if t.status == 'Completed']),
-            'overdue': len([t for t in tasks if t.is_overdue]),
-        }
-        
-        return stats
+        # Use repository for efficient statistics
+        return self.task_repository.get_task_statistics(firm_id)
     
-    @staticmethod
-    def get_filtered_tasks_optimized(firm_id: int, filters: Dict[str, Any] = None) -> List[Task]:
+    def get_filtered_tasks_optimized(self, firm_id: int, filters: Dict[str, Any] = None) -> List[Task]:
         """
-        Get tasks with optimized eager loading to prevent N+1 queries
-        
-        Args:
-            firm_id: The firm's ID
-            filters: Dictionary of filter parameters
-        
-        Returns:
-            List of filtered Task objects with eager loaded relationships
-        """
-        from sqlalchemy.orm import selectinload, joinedload
-        
-        if filters is None:
-            filters = {}
-        
-        # Base query with eager loading for all relationships used in properties
-        query = Task.query.options(
-            joinedload(Task.project),  # For is_overdue, is_due_soon checks
-            joinedload(Task.assignee),  # For assignee info
-            joinedload(Task.task_status_ref),  # For status properties
-            selectinload(Task.subtasks)  # For subtask operations
-        ).outerjoin(Project).filter(
-            db.or_(
-                Project.firm_id == firm_id,
-                db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            )
-        )
-        
-        # Apply filters (same as original method)
-        if not filters.get('show_completed', False):
-            query = query.filter(Task.status != 'Completed')
-        
-        if filters.get('status_filters'):
-            query = query.filter(Task.status.in_(filters['status_filters']))
-        
-        if filters.get('priority_filters'):
-            query = query.filter(Task.priority.in_(filters['priority_filters']))
-        
-        if filters.get('assignee_filters'):
-            assignee_conditions = []
-            if 'unassigned' in filters['assignee_filters']:
-                assignee_conditions.append(Task.assignee_id.is_(None))
-            
-            user_ids = [f for f in filters['assignee_filters'] if f != 'unassigned']
-            if user_ids:
-                assignee_conditions.append(Task.assignee_id.in_(user_ids))
-            
-            if assignee_conditions:
-                query = query.filter(db.or_(*assignee_conditions))
-        
-        if filters.get('project_filters'):
-            project_conditions = []
-            if 'independent' in filters['project_filters']:
-                project_conditions.append(Task.project_id.is_(None))
-            
-            project_ids = [f for f in filters['project_filters'] if f != 'independent']
-            if project_ids:
-                project_conditions.append(Task.project_id.in_(project_ids))
-            
-            if project_conditions:
-                query = query.filter(db.or_(*project_conditions))
-        
-        # Date-based filters
-        today = date.today()
-        if filters.get('overdue_filter') == 'true':
-            query = query.filter(
-                Task.due_date < today, 
-                Task.status != 'Completed',
-                db.or_(
-                    Task.project_id.is_(None),
-                    Project.status != 'Completed'
-                )
-            )
-        elif filters.get('due_date_filter') == 'today':
-            query = query.filter(Task.due_date == today)
-        elif filters.get('due_date_filter') == 'soon':
-            soon_date = today + timedelta(days=3)
-            query = query.filter(Task.due_date.between(today, soon_date))
-        
-        # Get all tasks with optimized ordering
-        all_tasks = query.order_by(
-            Task.due_date.asc().nullslast(),
-            db.case(
-                (Task.priority == 'High', 1),
-                (Task.priority == 'Medium', 2),
-                (Task.priority == 'Low', 3),
-                else_=4
-            )
-        ).all()
-        
-        # Filter to show only current active task per interdependent project
-        tasks = []
-        seen_projects = set()
-        
-        for task in all_tasks:
-            if task.project and task.project.task_dependency_mode:
-                if task.project_id not in seen_projects and not task.is_completed:
-                    tasks.append(task)
-                    seen_projects.add(task.project_id)
-            else:
-                tasks.append(task)
-        
-        return tasks
-    
-    @staticmethod
-    def get_filtered_tasks(firm_id: int, filters: Dict[str, Any] = None) -> List[Task]:
-        """
-        Get tasks with various filters applied
+        Get tasks with filters using repository pattern
         
         Args:
             firm_id: The firm's ID
@@ -195,6 +97,13 @@ class TaskService:
         """
         if filters is None:
             filters = {}
+        
+        # Use repository's filtered task method
+        return self.task_repository.get_filtered_tasks(firm_id, filters)
+    
+    def get_filtered_tasks(self, firm_id: int, filters: Dict[str, Any] = None) -> List[Task]:
+        """Get tasks with various filters applied using repository"""
+        return self.get_filtered_tasks_optimized(firm_id, filters)
         
         # Base query - include both project tasks and independent tasks
         query = Task.query.outerjoin(Project).filter(

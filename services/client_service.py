@@ -7,31 +7,28 @@ from flask import session
 
 from core.db_import import db
 from models import Client, Project, Contact, ActivityLog, ClientContact, ClientUser
+from repositories.client_repository import ClientRepository
 from services.activity_service import ActivityService
 from utils.consolidated import get_session_firm_id, get_session_user_id
-
-
 from events.publisher import publish_event
 from events.schemas import ClientCreatedEvent, ClientUpdatedEvent
 
 class ClientService:
     """Service class for client-related business operations"""
     
-    @staticmethod
-    def get_clients_for_firm(firm_id: int, active_only: bool = False) -> List[Client]:
+    def __init__(self):
+        self.client_repository = ClientRepository()
+    
+    def get_clients_for_firm(self, firm_id: int, active_only: bool = False) -> List[Client]:
         """Get all clients for a firm"""
-        query = Client.query.filter_by(firm_id=firm_id)
-        if active_only:
-            query = query.filter_by(is_active=True)
-        return query.all()
+        return self.client_repository.get_by_firm(firm_id, include_inactive=not active_only)
     
-    @staticmethod
-    def get_client_by_id(client_id: int, firm_id: int) -> Optional[Client]:
+    def get_client_by_id(self, client_id: int, firm_id: int) -> Optional[Client]:
         """Get a client by ID, ensuring it belongs to the firm"""
-        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        return self.client_repository.get_by_id_and_firm(client_id, firm_id)
     
-    @staticmethod
     def create_client(
+        self,
         name: str,
         entity_type: Optional[str] = None,
         email: Optional[str] = None,
@@ -48,19 +45,23 @@ class ClientService:
             firm_id = get_session_firm_id()
         
         try:
-            client = Client(
-                name=name,
-                entity_type=entity_type,
-                email=email,
-                phone=phone,
-                address=address,
-                contact_person=contact_person,
-                tax_id=tax_id,
-                notes=notes,
-                firm_id=firm_id
-            )
-            db.session.add(client)
-            db.session.commit()
+            # Use repository to create client
+            client_data = {
+                'name': name,
+                'entity_type': entity_type,
+                'email': email,
+                'phone': phone,
+                'address': address,
+                'contact_person': contact_person,
+                'tax_id': tax_id,
+                'notes': notes,
+                'firm_id': firm_id,
+                'is_active': True
+            }
+            
+            client = self.client_repository.create(client_data)
+            
+            # Publish event
             publish_event(ClientCreatedEvent(
                 client_id=client.id,
                 firm_id=client.firm_id,
@@ -71,7 +72,7 @@ class ClientService:
             # Create activity log
             ActivityService.create_activity_log(
                 action=f'Created client "{client.name}"',
-                user_id=user_id
+                user_id=user_id or get_session_user_id()
             )
             
             return {
@@ -81,7 +82,6 @@ class ClientService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {'success': False, 'message': f'Error creating client: {str(e)}'}
     
     @staticmethod

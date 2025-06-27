@@ -523,7 +523,7 @@ class RefactorSafetyIntegrationTests(unittest.TestCase):
     
     def test_session_management_contract(self):
         """Test session helper functions work correctly"""
-        from utils import get_session_firm_id, get_session_user_id
+        from utils.consolidated import get_session_firm_id, get_session_user_id
         
         # Mock Flask session
         with patch('utils.session', self.session_data):
