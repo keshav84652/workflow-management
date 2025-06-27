@@ -93,46 +93,23 @@ def disassociate_contact_client(contact_id, client_id):
 
 @contacts_bp.route('/<int:contact_id>/link_client', methods=['POST'])
 def link_contact_client(contact_id):
-    contact = Contact.query.get_or_404(contact_id)
-    
+    firm_id = get_session_firm_id()
+    user_id = get_session_user_id()
     client_id = request.form.get('client_id')
     relationship_type = request.form.get('relationship_type')
     is_primary = request.form.get('is_primary') == '1'
-    
+
     if not client_id:
         flash('Please select a client', 'error')
         return redirect(url_for('contacts.view_contact', id=contact_id))
-    
-    client = Client.query.get_or_404(client_id)
-    
-    if client.firm_id != session['firm_id']:
-        flash('Access denied', 'error')
-        return redirect(url_for('contacts.list_contacts'))
-    
-    # Check if association already exists
-    existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
-    if existing:
-        flash('Contact is already associated with this client', 'error')
-        return redirect(url_for('contacts.view_contact', id=contact_id))
-    
-    # If setting as primary, remove primary status from other contacts for this client
-    if is_primary:
-        ClientContact.query.filter_by(client_id=client_id, is_primary=True).update({'is_primary': False})
-    
-    # Create new association
-    client_contact = ClientContact(
-        client_id=client_id,
+
+    result = ContactService().link_contact_to_client(
         contact_id=contact_id,
+        client_id=client_id,
         relationship_type=relationship_type,
-        is_primary=is_primary
+        is_primary=is_primary,
+        firm_id=firm_id,
+        user_id=user_id
     )
-    
-    # TODO: Move to service layer
-    # db.session.add(client_contact)
-    # TODO: Move to service layer
-    # db.session.commit()
-    
-    ActivityService.create_activity_log(f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}', session['user_id'])
-    flash('Client linked successfully!', 'success')
-    
+    flash(result['message'], 'success' if result['success'] else 'error')
     return redirect(url_for('contacts.view_contact', id=contact_id))

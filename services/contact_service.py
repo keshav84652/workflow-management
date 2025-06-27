@@ -89,3 +89,29 @@ class ContactService:
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
+
+    def link_contact_to_client(self, contact_id, client_id, relationship_type, is_primary, firm_id, user_id):
+        try:
+            contact = Contact.query.get_or_404(contact_id)
+            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
+            if existing:
+                return {'success': False, 'message': 'Contact is already associated with this client'}
+            if is_primary:
+                ClientContact.query.filter_by(client_id=client_id, is_primary=True).update({'is_primary': False})
+            client_contact = ClientContact(
+                client_id=client_id,
+                contact_id=contact_id,
+                relationship_type=relationship_type,
+                is_primary=is_primary
+            )
+            db.session.add(client_contact)
+            db.session.commit()
+            self.activity_logger.create_activity_log(
+                f'Contact "{contact.full_name}" linked to client "{client.name}" as {relationship_type}',
+                user_id
+            )
+            return {'success': True, 'message': 'Client linked successfully!'}
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
