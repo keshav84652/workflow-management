@@ -8,7 +8,6 @@ from flask import session
 from core.db_import import db
 from models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog
 from repositories.project_repository import ProjectRepository
-from utils.core import calculate_task_due_date, find_or_create_client
 from utils.session_helpers import get_session_firm_id, get_session_user_id
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from events.publisher import publish_event
@@ -19,6 +18,11 @@ class ProjectService:
     
     def __init__(self):
         self.project_repository = ProjectRepository()
+        # Import here to avoid circular imports
+        from services.task_service import TaskService
+        from services.client_service import ClientService
+        self.task_service = TaskService()
+        self.client_service = ClientService()
     
     def get_projects_for_firm(self, firm_id: int) -> List[Project]:
         """Get all projects for a firm"""
@@ -50,7 +54,7 @@ class ProjectService:
         
         try:
             # Find or create client
-            client = find_or_create_client(client_name, firm_id)
+            client = self.client_service.find_or_create_client(client_name, firm_id)
             was_new_client = client.email is None
             
             # Get template to access work type
@@ -125,7 +129,7 @@ class ProjectService:
         
         for template_task in template.template_tasks:
             # Calculate due date
-            task_due_date = calculate_task_due_date(start_date, template_task)
+            task_due_date = self.task_service.calculate_task_due_date(start_date, template_task)
             
             # Determine status: use template status if available, otherwise work type default
             status_id = None

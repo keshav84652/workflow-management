@@ -5,49 +5,34 @@ Common utility functions and helpers.
 UPDATED: Now uses consolidated utilities to eliminate duplication.
 """
 
-# Import from consolidated utilities (eliminates duplication)
+# Import from consolidated utilities (clean architecture)
 from .consolidated import (
     get_session_firm_id,
     get_session_user_id,
     generate_access_code,
     format_currency,
     format_date,
-    calculate_business_days,
-    create_activity_log  # Backwards compatibility
+    calculate_business_days
 )
 
-# Import remaining core utilities that aren't duplicated
-from .core import (
-    process_recurring_tasks,
-    calculate_next_due_date,
-    calculate_task_due_date,
-    find_or_create_client
-)
+# NOTE: Service functions moved to their respective services
+# Use service instances directly instead of utility wrappers
 
 # Import health checks
 from .health_checks import check_system_health
 
 __all__ = [
-    # Session management (consolidated)
+    # Session management
     'get_session_firm_id',
     'get_session_user_id',
     
-    # Security (consolidated)
+    # Security
     'generate_access_code',
     
-    # Date/time utilities (consolidated)
+    # Date/time utilities
     'format_currency',
     'format_date', 
     'calculate_business_days',
-    
-    # Legacy/compatibility (consolidated)
-    'create_activity_log',
-    
-    # Core utilities (not duplicated)
-    'process_recurring_tasks',
-    'calculate_next_due_date',
-    'calculate_task_due_date',
-    'find_or_create_client',
     
     # Health monitoring
     'check_system_health'

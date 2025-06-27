@@ -30,45 +30,5 @@ def get_session_user_id():
                         f"User may need to log in again. Request path: {request.path}")
     return session['user_id']
 
-# Wrapper functions for backward compatibility
-# These functions now delegate to the appropriate services
-
-def create_activity_log(action, user_id, project_id=None, task_id=None, details=None):
-    """
-    DEPRECATED: Use ActivityService.create_activity_log() directly
-    This wrapper is provided for backward compatibility only
-    """
-    from services.activity_logging_service import ActivityLoggingService as ActivityService
-    ActivityService.create_activity_log(action, user_id, project_id, task_id, details)
-
-def calculate_task_due_date(project_start_date, template_task):
-    """
-    DEPRECATED: Use TaskService.calculate_task_due_date() directly
-    This wrapper is provided for backward compatibility only
-    """
-    from services.task_service import TaskService
-    return TaskService.calculate_task_due_date(project_start_date, template_task)
-
-def find_or_create_client(client_name, firm_id):
-    """
-    DEPRECATED: Use ClientService.find_or_create_client() directly
-    This wrapper is provided for backward compatibility only
-    """
-    from services.client_service import ClientService
-    return ClientService.find_or_create_client(client_name, firm_id)
-
-def calculate_next_due_date(recurrence_rule, base_date=None):
-    """
-    DEPRECATED: Use TaskService.calculate_next_due_date() directly
-    This wrapper is provided for backward compatibility only
-    """
-    from services.task_service import TaskService
-    return TaskService.calculate_next_due_date(recurrence_rule, base_date)
-
-def process_recurring_tasks():
-    """
-    DEPRECATED: Use TaskService.process_recurring_tasks() directly
-    This wrapper is provided for backward compatibility only
-    """
-    from services.task_service import TaskService
-    return TaskService.process_recurring_tasks()
+# No more backward compatibility wrappers!
+# All code should use service instances directly for clean architecture

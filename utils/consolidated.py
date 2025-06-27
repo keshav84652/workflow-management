@@ -85,22 +85,8 @@ def calculate_business_days(start_date: datetime, end_date: datetime) -> int:
     return business_days
 
 
-# ===== SERVICE DELEGATION =====
-# Modern approach: Direct service calls instead of utility wrappers
-
-def create_activity_log(action: str, user_id: Optional[int] = None, 
-                       project_id: Optional[int] = None, 
-                       task_id: Optional[int] = None) -> None:
-    """
-    RECOMMENDED: Use ActivityService.create_activity_log() directly
-    This utility is provided for convenience but direct service calls are preferred
-    """
-    from services.activity_logging_service import ActivityLoggingService as ActivityService
-    ActivityService.create_activity_log(action, user_id, project_id, task_id)
-
-
-# ===== BACKWARDS COMPATIBILITY =====
-# Re-export commonly used functions for smooth transition
+# ===== CLEAN ARCHITECTURE =====
+# No more service delegation wrappers! Use service instances directly.
 
 __all__ = [
     # Session management
@@ -110,11 +96,8 @@ __all__ = [
     # Security
     'generate_access_code',
     
-    # Date/time
+    # Date/time utilities
     'format_currency', 
     'format_date',
     'calculate_business_days',
-    
-    # Activity logging (deprecated pattern)
-    'create_activity_log',
 ]
