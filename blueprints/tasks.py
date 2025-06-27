@@ -4,17 +4,12 @@ Task management blueprint
 
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
-import importlib.util
-import os
 
-# Import db from root core.py file
-spec = importlib.util.spec_from_file_location("core", os.path.join(os.path.dirname(os.path.dirname(__file__)), "core.py"))
-core_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(core_module)
-db = core_module.db
+from core.db_import import db
 from models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
-from utils import create_activity_log, get_session_firm_id, get_session_user_id
 from services.task_service import TaskService
+from services.activity_service import ActivityService
+from utils.session_helpers import get_session_firm_id, get_session_user_id
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
@@ -204,7 +199,7 @@ def log_time(id):
         task.actual_hours = (task.actual_hours or 0) + hours
         
         # Create activity log
-        create_activity_log(
+        ActivityService.create_activity_log(
             f'Logged {hours}h on task "{task.title}" (Total: {task.actual_hours}h)',
             get_session_user_id(),
             task.project_id if task.project_id else None,
@@ -296,7 +291,7 @@ def update_task(id):
                 next_instance = task.create_next_instance()
                 if next_instance:
                     db.session.add(next_instance)
-                    create_activity_log(
+                    ActivityService.create_activity_log(
                         f'Next instance of recurring task "{task.title}" created for {next_instance.due_date}',
                         get_session_user_id(),
                         task.project_id if task.project_id else None,
@@ -306,7 +301,7 @@ def update_task(id):
         db.session.commit()
         
         if old_status != new_status:
-            create_activity_log(
+            ActivityService.create_activity_log(
                 f'Task "{task.title}" status changed from "{old_status}" to "{new_status}"',
                 get_session_user_id(),
                 task.project_id if task.project_id else None,
@@ -329,7 +324,7 @@ def start_timer(id):
     
     if task.start_timer():
         db.session.commit()
-        create_activity_log(f'Timer started for task "{task.title}"', get_session_user_id(), task.project_id, task.id)
+        ActivityService.create_activity_log(f'Timer started for task "{task.title}"', get_session_user_id(), task.project_id, task.id)
         return jsonify({'success': True, 'message': 'Timer started'})
     else:
         return jsonify({'success': False, 'message': 'Timer already running'})
@@ -347,7 +342,7 @@ def stop_timer(id):
     elapsed_hours = task.stop_timer()
     if elapsed_hours > 0:
         db.session.commit()
-        create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', get_session_user_id(), task.project_id, task.id)
+        ActivityService.create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', get_session_user_id(), task.project_id, task.id)
         return jsonify({
             'success': True, 
             'message': f'Timer stopped - {elapsed_hours:.2f}h logged',
