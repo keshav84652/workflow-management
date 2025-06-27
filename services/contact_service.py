@@ -3,7 +3,7 @@ ContactService: Handles all business logic for contacts, including creation, upd
 """
 
 from core.db_import import db
-from models import Contact
+from models import Contact, Client, ClientContact
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 
 class ContactService:
@@ -48,6 +48,44 @@ class ContactService:
                 user_id
             )
             return {'success': True, 'message': 'Contact updated successfully!', 'contact': contact}
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
+
+    def associate_contact_with_client(self, contact_id, client_id, firm_id, user_id):
+        try:
+            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            contact = Contact.query.get_or_404(contact_id)
+            existing = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
+            if existing:
+                return {'success': False, 'message': 'Contact already associated with this client'}
+            association = ClientContact(contact_id=contact_id, client_id=client_id)
+            db.session.add(association)
+            db.session.commit()
+            self.activity_logger.create_activity_log(
+                f'Contact "{contact.full_name}" associated with client "{client.name}".',
+                user_id
+            )
+            return {'success': True, 'message': f'Contact {contact.full_name} associated with {client.name}'}
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': str(e)}
+
+    def disassociate_contact_from_client(self, contact_id, client_id, firm_id, user_id):
+        try:
+            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            contact = Contact.query.get_or_404(contact_id)
+            association = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
+            if association:
+                db.session.delete(association)
+                db.session.commit()
+                self.activity_logger.create_activity_log(
+                    f'Contact "{contact.full_name}" disassociated from client "{client.name}".',
+                    user_id
+                )
+                return {'success': True, 'message': f'Contact {contact.full_name} disassociated from {client.name}'}
+            else:
+                return {'success': False, 'message': 'No association found'}
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}

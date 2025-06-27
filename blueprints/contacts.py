@@ -78,55 +78,17 @@ def edit_contact(id):
 @contacts_bp.route('/<int:contact_id>/clients/<int:client_id>/associate', methods=['POST'])
 def associate_contact_client(contact_id, client_id):
     firm_id = get_session_firm_id()
-    
-    # Verify client belongs to firm
-    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
-    contact = Contact.query.get_or_404(contact_id)
-    
-    try:
-        # Check if association already exists
-        existing = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
-        if existing:
-            return jsonify({'success': False, 'message': 'Contact already associated with this client'})
-        
-        # Create association
-        association = ClientContact(contact_id=contact_id, client_id=client_id)
-        # TODO: Move to service layer
-        # db.session.add(association)
-        # TODO: Move to service layer
-        # db.session.commit()
-        
-        return jsonify({'success': True, 'message': f'Contact {contact.full_name} associated with {client.name}'})
-    
-    except Exception as e:
-        # TODO: Move to service layer
-        # db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+    user_id = get_session_user_id()
+    result = ContactService().associate_contact_with_client(contact_id, client_id, firm_id, user_id)
+    return jsonify(result)
 
 
 @contacts_bp.route('/<int:contact_id>/clients/<int:client_id>/disassociate', methods=['POST'])
 def disassociate_contact_client(contact_id, client_id):
     firm_id = get_session_firm_id()
-    
-    # Verify client belongs to firm
-    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
-    contact = Contact.query.get_or_404(contact_id)
-    
-    try:
-        # Find and remove association
-        association = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
-        if association:
-            db.session.delete(association)
-            # TODO: Move to service layer
-            # db.session.commit()
-            return jsonify({'success': True, 'message': f'Contact {contact.full_name} disassociated from {client.name}'})
-        else:
-            return jsonify({'success': False, 'message': 'No association found'})
-    
-    except Exception as e:
-        # TODO: Move to service layer
-        # db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
+    user_id = get_session_user_id()
+    result = ContactService().disassociate_contact_from_client(contact_id, client_id, firm_id, user_id)
+    return jsonify(result)
 
 
 @contacts_bp.route('/<int:contact_id>/link_client', methods=['POST'])
