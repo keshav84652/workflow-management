@@ -17,6 +17,8 @@ from repositories.template_repository import TemplateRepository
 from repositories.task_repository import TaskRepository
 from repositories.project_repository import ProjectRepository
 from services.base import BaseService, transactional
+from services.worktype_service import WorkTypeService
+from services.template_service import TemplateService
 
 
 class AdminService(BaseService):
@@ -29,6 +31,8 @@ class AdminService(BaseService):
         self.template_repository = TemplateRepository()
         self.task_repository = TaskRepository()
         self.project_repository = ProjectRepository()
+        self.worktype_service = WorkTypeService()
+        self.template_service = TemplateService()
     
     def authenticate_admin(self, password: str) -> Dict[str, Any]:
         """
@@ -203,7 +207,7 @@ class AdminService(BaseService):
         Returns:
             List of Template objects for the firm
         """
-        return Template.query.filter_by(firm_id=firm_id).order_by(Template.created_at.desc()).all()
+        return self.template_service.get_templates_by_firm(firm_id)
     
 
     @transactional
@@ -284,7 +288,7 @@ class AdminService(BaseService):
         Returns:
             Template object if found and belongs to firm, None otherwise
         """
-        return Template.query.filter_by(id=template_id, firm_id=firm_id).first()
+        return self.template_service.get_template_by_id(template_id, firm_id)
     
 
     @transactional
@@ -400,7 +404,8 @@ class AdminService(BaseService):
         Returns:
             List of WorkType objects for the firm
         """
-        return WorkType.query.filter_by(firm_id=firm_id).all()
+        result = self.worktype_service.get_work_types_for_firm(firm_id)
+        return result.get('work_types', []) if result['success'] else []
     
 
     def get_work_type_usage_stats(self, firm_id: int) -> Dict[int, int]:
@@ -413,17 +418,7 @@ class AdminService(BaseService):
         Returns:
             Dict mapping work_type_id to task count
         """
-        work_types = self.get_work_types_for_firm(firm_id)
-        usage_stats = {}
-        
-        for wt in work_types:
-            task_count = Task.query.join(Project).filter(
-                Task.firm_id == firm_id,
-                Project.work_type_id == wt.id
-            ).count()
-            usage_stats[wt.id] = task_count
-        
-        return usage_stats
+        return self.worktype_service.get_work_type_usage_stats(firm_id)
     
 
     @transactional
