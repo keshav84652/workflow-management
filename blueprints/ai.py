@@ -121,63 +121,84 @@ def _transform_analysis_to_old_format(analysis_results):
     provider_results = analysis_results.get('provider_results', {})
     combined_analysis = analysis_results.get('combined_analysis', {})
     
-    # Map Azure results
+    # Map Azure results - check both direct fields and raw_results
     azure_data = provider_results.get('Azure Document Intelligence', {})
-    if azure_data:
-        transformed['azure_result'] = {
-            'key_value_pairs': azure_data.get('fields', {}),
-            'tables': azure_data.get('entities', []),
-            'confidence': azure_data.get('confidence_score', 0),
-            'provider': 'Azure Document Intelligence'
-        }
+    if azure_data and 'error' not in azure_data:
+        # Check if data is in raw_results (new structure)
+        raw_results = azure_data.get('raw_results', {})
+        if raw_results and 'fields' in raw_results:
+            azure_fields = raw_results['fields']
+            azure_entities = raw_results.get('entities', [])
+            azure_confidence = raw_results.get('confidence', azure_data.get('confidence_score', 0))
+        else:
+            # Fallback to direct fields (old structure)
+            azure_fields = azure_data.get('fields', {})
+            azure_entities = azure_data.get('entities', [])
+            azure_confidence = azure_data.get('confidence_score', 0)
         
-        # Transform fields to key-value pairs format if needed
-        fields = azure_data.get('fields', {})
-        if isinstance(fields, dict):
-            kv_pairs = []
-            for key, value_data in fields.items():
-                if isinstance(value_data, dict):
-                    kv_pairs.append({
-                        'key': key,
-                        'value': value_data.get('value', str(value_data)),
-                        'confidence': value_data.get('confidence', 0)
-                    })
-                else:
-                    kv_pairs.append({
-                        'key': key,
-                        'value': str(value_data),
-                        'confidence': 1.0
-                    })
-            transformed['azure_result']['key_value_pairs'] = kv_pairs
-    
-    # Map Gemini results
-    gemini_data = provider_results.get('Google Gemini', {})
-    if gemini_data:
-        transformed['gemini_result'] = {
-            'document_type': gemini_data.get('document_type', ''),
-            'summary': gemini_data.get('summary', ''),
-            'key_findings': gemini_data.get('key_findings', []),
-            'recommendations': gemini_data.get('recommendations', []),
-            'confidence': gemini_data.get('confidence_score', 0),
-            'provider': 'Google Gemini'
+        # Get extracted text as fallback if no structured fields
+        extracted_text = raw_results.get('text', azure_data.get('extracted_text', ''))
+        
+        # Create key-value pairs from fields, or fallback content
+        kv_pairs = _extract_fields_as_kv_pairs(azure_fields)
+        if not kv_pairs and extracted_text:
+            # If no structured fields, show document type and text length as basic info
+            kv_pairs = [
+                {'key': 'Document Type', 'value': raw_results.get('document_type', 'Unknown'), 'confidence': 1.0},
+                {'key': 'Text Extracted', 'value': f'{len(extracted_text)} characters', 'confidence': 1.0},
+                {'key': 'Text Preview', 'value': extracted_text[:200] + ('...' if len(extracted_text) > 200 else ''), 'confidence': 1.0}
+            ]
+        
+        transformed['azure_result'] = {
+            'key_value_pairs': kv_pairs,
+            'tables': azure_entities,
+            'confidence': azure_confidence,
+            'provider': 'Azure Document Intelligence',
+            'extracted_text': extracted_text
         }
+    
+    # Map Gemini results - only if no error
+    gemini_data = provider_results.get('Google Gemini', {})
+    if gemini_data and 'error' not in gemini_data:
+        # Check if data is in raw_results
+        raw_results = gemini_data.get('raw_results', {})
+        if raw_results:
+            transformed['gemini_result'] = {
+                'document_type': raw_results.get('document_type', ''),
+                'summary': raw_results.get('summary', ''),
+                'key_findings': raw_results.get('key_findings', []),
+                'recommendations': raw_results.get('recommendations', []),
+                'confidence': raw_results.get('confidence', gemini_data.get('confidence_score', 0)),
+                'provider': 'Google Gemini'
+            }
+        else:
+            # Fallback to direct fields
+            transformed['gemini_result'] = {
+                'document_type': gemini_data.get('document_type', ''),
+                'summary': gemini_data.get('summary', ''),
+                'key_findings': gemini_data.get('key_findings', []),
+                'recommendations': gemini_data.get('recommendations', []),
+                'confidence': gemini_data.get('confidence_score', 0),
+                'provider': 'Google Gemini'
+            }
     
     # Fall back to combined analysis if provider-specific data is missing
     if not transformed['azure_result'] and not transformed['gemini_result']:
         if combined_analysis:
-            # Use combined analysis for both (frontend expects both)
+            # Check if combined analysis has raw_results
+            combined_raw = combined_analysis.get('raw_results', combined_analysis)
             transformed['azure_result'] = {
-                'key_value_pairs': _extract_fields_as_kv_pairs(combined_analysis.get('fields', {})),
-                'tables': combined_analysis.get('entities', []),
-                'confidence': combined_analysis.get('confidence_score', 0),
+                'key_value_pairs': _extract_fields_as_kv_pairs(combined_raw.get('fields', {})),
+                'tables': combined_raw.get('entities', []),
+                'confidence': combined_raw.get('confidence_score', combined_analysis.get('confidence_score', 0)),
                 'provider': 'Combined Analysis'
             }
             transformed['gemini_result'] = {
-                'document_type': combined_analysis.get('document_type', ''),
+                'document_type': combined_raw.get('document_type', ''),
                 'summary': 'Combined analysis result',
                 'key_findings': [],
                 'recommendations': [],
-                'confidence': combined_analysis.get('confidence_score', 0),
+                'confidence': combined_raw.get('confidence_score', combined_analysis.get('confidence_score', 0)),
                 'provider': 'Combined Analysis'
             }
     

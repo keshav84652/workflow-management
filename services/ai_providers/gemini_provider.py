@@ -96,10 +96,12 @@ class GeminiProvider(AIProvider):
             
             # Prepare the content for Gemini
             content_parts = [
-                types.Part.from_text(analysis_prompt),
-                types.Part.from_bytes(
-                    data=document_content,
-                    mime_type=mime_type
+                types.Part(text=analysis_prompt),
+                types.Part(
+                    inline_data=types.Blob(
+                        data=document_content,
+                        mime_type=mime_type
+                    )
                 )
             ]
             
