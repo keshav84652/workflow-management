@@ -435,6 +435,6 @@ def create_app(config_name='default'):
 
 if __name__ == '__main__':
     app = create_app()
-    with app.app_context():
-        db.create_all()
+    # REMOVED db.create_all() - was wiping out data on every app start!
+    # Database tables should be created via migrations or init_db.py only
     app.run(debug=True, host='0.0.0.0', port=5002, use_reloader=False)
