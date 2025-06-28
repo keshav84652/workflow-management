@@ -6,6 +6,7 @@ and standardize service layer architecture.
 """
 
 from typing import Dict, Any, Optional, Callable
+from functools import wraps
 from flask import session, request
 from core.db_import import db
 
@@ -226,4 +227,43 @@ class BaseService:
         return SessionService.require_firm_access(firm_id)
 
 
-__all__ = ['DatabaseService', 'SessionService', 'ValidationService', 'BaseService']
+def transactional(func):
+    """
+    Decorator to wrap service methods with transaction handling.
+    
+    Usage:
+        @transactional
+        def my_service_method(self, ...):
+            # Your database operations here
+            return result
+    
+    Returns:
+        Dict with 'success', 'result'/'error', and 'message' keys
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            result = func(*args, **kwargs)
+            db.session.commit()
+            
+            # If the function already returns a success dict, return it as-is
+            if isinstance(result, dict) and 'success' in result:
+                return result
+            
+            # Otherwise, wrap the result
+            return {
+                'success': True,
+                'result': result,
+                'message': 'Operation completed successfully'
+            }
+        except Exception as e:
+            db.session.rollback()
+            return {
+                'success': False,
+                'error': str(e),
+                'message': f'Operation failed: {str(e)}'
+            }
+    return wrapper
+
+
+__all__ = ['DatabaseService', 'SessionService', 'ValidationService', 'BaseService', 'transactional']

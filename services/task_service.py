@@ -6,154 +6,134 @@ from core.db_import import db
 from models import Task
 from sqlalchemy import or_, and_
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from services.base import BaseService, transactional
 
-class TaskService:
-    @staticmethod
-    def create_task(title, description, firm_id, user_id, project_id=None, assignee_id=None,
+class TaskService(BaseService):
+    @transactional
+    def create_task(self, title, description, firm_id, user_id, project_id=None, assignee_id=None,
                    due_date=None, priority='Medium', estimated_hours=None):
         """Create a new task."""
-        try:
-            # Validation
-            if not title or not title.strip():
-                return {'success': False, 'message': 'Title is required'}
-            if not firm_id:
-                return {'success': False, 'message': 'Firm ID is required'}
-            if not user_id:
-                return {'success': False, 'message': 'User ID is required'}
-            
-            # Convert string date to date object if needed
-            if due_date and isinstance(due_date, str):
-                from datetime import datetime
-                due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
-            task = Task(
-                title=title,
-                description=description,
-                firm_id=firm_id,
-                assignee_id=assignee_id or user_id,
-                project_id=project_id,
-                due_date=due_date,
-                priority=priority,
-                estimated_hours=estimated_hours
-            )
-            db.session.add(task)
-            db.session.commit()
-            
-            # Log activity
-            ActivityService.log_task_operation(
-                operation='CREATE',
-                task_id=task.id,
-                task_title=title,
-                details=f'Task created with priority {priority}',
-                user_id=user_id,
-                project_id=project_id
-            )
-            
-            return {
-                'success': True,
-                'task_id': task.id,
-                'task': {
-                    'id': task.id,
-                    'title': task.title,
-                    'description': task.description,
-                    'status': task.current_status,
-                    'priority': task.priority,
-                    'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
-                    'created_at': task.created_at.strftime('%m/%d/%Y %I:%M %p')
-                }
+        # Validation
+        if not title or not title.strip():
+            return {'success': False, 'message': 'Title is required'}
+        if not firm_id:
+            return {'success': False, 'message': 'Firm ID is required'}
+        if not user_id:
+            return {'success': False, 'message': 'User ID is required'}
+        
+        # Convert string date to date object if needed
+        if due_date and isinstance(due_date, str):
+            from datetime import datetime
+            due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
+        task = Task(
+            title=title,
+            description=description,
+            firm_id=firm_id,
+            assignee_id=assignee_id or user_id,
+            project_id=project_id,
+            due_date=due_date,
+            priority=priority,
+            estimated_hours=estimated_hours
+        )
+        db.session.add(task)
+        
+        # Log activity (will be committed by @transactional decorator)
+        ActivityService.log_task_operation(
+            operation='CREATE',
+            task_id=task.id,
+            task_title=title,
+            details=f'Task created with priority {priority}',
+            user_id=user_id,
+            project_id=project_id
+        )
+        
+        return {
+            'success': True,
+            'task_id': task.id,
+            'task': {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'status': task.current_status,
+                'priority': task.priority,
+                'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
+                'created_at': task.created_at.strftime('%m/%d/%Y %I:%M %p')
             }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        }
 
-    @staticmethod
-    def create_subtask(parent_task_id, title, description, user_id):
-        try:
-            parent_task = Task.query.get_or_404(parent_task_id)
-            max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
-            subtask = Task(
-                title=title,
-                description=description,
-                parent_task_id=parent_task_id,
-                subtask_order=max_order + 1,
-                project_id=parent_task.project_id,
-                firm_id=parent_task.firm_id,
-                assignee_id=parent_task.assignee_id,
-                priority=parent_task.priority,
-                status_id=parent_task.status_id,
-                status=parent_task.status if not parent_task.status_id else 'Not Started'
-            )
-            db.session.add(subtask)
-            db.session.commit()
-            ActivityService.log_task_operation(
-                operation='CREATE',
-                task_id=subtask.id,
-                task_title=f'Subtask: {title}',
-                details=f'Created as subtask of "{parent_task.title}"',
-                user_id=user_id,
-                project_id=parent_task.project_id
-            )
-            return {
-                'success': True,
-                'subtask': {
-                    'id': subtask.id,
-                    'title': subtask.title,
-                    'description': subtask.description,
-                    'status': subtask.current_status,
-                    'assignee_name': subtask.assignee.name if subtask.assignee else 'Unassigned',
-                    'created_at': subtask.created_at.strftime('%m/%d/%Y %I:%M %p')
-                }
+    @transactional
+    def create_subtask(self, parent_task_id, title, description, user_id):
+        parent_task = Task.query.get_or_404(parent_task_id)
+        max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
+        subtask = Task(
+            title=title,
+            description=description,
+            parent_task_id=parent_task_id,
+            subtask_order=max_order + 1,
+            project_id=parent_task.project_id,
+            firm_id=parent_task.firm_id,
+            assignee_id=parent_task.assignee_id,
+            priority=parent_task.priority,
+            status_id=parent_task.status_id,
+            status=parent_task.status if not parent_task.status_id else 'Not Started'
+        )
+        db.session.add(subtask)
+        ActivityService.log_task_operation(
+            operation='CREATE',
+            task_id=subtask.id,
+            task_title=f'Subtask: {title}',
+            details=f'Created as subtask of "{parent_task.title}"',
+            user_id=user_id,
+            project_id=parent_task.project_id
+        )
+        return {
+            'success': True,
+            'subtask': {
+                'id': subtask.id,
+                'title': subtask.title,
+                'description': subtask.description,
+                'status': subtask.current_status,
+                'assignee_name': subtask.assignee.name if subtask.assignee else 'Unassigned',
+                'created_at': subtask.created_at.strftime('%m/%d/%Y %I:%M %p')
             }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        }
 
-    @staticmethod
-    def reorder_subtasks(task_id, subtask_ids, user_id):
-        try:
-            for index, subtask_id in enumerate(subtask_ids):
-                subtask = Task.query.get(subtask_id)
-                if subtask and subtask.parent_task_id == task_id:
-                    subtask.subtask_order = index + 1
-            db.session.commit()
-            return {'success': True, 'message': 'Subtasks reordered successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+    @transactional
+    def reorder_subtasks(self, task_id, subtask_ids, user_id):
+        for index, subtask_id in enumerate(subtask_ids):
+            subtask = Task.query.get(subtask_id)
+            if subtask and subtask.parent_task_id == task_id:
+                subtask.subtask_order = index + 1
+        return {'success': True, 'message': 'Subtasks reordered successfully'}
 
-    @staticmethod
-    def convert_to_subtask(task_id, parent_task_id, user_id):
-        try:
-            task = Task.query.get_or_404(task_id)
-            parent_task = Task.query.get(parent_task_id)
-            if not parent_task:
-                return {'success': False, 'message': 'Parent task not found'}, 404
-            # Prevent circular relationships
-            if parent_task_id == task_id:
-                return {'success': False, 'message': 'Cannot make task a subtask of itself'}, 400
-            current = parent_task
-            while current.parent_task:
-                if current.parent_task.id == task_id:
-                    return {'success': False, 'message': 'Cannot create circular subtask relationship'}, 400
-                current = current.parent_task
-            max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
-            task.parent_task_id = parent_task_id
-            task.subtask_order = max_order + 1
-            db.session.commit()
-            ActivityService.log_task_operation(
-                operation='UPDATE',
-                task_id=task.id,
-                task_title=task.title,
-                details=f'Converted to subtask of "{parent_task.title}"',
-                user_id=user_id,
-                project_id=parent_task.project_id
-            )
-            return {'success': True, 'message': 'Task converted to subtask successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+    @transactional
+    def convert_to_subtask(self, task_id, parent_task_id, user_id):
+        task = Task.query.get_or_404(task_id)
+        parent_task = Task.query.get(parent_task_id)
+        if not parent_task:
+            return {'success': False, 'message': 'Parent task not found'}, 404
+        # Prevent circular relationships
+        if parent_task_id == task_id:
+            return {'success': False, 'message': 'Cannot make task a subtask of itself'}, 400
+        current = parent_task
+        while current.parent_task:
+            if current.parent_task.id == task_id:
+                return {'success': False, 'message': 'Cannot create circular subtask relationship'}, 400
+            current = current.parent_task
+        max_order = db.session.query(db.func.max(Task.subtask_order)).filter_by(parent_task_id=parent_task_id).scalar() or 0
+        task.parent_task_id = parent_task_id
+        task.subtask_order = max_order + 1
+        ActivityService.log_task_operation(
+            operation='UPDATE',
+            task_id=task.id,
+            task_title=task.title,
+            details=f'Converted to subtask of "{parent_task.title}"',
+            user_id=user_id,
+            project_id=parent_task.project_id
+        )
+        return {'success': True, 'message': 'Task converted to subtask successfully'}
     
-    @staticmethod
-    def get_tasks_with_dependency_info(firm_id, filters=None):
+    def get_tasks_with_dependency_info(self, firm_id, filters=None):
         """
         Get tasks with dependency information for a firm
         CRITICAL: This applies interdependency filtering for sequential projects
@@ -163,13 +143,12 @@ class TaskService:
         all_tasks = task_repo.get_filtered_tasks(firm_id, filters)
         
         # Apply interdependency filtering - only show first active task per sequential project
-        filtered_tasks = TaskService._filter_tasks_by_dependency_mode(all_tasks)
+        filtered_tasks = self._filter_tasks_by_dependency_mode(all_tasks)
         
         # Return in the format expected by blueprint
         return [{'task': task} for task in filtered_tasks]
     
-    @staticmethod
-    def _filter_tasks_by_dependency_mode(tasks):
+    def _filter_tasks_by_dependency_mode(self, tasks):
         """
         Filter tasks based on project dependency mode
         For interdependent projects, only show the first active task
