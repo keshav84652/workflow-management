@@ -94,22 +94,32 @@ class GeminiProvider(AIProvider):
             # Create the prompt for document analysis
             analysis_prompt = self._create_analysis_prompt()
             
-            # Prepare the content for Gemini
-            content_parts = [
-                types.Part(text=analysis_prompt),
-                types.Part(
-                    inline_data=types.Blob(
-                        data=document_content,
-                        mime_type=mime_type
-                    )
-                )
-            ]
+            # Prepare the content for Gemini (using working API from original code)
+            parts = []
             
-            # Generate content using Gemini
+            if mime_type.startswith('image/') or mime_type == 'application/pdf':
+                # Handle image/PDF formats - send actual binary data (from working version)
+                parts.append(types.Part.from_bytes(
+                    data=document_content,
+                    mime_type=mime_type
+                ))
+            else:
+                # Handle text files
+                content_text = document_content.decode('utf-8', errors='ignore')
+                parts.append(f"Document content:\n{content_text[:2000]}")
+            
+            # Add analysis prompt (from working version)
+            parts.append(analysis_prompt)
+            
+            # Use the correct API call from working version
             response = self.client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=types.GenerateContentRequest(
-                    contents=[types.Content(parts=content_parts)]
+                model="gemini-1.5-flash",  # Use working model
+                contents=parts,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,
+                    top_p=0.95,
+                    top_k=32,
+                    max_output_tokens=2048
                 )
             )
             
