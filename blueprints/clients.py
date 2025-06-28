@@ -13,7 +13,8 @@ clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
 @clients_bp.route('/')
 def list_clients():
     firm_id = get_session_firm_id()
-    clients = ClientService.get_clients_for_firm(firm_id)
+    client_service = ClientService()
+    clients = client_service.get_clients_for_firm(firm_id)
     return render_template('clients/clients.html', clients=clients)
 
 
@@ -22,7 +23,9 @@ def create_client():
     if request.method == 'POST':
         firm_id = get_session_firm_id()
         user_id = get_session_user_id()
-        result = ClientService.create_client(
+        
+        client_service = ClientService()
+        result = client_service.create_client(
             name=request.form.get('name'),
             email=request.form.get('email'),
             phone=request.form.get('phone'),
@@ -49,7 +52,8 @@ def create_client():
 def view_client(id):
     firm_id = get_session_firm_id()
     
-    result = ClientService.get_client_with_projects_and_contacts(id, firm_id)
+    client_service = ClientService()
+    result = client_service.get_client_with_projects_and_contacts(id, firm_id)
     if not result['success']:
         flash(result['message'], 'error')
         return redirect(url_for('clients.list_clients'))
@@ -63,13 +67,15 @@ def view_client(id):
 def edit_client(id):
     firm_id = get_session_firm_id()
     
-    client = ClientService.get_client_by_id(id, firm_id)
+    client_service = ClientService()
+    client = client_service.get_client_by_id(id, firm_id)
     if not client:
         flash('Client not found or access denied', 'error')
         return redirect(url_for('clients.list_clients'))
     
     if request.method == 'POST':
-        result = ClientService.update_client(
+        user_id = get_session_user_id()
+        result = client_service.update_client(
             client_id=id,
             name=request.form.get('name'),
             email=request.form.get('email'),
@@ -97,7 +103,9 @@ def edit_client(id):
 def delete_client(id):
     firm_id = get_session_firm_id()
     user_id = get_session_user_id()
-    result = ClientService.delete_client(id, firm_id, user_id=user_id)
+    
+    client_service = ClientService()
+    result = client_service.delete_client(id, firm_id, user_id=user_id)
     
     if result['success']:
         return jsonify({
@@ -116,7 +124,9 @@ def delete_client(id):
 @clients_bp.route('/<int:id>/mark_inactive', methods=['POST'])
 def mark_client_inactive(id):
     user_id = get_session_user_id()
-    result = ClientService.toggle_client_status(id, user_id=user_id)
+    
+    client_service = ClientService()
+    result = client_service.toggle_client_status(id, user_id=user_id)
     
     if result['success']:
         return jsonify({
@@ -144,7 +154,9 @@ def associate_client_contact(client_id):
         return redirect(url_for('clients.view_client', id=client_id))
     
     user_id = get_session_user_id()
-    result = ClientService.associate_contact(
+    
+    client_service = ClientService()
+    result = client_service.associate_contact(
         client_id=client_id,
         contact_id=int(contact_id),
         relationship_type=relationship_type,
@@ -164,18 +176,20 @@ def associate_client_contact(client_id):
 def client_access_setup(client_id):
     """Set up client portal access for a client"""
     
+    client_service = ClientService()
+    
     if request.method == 'POST':
         action = request.form.get('action', 'create')
         
         if action == 'create':
             email = request.form.get('email')
-            result = ClientService.create_client_portal_user(client_id, email)
+            result = client_service.create_client_portal_user(client_id, email)
             
         elif action == 'regenerate':
-            result = ClientService.regenerate_client_access_code(client_id)
+            result = client_service.regenerate_client_access_code(client_id)
             
         elif action == 'toggle':
-            result = ClientService.toggle_client_portal_status(client_id)
+            result = client_service.toggle_client_portal_status(client_id)
         
         else:
             result = {'success': False, 'message': 'Invalid action'}
@@ -188,7 +202,7 @@ def client_access_setup(client_id):
         return redirect(url_for('clients.client_access_setup', client_id=client_id))
     
     # GET request - get client and portal info
-    portal_info = ClientService.get_client_portal_info(client_id)
+    portal_info = client_service.get_client_portal_info(client_id)
     if not portal_info['success']:
         flash(portal_info['message'], 'error')
         return redirect(url_for('clients.list_clients'))

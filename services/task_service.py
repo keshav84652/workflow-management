@@ -379,6 +379,7 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
+    @transactional
     def update_task_status(self, task_id, new_status, firm_id, user_id):
         """Update task status"""
         try:

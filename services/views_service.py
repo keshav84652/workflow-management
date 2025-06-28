@@ -15,8 +15,11 @@ class ViewsService:
     def get_kanban_data(firm_id, work_type_filter=None, priority_filter=None, due_filter=None):
         """Get kanban board data with filtering"""
         try:
+            # Create WorkTypeService instance for this request scope
+            worktype_service = WorkTypeService()
+            
             # Get work types using WorkTypeService
-            work_types_result = WorkTypeService.get_work_types_for_firm(firm_id, active_only=True)
+            work_types_result = worktype_service.get_work_types_for_firm(firm_id, active_only=True)
             if not work_types_result['success']:
                 return work_types_result
             
@@ -27,12 +30,12 @@ class ViewsService:
             kanban_columns = []
             
             if work_type_filter:
-                work_type_result = WorkTypeService.get_work_type_by_id(work_type_filter, firm_id)
+                work_type_result = worktype_service.get_work_type_by_id(work_type_filter, firm_id)
                 if work_type_result['success']:
                     current_work_type = work_type_result['work_type']
                     
                     # Get task statuses as kanban columns
-                    statuses_result = WorkTypeService.get_task_statuses_for_work_type(current_work_type.id)
+                    statuses_result = worktype_service.get_task_statuses_for_work_type(current_work_type.id)
                     if statuses_result['success']:
                         kanban_columns = statuses_result['statuses']
             
@@ -117,7 +120,8 @@ class ViewsService:
                 total_revenue = report_data['summary']['total_revenue']
             
             # Get filter options using services
-            users = UserService.get_users_by_firm(firm_id)
+            user_service = UserService()
+            users = user_service.get_users_by_firm(firm_id)
             project_service = ProjectService()
             projects = project_service.get_projects_for_firm(firm_id)
             

@@ -77,20 +77,22 @@ class TestTaskService:
     
     def test_update_task_status(self, app_context, db_session, test_firm, test_user):
         """Test updating task status."""
+        task_service = TaskService()
+        
         # First create a task
         with patch('events.publisher.publish_event'):
-            create_result = TaskService.create_task(
+            create_result = task_service.create_task(
                 title='Status Test Task',
                 description='Testing status updates',
                 firm_id=test_firm.id,
                 user_id=test_user.id
             )
             
-            task_id = create_result['task_id']
+            task_id = create_result['task']['id']  # Fixed: use 'task' key, then 'id'
         
         # Update status
         with patch('events.publisher.publish_event') as mock_publish:
-            result = TaskService.update_task_status(
+            result = task_service.update_task_status(
                 task_id=task_id,
                 new_status='In Progress',
                 firm_id=test_firm.id,
@@ -106,42 +108,46 @@ class TestTaskService:
     
     def test_get_task_by_id_with_access_check(self, app_context, db_session, test_firm, test_user):
         """Test getting task with access control."""
+        task_service = TaskService()
+        
         # Create task
         with patch('events.publisher.publish_event'):
-            create_result = TaskService.create_task(
+            create_result = task_service.create_task(
                 title='Access Test Task',
                 description='Testing access control',
                 firm_id=test_firm.id,
                 user_id=test_user.id
             )
             
-            task_id = create_result['task_id']
+            task_id = create_result['task']['id']  # Fixed: use 'task' key, then 'id'
         
         # Get task with correct firm
-        task = TaskService.get_task_by_id_with_access_check(task_id, test_firm.id)
+        task = task_service.get_task_by_id_with_access_check(task_id, test_firm.id)
         assert task is not None
         assert task.title == 'Access Test Task'
         
         # Try to get task with wrong firm
-        task = TaskService.get_task_by_id_with_access_check(task_id, 999)
+        task = task_service.get_task_by_id_with_access_check(task_id, 999)
         assert task is None
     
     def test_delete_task(self, app_context, db_session, test_firm, test_user):
         """Test task deletion."""
+        task_service = TaskService()
+        
         # Create task
         with patch('events.publisher.publish_event'):
-            create_result = TaskService.create_task(
+            create_result = task_service.create_task(
                 title='Delete Test Task',
                 description='Testing deletion',
                 firm_id=test_firm.id,
                 user_id=test_user.id
             )
             
-            task_id = create_result['task_id']
+            task_id = create_result['task']['id']  # Fixed: use 'task' key, then 'id'
         
         # Delete task
         with patch('events.publisher.publish_event') as mock_publish:
-            result = TaskService.delete_task(task_id, test_firm.id, test_user.id)
+            result = task_service.delete_task(task_id, test_firm.id, test_user.id)
             
             assert result['success'] is True
             
@@ -152,23 +158,25 @@ class TestTaskService:
     
     def test_bulk_update_tasks(self, app_context, db_session, test_firm, test_user):
         """Test bulk task updates."""
+        task_service = TaskService()
+        
         # Create multiple tasks
         task_ids = []
         with patch('events.publisher.publish_event'):
             for i in range(3):
-                result = TaskService.create_task(
+                result = task_service.create_task(
                     title=f'Bulk Task {i}',
                     description=f'Bulk test task {i}',
                     firm_id=test_firm.id,
                     user_id=test_user.id
                 )
-                task_ids.append(result['task_id'])
+                task_ids.append(result['task']['id'])  # Fixed: use 'task' key, then 'id'
         
         # Bulk update
         updates = {'status': 'In Progress', 'priority': 'High'}
         
         with patch('events.publisher.publish_event'):
-            result = TaskService.bulk_update_tasks(
+            result = task_service.bulk_update_tasks(
                 task_ids=task_ids,
                 updates=updates,
                 firm_id=test_firm.id,
@@ -180,13 +188,15 @@ class TestTaskService:
     
     def test_get_tasks_with_dependency_info(self, app_context, test_firm):
         """Test getting tasks with dependency information."""
+        task_service = TaskService()
+        
         filters = {
             'status_filters': ['Not Started'],
             'priority_filters': ['High'],
             'show_completed': False
         }
         
-        result = TaskService.get_tasks_with_dependency_info(test_firm.id, filters)
+        result = task_service.get_tasks_with_dependency_info(test_firm.id, filters)
         
         assert isinstance(result, list)
         # Each item should have task and dependency info
@@ -196,10 +206,12 @@ class TestTaskService:
     
     def test_task_service_error_handling(self, app_context, test_firm, test_user):
         """Test TaskService error handling."""
+        task_service = TaskService()
+        
         with patch('core.db.session.commit') as mock_commit:
             mock_commit.side_effect = Exception("Database error")
             
-            result = TaskService.create_task(
+            result = task_service.create_task(
                 title='Error Test Task',
                 description='Testing error handling',
                 firm_id=test_firm.id,
@@ -211,10 +223,12 @@ class TestTaskService:
     
     def test_task_service_performance(self, app_context, test_firm, test_user, performance_tracker):
         """Test TaskService performance."""
+        task_service = TaskService()
+        
         performance_tracker.start('task_creation_service')
         
         with patch('events.publisher.publish_event'):
-            result = TaskService.create_task(
+            result = task_service.create_task(
                 title='Performance Test Task',
                 description='Testing performance',
                 firm_id=test_firm.id,
@@ -232,8 +246,10 @@ class TestProjectService:
     
     def test_create_project_success(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test successful project creation."""
+        project_service = ProjectService()
+        
         with patch('events.publisher.publish_event') as mock_publish:
-            result = ProjectService.create_project(
+            result = project_service.create_project(
                 name='Test Project',
                 description='Test Description',
                 client_id=test_client_data.id,
@@ -251,9 +267,11 @@ class TestProjectService:
     
     def test_get_project_by_id(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test getting project by ID."""
+        project_service = ProjectService()
+        
         # Create project
         with patch('events.publisher.publish_event'):
-            create_result = ProjectService.create_project(
+            create_result = project_service.create_project(
                 name='Get Test Project',
                 description='Testing retrieval',
                 client_id=test_client_data.id,
@@ -264,15 +282,17 @@ class TestProjectService:
             project_id = create_result['project_id']
         
         # Get project
-        project = ProjectService.get_project_by_id(project_id, test_firm.id)
+        project = project_service.get_project_by_id(project_id, test_firm.id)
         assert project is not None
         assert project.name == 'Get Test Project'
     
     def test_update_project_status(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test updating project status."""
+        project_service = ProjectService()
+        
         # Create project
         with patch('events.publisher.publish_event'):
-            create_result = ProjectService.create_project(
+            create_result = project_service.create_project(
                 name='Status Update Project',
                 description='Testing status updates',
                 client_id=test_client_data.id,
@@ -284,7 +304,7 @@ class TestProjectService:
         
         # Update status
         with patch('events.publisher.publish_event') as mock_publish:
-            result = ProjectService.update_project_status(
+            result = project_service.update_project_status(
                 project_id=project_id,
                 new_status='In Progress',
                 firm_id=test_firm.id,
@@ -298,12 +318,15 @@ class TestProjectService:
     
     def test_get_active_projects(self, app_context, test_firm):
         """Test getting active projects."""
-        projects = ProjectService.get_active_projects(test_firm.id)
+        project_service = ProjectService()
+        projects = project_service.get_active_projects(test_firm.id)
         assert isinstance(projects, list)
     
     def test_project_service_validation(self, app_context, test_firm, test_user):
         """Test ProjectService validation."""
-        result = ProjectService.create_project(
+        project_service = ProjectService()
+        
+        result = project_service.create_project(
             name='',  # Empty name should fail
             description='Test Description',
             client_id=None,
@@ -320,8 +343,10 @@ class TestDocumentService:
     
     def test_create_checklist(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test creating document checklist."""
+        document_service = DocumentService()
+        
         with patch('events.publisher.publish_event') as mock_publish:
-            result = DocumentService.create_checklist(
+            result = document_service.create_checklist(
                 name='Test Checklist',
                 description='Test Description',
                 client_id=test_client_data.id,
@@ -337,9 +362,11 @@ class TestDocumentService:
     
     def test_add_checklist_item(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test adding item to checklist."""
+        document_service = DocumentService()
+        
         # Create checklist first
         with patch('events.publisher.publish_event'):
-            checklist_result = DocumentService.create_checklist(
+            checklist_result = document_service.create_checklist(
                 name='Item Test Checklist',
                 description='Testing items',
                 client_id=test_client_data.id,
@@ -351,7 +378,7 @@ class TestDocumentService:
         
         # Add item
         with patch('events.publisher.publish_event') as mock_publish:
-            result = DocumentService.add_checklist_item(
+            result = document_service.add_checklist_item(
                 checklist_id=checklist_id,
                 name='Test Document',
                 description='Test document item',
@@ -364,6 +391,8 @@ class TestDocumentService:
     
     def test_upload_file_to_checklist_item(self, app_context, temp_file, test_firm, test_user):
         """Test file upload to checklist item."""
+        document_service = DocumentService()
+        
         with patch('events.publisher.publish_event'):
             # Mock checklist item
             with patch('models.ChecklistItem.query') as mock_query:
@@ -372,7 +401,7 @@ class TestDocumentService:
                 mock_item.checklist.firm_id = test_firm.id
                 mock_query.get.return_value = mock_item
                 
-                result = DocumentService.upload_file_to_checklist_item(
+                result = document_service.upload_file_to_checklist_item(
                     item_id=123,
                     file_path=temp_file,
                     original_filename='test.pdf',
@@ -384,9 +413,11 @@ class TestDocumentService:
     
     def test_get_checklist_by_id(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test getting checklist by ID."""
+        document_service = DocumentService()
+        
         # Create checklist
         with patch('events.publisher.publish_event'):
-            create_result = DocumentService.create_checklist(
+            create_result = document_service.create_checklist(
                 name='Get Test Checklist',
                 description='Testing retrieval',
                 client_id=test_client_data.id,
@@ -397,16 +428,18 @@ class TestDocumentService:
             checklist_id = create_result['checklist_id']
         
         # Get checklist
-        checklist = DocumentService.get_checklist_by_id(checklist_id, test_firm.id)
+        checklist = document_service.get_checklist_by_id(checklist_id, test_firm.id)
         assert checklist is not None
         assert checklist.name == 'Get Test Checklist'
     
     def test_document_service_error_handling(self, app_context, test_firm, test_user):
         """Test DocumentService error handling."""
+        document_service = DocumentService()
+        
         with patch('core.db.session.commit') as mock_commit:
             mock_commit.side_effect = Exception("Database error")
             
-            result = DocumentService.create_checklist(
+            result = document_service.create_checklist(
                 name='Error Test Checklist',
                 description='Testing error handling',
                 client_id=None,
@@ -423,8 +456,10 @@ class TestClientService:
     
     def test_create_client(self, app_context, db_session, test_firm, test_user):
         """Test creating client."""
+        client_service = ClientService()
+        
         with patch('events.publisher.publish_event') as mock_publish:
-            result = ClientService.create_client(
+            result = client_service.create_client(
                 name='Test Client',
                 email='test@client.com',
                 phone='123-456-7890',
@@ -440,9 +475,11 @@ class TestClientService:
     
     def test_update_client(self, app_context, db_session, test_firm, test_user):
         """Test updating client."""
+        client_service = ClientService()
+        
         # Create client first
         with patch('events.publisher.publish_event'):
-            create_result = ClientService.create_client(
+            create_result = client_service.create_client(
                 name='Update Test Client',
                 email='update@client.com',
                 firm_id=test_firm.id,
@@ -453,7 +490,7 @@ class TestClientService:
         
         # Update client
         with patch('events.publisher.publish_event') as mock_publish:
-            result = ClientService.update_client(
+            result = client_service.update_client(
                 client_id=client_id,
                 updates={'name': 'Updated Client Name'},
                 firm_id=test_firm.id,
@@ -464,9 +501,11 @@ class TestClientService:
     
     def test_get_client_by_id(self, app_context, db_session, test_firm, test_user):
         """Test getting client by ID."""
+        client_service = ClientService()
+        
         # Create client
         with patch('events.publisher.publish_event'):
-            create_result = ClientService.create_client(
+            create_result = client_service.create_client(
                 name='Get Test Client',
                 email='get@client.com',
                 firm_id=test_firm.id,
@@ -476,18 +515,21 @@ class TestClientService:
             client_id = create_result['client_id']
         
         # Get client
-        client = ClientService.get_client_by_id(client_id, test_firm.id)
+        client = client_service.get_client_by_id(client_id, test_firm.id)
         assert client is not None
         assert client.name == 'Get Test Client'
     
     def test_get_clients_by_firm(self, app_context, test_firm):
         """Test getting all clients for firm."""
-        clients = ClientService.get_clients_by_firm(test_firm.id)
+        client_service = ClientService()
+        clients = client_service.get_clients_by_firm(test_firm.id)
         assert isinstance(clients, list)
     
     def test_client_service_validation(self, app_context, test_firm, test_user):
         """Test ClientService validation."""
-        result = ClientService.create_client(
+        client_service = ClientService()
+        
+        result = client_service.create_client(
             name='',  # Empty name should fail
             email='invalid-email',  # Invalid email
             firm_id=test_firm.id,
@@ -503,9 +545,13 @@ class TestServiceIntegration:
     
     def test_cross_service_operations(self, app_context, db_session, test_firm, test_user, test_client_data):
         """Test operations across multiple services."""
+        project_service = ProjectService()
+        task_service = TaskService()
+        document_service = DocumentService()
+        
         with patch('events.publisher.publish_event'):
             # Create project
-            project_result = ProjectService.create_project(
+            project_result = project_service.create_project(
                 name='Integration Test Project',
                 client_id=test_client_data.id,
                 firm_id=test_firm.id,
@@ -515,7 +561,7 @@ class TestServiceIntegration:
             project_id = project_result['project_id']
             
             # Create task for project
-            task_result = TaskService.create_task(
+            task_result = task_service.create_task(
                 title='Integration Test Task',
                 description='Testing cross-service integration',
                 project_id=project_id,
@@ -524,7 +570,7 @@ class TestServiceIntegration:
             )
             
             # Create document checklist for client
-            checklist_result = DocumentService.create_checklist(
+            checklist_result = document_service.create_checklist(
                 name='Integration Test Checklist',
                 client_id=test_client_data.id,
                 firm_id=test_firm.id,
@@ -537,18 +583,21 @@ class TestServiceIntegration:
     
     def test_service_transaction_rollback(self, app_context, db_session, test_firm, test_user):
         """Test transaction rollback across services."""
+        task_service = TaskService()
+        project_service = ProjectService()
+        
         with patch('core.db.session.commit') as mock_commit:
             mock_commit.side_effect = Exception("Transaction failed")
             
             # All service operations should fail and rollback
-            task_result = TaskService.create_task(
+            task_result = task_service.create_task(
                 title='Rollback Test Task',
                 description='Testing rollback',
                 firm_id=test_firm.id,
                 user_id=test_user.id
             )
             
-            project_result = ProjectService.create_project(
+            project_result = project_service.create_project(
                 name='Rollback Test Project',
                 firm_id=test_firm.id,
                 user_id=test_user.id
@@ -559,13 +608,15 @@ class TestServiceIntegration:
     
     def test_service_performance_benchmarks(self, app_context, test_firm, test_user, performance_tracker):
         """Test service layer performance benchmarks."""
+        task_service = TaskService()
+        
         with patch('events.publisher.publish_event'):
             # Test multiple service operations
             performance_tracker.start('service_operations')
             
             # Create multiple entities
             for i in range(5):
-                TaskService.create_task(
+                task_service.create_task(
                     title=f'Performance Task {i}',
                     description='Performance testing',
                     firm_id=test_firm.id,

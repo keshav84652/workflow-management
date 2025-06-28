@@ -63,8 +63,12 @@ def create_project():
             return redirect(url_for('projects.create_project'))
     
     firm_id = get_session_firm_id()
-    templates = TemplateService.get_templates_by_firm(firm_id)
-    clients = ClientService.get_active_clients_by_firm(firm_id)
+    
+    template_service = TemplateService()
+    templates = template_service.get_templates_by_firm(firm_id)
+    
+    client_service = ClientService()
+    clients = client_service.get_active_clients_by_firm(firm_id)
     return render_template('projects/create_project.html', templates=templates, clients=clients)
 
 
