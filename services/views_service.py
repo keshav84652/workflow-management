@@ -83,24 +83,37 @@ class ViewsService:
             # Get base report data
             report_data = dashboard_service.get_time_tracking_report(firm_id, start_date, end_date)
             
-            tasks = report_data['tasks_with_time']
+            # Get detailed tasks (not the count)
+            tasks = report_data.get('detailed_tasks', [])
             
-            # Apply additional filters
+            # Apply additional filters (tasks are dictionaries from detailed_tasks)
             if user_id:
-                tasks = [task for task in tasks if task.assignee_id == int(user_id)]
+                # Need to filter based on assignee name or get user name
+                from repositories.user_repository import UserRepository
+                user_repo = UserRepository()
+                user = user_repo.get_by_id(int(user_id))
+                user_name = user.name if user else None
+                if user_name:
+                    tasks = [task for task in tasks if task.get('assignee') == user_name]
             
             if project_id:
-                tasks = [task for task in tasks if task.project_id == int(project_id)]
+                # Need to filter based on project name
+                from repositories.project_repository import ProjectRepository
+                project_repo = ProjectRepository()
+                project = project_repo.get_by_id(int(project_id))
+                project_name = project.name if project else None
+                if project_name:
+                    tasks = [task for task in tasks if task.get('project') == project_name]
             
             # Recalculate statistics for filtered results
             if user_id or project_id:
-                total_hours = sum(task.actual_hours or 0 for task in tasks)
-                billable_hours = sum(task.actual_hours or 0 for task in tasks if task.billable_rate and task.billable_rate > 0)
-                total_revenue = sum((task.actual_hours or 0) * (task.billable_rate or 0) for task in tasks)
+                total_hours = sum(task.get('hours', 0) for task in tasks)
+                billable_hours = sum(task.get('hours', 0) for task in tasks if task.get('is_billable', True))
+                total_revenue = sum(task.get('hours', 0) * task.get('hourly_rate', 0) for task in tasks if task.get('is_billable', True))
             else:
-                total_hours = report_data['total_hours']
-                billable_hours = report_data['billable_hours']
-                total_revenue = report_data['total_revenue']
+                total_hours = report_data['summary']['total_hours']
+                billable_hours = report_data['summary']['billable_hours']
+                total_revenue = report_data['summary']['total_revenue']
             
             # Get filter options using services
             users = UserService.get_users_by_firm(firm_id)

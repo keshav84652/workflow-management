@@ -192,3 +192,65 @@ class DashboardAggregatorService(BaseService):
             Dictionary with time tracking analytics
         """
         return self.time_tracking.get_time_tracking_report(firm_id, start_date, end_date)
+    
+    def get_calendar_data(self, firm_id: int, year: int, month: int) -> Dict[str, Any]:
+        """
+        Get calendar data for a specific month and year
+        
+        Args:
+            firm_id: The firm's ID
+            year: Year for calendar view
+            month: Month for calendar view
+            
+        Returns:
+            Dictionary with calendar data including tasks by date
+        """
+        try:
+            from datetime import date, timedelta
+            import calendar
+            
+            # Get all tasks for the firm
+            filtered_tasks = self.task_analytics.get_filtered_tasks(firm_id)
+            
+            # Get the month range
+            first_day = date(year, month, 1)
+            last_day = date(year, month, calendar.monthrange(year, month)[1])
+            
+            # Group tasks by date
+            tasks_by_date = {}
+            
+            for task in filtered_tasks:
+                if task.due_date:
+                    # Only include tasks with due dates in the specified month
+                    if first_day <= task.due_date <= last_day:
+                        date_str = task.due_date.isoformat()
+                        if date_str not in tasks_by_date:
+                            tasks_by_date[date_str] = []
+                        tasks_by_date[date_str].append(task)
+            
+            # Tasks already have computed properties as methods/properties
+            # No need to set them manually - they're calculated on access
+            
+            return {
+                'year': year,
+                'month': month,
+                'month_name': calendar.month_name[month],
+                'tasks_by_date': tasks_by_date,
+                'total_tasks': sum(len(tasks) for tasks in tasks_by_date.values()),
+                'dates_with_tasks': list(tasks_by_date.keys())
+            }
+            
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error getting calendar data for firm {firm_id}, {year}-{month}: {e}")
+            
+            return {
+                'year': year,
+                'month': month,
+                'month_name': calendar.month_name[month] if month <= 12 else 'Unknown',
+                'tasks_by_date': {},
+                'total_tasks': 0,
+                'dates_with_tasks': [],
+                'error': 'Unable to load calendar data'
+            }
