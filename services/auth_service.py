@@ -64,8 +64,7 @@ class AuthService:
             }
     
 
-    @staticmethod
-    def authenticate_firm_by_code(access_code: str) -> Optional[Firm]:
+    def authenticate_firm_by_code(self, access_code: str) -> Optional[Firm]:
         """
         Authenticate a firm using access code only
         
@@ -77,8 +76,7 @@ class AuthService:
         """
         return Firm.query.filter_by(access_code=access_code, is_active=True).first()
     
-    @staticmethod
-    def get_users_for_firm(firm_id: int) -> List[User]:
+    def get_users_for_firm(self, firm_id: int) -> List[User]:
         """
         Get all users for a specific firm (static method for blueprint usage)
         

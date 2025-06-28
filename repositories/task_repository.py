@@ -9,7 +9,7 @@ from sqlalchemy import or_, and_
 
 from core.db_import import db
 from models import Task, Project
-from .base import CachedRepository
+from .base import CachedRepository, PaginationResult
 
 
 class TaskRepository(CachedRepository[Task]):
@@ -18,8 +18,51 @@ class TaskRepository(CachedRepository[Task]):
     def __init__(self):
         super().__init__(Task, cache_ttl=300)  # 5 minute cache
     
-    def get_filtered_tasks(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> List[Task]:
-        """Get tasks with various filters applied"""
+    def get_filtered_tasks(self, firm_id: int, filters: Optional[Dict[str, Any]] = None, 
+                          limit: Optional[int] = None) -> List[Task]:
+        """Get tasks with various filters applied and optional limit"""
+        query = self._build_filtered_query(firm_id, filters)
+        
+        # Order by due date and priority
+        query = query.order_by(
+            Task.due_date.asc().nullslast(),
+            Task.priority.asc()
+        )
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
+    
+    def get_filtered_tasks_paginated(self, firm_id: int, page: int = 1, per_page: int = 50,
+                                   filters: Optional[Dict[str, Any]] = None) -> PaginationResult:
+        """Get tasks with various filters applied and pagination"""
+        query = self._build_filtered_query(firm_id, filters)
+        
+        # Order by due date and priority
+        query = query.order_by(
+            Task.due_date.asc().nullslast(),
+            Task.priority.asc()
+        )
+        
+        total = query.count()
+        pages = (total + per_page - 1) // per_page
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
+    
+    def _build_filtered_query(self, firm_id: int, filters: Optional[Dict[str, Any]] = None):
+        """Build a filtered query for tasks (shared logic)"""
         query = Task.query.outerjoin(Project).filter(
             or_(
                 Project.firm_id == firm_id,
@@ -63,11 +106,7 @@ class TaskRepository(CachedRepository[Task]):
                 if project_conditions:
                     query = query.filter(or_(*project_conditions))
         
-        # Order by due date and priority
-        return query.order_by(
-            Task.due_date.asc().nullslast(),
-            Task.priority.asc()
-        ).all()
+        return query
     
     def get_project_tasks(self, project_id: int, firm_id: int, 
                          include_completed: bool = False) -> List[Task]:
@@ -244,8 +283,8 @@ class TaskRepository(CachedRepository[Task]):
     
     def get_tasks_by_firm(self, firm_id: int, limit: Optional[int] = None) -> List[Task]:
         """
-        Get all tasks for a firm with proper ordering
-        CRITICAL: This method should return ALL tasks, filtering is done in service layer
+        Get all tasks for a firm with proper ordering and optional limit
+        WARNING: Use get_tasks_by_firm_paginated for large datasets
         """
         query = Task.query.outerjoin(Project).filter(
             or_(
@@ -266,6 +305,39 @@ class TaskRepository(CachedRepository[Task]):
             query = query.limit(limit)
             
         return query.all()
+    
+    def get_tasks_by_firm_paginated(self, firm_id: int, page: int = 1, per_page: int = 50) -> PaginationResult:
+        """Get all tasks for a firm with pagination"""
+        query = Task.query.outerjoin(Project).filter(
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).order_by(
+            Task.due_date.asc().nullslast(),
+            db.case(
+                (Task.priority == 'High', 1),
+                (Task.priority == 'Medium', 2),  
+                (Task.priority == 'Low', 3),
+                else_=4
+            )
+        )
+        
+        total = query.count()
+        pages = (total + per_page - 1) // per_page
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
     
     def get_recent_tasks(self, firm_id: int, limit: int = 5) -> List[Task]:
         """Get recent tasks for a firm"""

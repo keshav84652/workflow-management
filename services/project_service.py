@@ -5,26 +5,26 @@ ProjectService: Handles all business logic for project operations.
 from core.db_import import db
 from models import Project, Task, Client, User, WorkType
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from services.base import BaseService, transactional
 
 
-class ProjectService:
-    @staticmethod
-    def get_projects_for_firm(firm_id, include_inactive=False):
+class ProjectService(BaseService):
+    def __init__(self):
+        super().__init__()
+    def get_projects_for_firm(self, firm_id, include_inactive=False):
         """Get all projects for a firm"""
         query = Project.query.filter_by(firm_id=firm_id)
         if not include_inactive:
             query = query.filter(Project.status != 'Completed')
         return query.order_by(Project.created_at.desc()).all()
     
-    @staticmethod
-    def get_project_by_id_and_firm(project_id, firm_id):
+    def get_project_by_id_and_firm(self, project_id, firm_id):
         """Get project by ID with firm access check"""
         return Project.query.filter_by(id=project_id, firm_id=firm_id).first()
     
-    @staticmethod
-    def get_project_progress(project_id, firm_id):
+    def get_project_progress(self, project_id, firm_id):
         """Get project progress with access check"""
-        project = ProjectService.get_project_by_id_and_firm(project_id, firm_id)
+        project = self.get_project_by_id_and_firm(project_id, firm_id)
         if not project:
             return {'error': 'Project not found or access denied'}, 403
         
@@ -40,8 +40,8 @@ class ProjectService:
             'progress_percentage': round(progress_percentage, 1)
         }
     
-    @staticmethod
-    def create_project(name, description=None, client_id=None, work_type_id=None, firm_id=None, user_id=None):
+    @transactional
+    def create_project(self, name, description=None, client_id=None, work_type_id=None, firm_id=None, user_id=None):
         """Create a new project"""
         try:
             if not name or not name.strip():
@@ -126,11 +126,71 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def update_project_status(project_id, new_status, firm_id, user_id):
+    @transactional
+    def create_project_from_template(self, template_id, client_name, project_name, start_date, due_date=None, priority='Medium', task_dependency_mode=False, firm_id=None, user_id=None):
+        """Create a project from a template"""
+        try:
+            # For now, this can just call the regular create_project method
+            # In the future, this could be enhanced to use template-specific logic
+            return self.create_project(
+                name=project_name,
+                description=f"Project created from template with client: {client_name}",
+                client_id=None,  # Would need client lookup logic
+                work_type_id=None,  # Would need template work type lookup
+                firm_id=firm_id,
+                user_id=user_id
+            )
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
+    
+    @transactional
+    def update_project(self, project_id, firm_id, **update_data):
+        """Update a project with new data"""
+        try:
+            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            if not project:
+                return {'success': False, 'message': 'Project not found or access denied'}
+            
+            # Update allowed fields
+            if 'name' in update_data:
+                project.name = update_data['name']
+            if 'description' in update_data:
+                project.description = update_data['description']
+            if 'client_id' in update_data:
+                project.client_id = update_data['client_id']
+            if 'work_type_id' in update_data:
+                project.work_type_id = update_data['work_type_id']
+            if 'status' in update_data:
+                project.status = update_data['status']
+            
+            return {'success': True, 'message': 'Project updated successfully'}
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
+    
+    @transactional
+    def delete_project(self, project_id, firm_id):
+        """Delete a project"""
+        try:
+            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            if not project:
+                return {'success': False, 'message': 'Project not found or access denied'}
+            
+            # Check if project has tasks
+            task_count = Task.query.filter_by(project_id=project_id).count()
+            if task_count > 0:
+                return {'success': False, 'message': f'Cannot delete project with {task_count} tasks. Please remove tasks first.'}
+            
+            db.session.delete(project)
+            
+            return {'success': True, 'message': 'Project deleted successfully'}
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
+    
+    @transactional
+    def update_project_status(self, project_id, new_status, firm_id, user_id):
         """Update project status"""
         try:
-            project = ProjectService.get_project_by_id_and_firm(project_id, firm_id)
+            project = self.get_project_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
@@ -169,28 +229,25 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def get_active_projects(firm_id):
+    def get_active_projects(self, firm_id):
         """Get active projects for a firm"""
         return Project.query.filter_by(firm_id=firm_id).filter(
             Project.status.in_(['Not Started', 'In Progress'])
         ).order_by(Project.created_at.desc()).all()
     
-    @staticmethod
-    def get_project_by_id(project_id, firm_id):
+    def get_project_by_id(self, project_id, firm_id):
         """Get project by ID for firm"""
-        return ProjectService.get_project_by_id_and_firm(project_id, firm_id)
+        return self.get_project_by_id_and_firm(project_id, firm_id)
     
-    @staticmethod
-    def get_projects_by_firm(firm_id):
+    def get_projects_by_firm(self, firm_id):
         """Get all projects for firm (alias for consistency)"""
-        return ProjectService.get_projects_for_firm(firm_id)
+        return self.get_projects_for_firm(firm_id)
     
-    @staticmethod
-    def move_project_status(project_id, status_id, firm_id, user_id=None):
+    @transactional
+    def move_project_status(self, project_id, status_id, firm_id, user_id=None):
         """Move project to different status for Kanban board"""
         try:
-            project = ProjectService.get_project_by_id_and_firm(project_id, firm_id)
+            project = self.get_project_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
@@ -232,7 +289,7 @@ class ProjectService:
                     project.status = 'Active'  # Keep as active unless completed
                     
                     # Update project tasks to reflect workflow progression
-                    ProjectService._update_project_tasks_for_workflow_change(
+                    self._update_project_tasks_for_workflow_change(
                         project, old_status_id, status_id
                     )
                     
@@ -270,8 +327,7 @@ class ProjectService:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def _update_project_tasks_for_workflow_change(project, old_status_id, new_status_id):
+    def _update_project_tasks_for_workflow_change(self, project, old_status_id, new_status_id):
         """
         Update project tasks to reflect workflow progression when project status changes via kanban
         This ensures progress_percentage stays in sync with workflow status
@@ -330,8 +386,8 @@ class ProjectService:
             import logging
             logging.warning(f"Failed to update project tasks for workflow change: {e}")
     
-    @staticmethod
-    def check_and_update_project_completion(project_id, user_id=None):
+    @transactional
+    def check_and_update_project_completion(self, project_id, user_id=None):
         """Check if all tasks in a project are completed and update project status accordingly"""
         if not project_id:
             return

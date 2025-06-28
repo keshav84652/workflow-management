@@ -37,7 +37,8 @@ class ViewsService:
                         kanban_columns = statuses_result['statuses']
             
             # Get all projects for the firm using ProjectService
-            projects = ProjectService.get_projects_for_firm(firm_id)
+            project_service = ProjectService()
+            projects = project_service.get_projects_for_firm(firm_id)
             
             # Apply work type filter
             if work_type_filter and current_work_type:
@@ -117,7 +118,8 @@ class ViewsService:
             
             # Get filter options using services
             users = UserService.get_users_by_firm(firm_id)
-            projects = ProjectService.get_projects_for_firm(firm_id)
+            project_service = ProjectService()
+            projects = project_service.get_projects_for_firm(firm_id)
             
             return {
                 'success': True,

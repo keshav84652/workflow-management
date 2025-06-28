@@ -9,7 +9,7 @@ from sqlalchemy import or_, and_
 
 from core.db_import import db
 from models import Project
-from .base import CachedRepository
+from .base import CachedRepository, PaginationResult
 
 
 class ProjectRepository(CachedRepository[Project]):
@@ -18,14 +18,45 @@ class ProjectRepository(CachedRepository[Project]):
     def __init__(self):
         super().__init__(Project, cache_ttl=300)  # 5 minute cache
     
-    def get_by_firm(self, firm_id: int, include_inactive: bool = False) -> List[Project]:
-        """Get all projects for a firm"""
+    def get_by_firm(self, firm_id: int, include_inactive: bool = False, limit: Optional[int] = None) -> List[Project]:
+        """Get all projects for a firm with optional limit"""
         query = Project.query.filter(Project.firm_id == firm_id)
         
         if not include_inactive:
             query = query.filter(Project.status != 'Completed')
         
-        return query.order_by(Project.created_at.desc()).all()
+        query = query.order_by(Project.created_at.desc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
+    
+    def get_by_firm_paginated(self, firm_id: int, page: int = 1, per_page: int = 50, 
+                             include_inactive: bool = False) -> PaginationResult:
+        """Get projects for a firm with pagination"""
+        query = Project.query.filter(Project.firm_id == firm_id)
+        
+        if not include_inactive:
+            query = query.filter(Project.status != 'Completed')
+        
+        query = query.order_by(Project.created_at.desc())
+        
+        total = query.count()
+        pages = (total + per_page - 1) // per_page
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
     
     def get_by_client(self, client_id: int, firm_id: int, include_completed: bool = False) -> List[Project]:
         """Get all projects for a specific client"""
@@ -118,8 +149,9 @@ class ProjectRepository(CachedRepository[Project]):
             Project.firm_id == firm_id
         ).order_by(Project.created_at.desc()).limit(limit).all()
     
-    def get_projects_by_firm(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> List[Project]:
-        """Get projects for a firm with optional filters"""
+    def get_projects_by_firm(self, firm_id: int, filters: Optional[Dict[str, Any]] = None, 
+                            limit: Optional[int] = None) -> List[Project]:
+        """Get projects for a firm with optional filters and limit"""
         query = Project.query.filter(Project.firm_id == firm_id)
         
         if filters:
@@ -127,7 +159,40 @@ class ProjectRepository(CachedRepository[Project]):
             if 'status' in filters and filters['status']:
                 query = query.filter(Project.status == filters['status'])
         
-        return query.order_by(Project.created_at.desc()).all()
+        query = query.order_by(Project.created_at.desc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
+    
+    def get_projects_by_firm_paginated(self, firm_id: int, page: int = 1, per_page: int = 50,
+                                      filters: Optional[Dict[str, Any]] = None) -> PaginationResult:
+        """Get projects for a firm with optional filters and pagination"""
+        query = Project.query.filter(Project.firm_id == firm_id)
+        
+        if filters:
+            # Apply status filter if provided
+            if 'status' in filters and filters['status']:
+                query = query.filter(Project.status == filters['status'])
+        
+        query = query.order_by(Project.created_at.desc())
+        
+        total = query.count()
+        pages = (total + per_page - 1) // per_page
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
     
     def update_progress(self, project_id: int, firm_id: int, progress_percentage: int) -> Optional[Project]:
         """Update project progress percentage"""

@@ -21,7 +21,8 @@ projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 @projects_bp.route('/')
 def list_projects():
     firm_id = get_session_firm_id()
-    projects = ProjectService.get_projects_for_firm(firm_id)
+    project_service = ProjectService()
+    projects = project_service.get_projects_for_firm(firm_id)
     return render_template('projects/projects.html', projects=projects)
 
 
@@ -39,7 +40,8 @@ def create_project():
         task_dependency_mode = request.form.get('task_dependency_mode') == 'true'
         
         # Use service layer for project creation
-        result = ProjectService.create_project_from_template(
+        project_service = ProjectService()
+        result = project_service.create_project_from_template(
             template_id=template_id,
             client_name=client_name,
             project_name=project_name,
@@ -71,7 +73,8 @@ def view_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to get project
-    project = ProjectService.get_project_by_id(id, firm_id)
+    project_service = ProjectService()
+    project = project_service.get_project_by_id(id, firm_id)
     if not project:
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
@@ -87,7 +90,8 @@ def edit_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to get project
-    project = ProjectService.get_project_by_id(id, firm_id)
+    project_service = ProjectService()
+    project = project_service.get_project_by_id(id, firm_id)
     if not project:
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
@@ -121,7 +125,7 @@ def edit_project(id):
                 return redirect(url_for('projects.edit_project', id=id))
         
         # Use service layer to update project
-        result = ProjectService.update_project(id, firm_id, **update_data)
+        result = project_service.update_project(id, firm_id, **update_data)
         
         if result['success']:
             flash(result['message'], 'success')
@@ -139,7 +143,8 @@ def delete_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to delete project
-    result = ProjectService.delete_project(id, firm_id)
+    project_service = ProjectService()
+    result = project_service.delete_project(id, firm_id)
     
     if result['success']:
         return jsonify({
@@ -170,7 +175,8 @@ def move_project_status(id):
     data = request.get_json()
     status_id = data.get('status_id')
     
-    result = ProjectService.move_project_status(id, status_id, firm_id, user_id)
+    project_service = ProjectService()
+    result = project_service.move_project_status(id, status_id, firm_id, user_id)
     
     if result['success']:
         return jsonify(result)

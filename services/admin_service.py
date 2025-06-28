@@ -30,7 +30,7 @@ class AdminService(BaseService):
         self.task_repository = TaskRepository()
         self.project_repository = ProjectRepository()
     
-    def authenticate_admin(self, self, password: str) -> Dict[str, Any]:
+    def authenticate_admin(self, password: str) -> Dict[str, Any]:
         """
         Authenticate admin user with password
         
@@ -77,7 +77,7 @@ class AdminService(BaseService):
         session.pop('admin', None)
     
 
-    def get_all_firms(self, self) -> List[Firm]:
+    def get_all_firms(self) -> List[Firm]:
         """
         Get all firms in the system
         
@@ -87,7 +87,7 @@ class AdminService(BaseService):
         return Firm.query.order_by(Firm.created_at.desc()).all()
     
 
-    def get_firm_statistics(self, self) -> Dict[str, Any]:
+    def get_firm_statistics(self) -> Dict[str, Any]:
         """
         Get system-wide statistics
         
@@ -111,7 +111,7 @@ class AdminService(BaseService):
     
 
     @transactional
-    def generate_firm_access_code(self, self, firm_name: str) -> Dict[str, Any]:
+    def generate_firm_access_code(self, firm_name: str) -> Dict[str, Any]:
         """
         Generate a new access code for a firm
         
@@ -159,7 +159,7 @@ class AdminService(BaseService):
     
 
     @transactional
-    def toggle_firm_status(self, self, firm_id: int) -> Dict[str, Any]:
+    def toggle_firm_status(self, firm_id: int) -> Dict[str, Any]:
         """
         Toggle a firm's active status
         
@@ -192,7 +192,6 @@ class AdminService(BaseService):
             }
     
 
-    @transactional
     def get_templates_for_firm(self, firm_id: int) -> List[Template]:
         """
         Get all templates for a specific firm
@@ -273,7 +272,6 @@ class AdminService(BaseService):
             }
     
 
-    @transactional
     def get_template_by_id(self, template_id: int, firm_id: int) -> Optional[Template]:
         """
         Get a template by ID, ensuring it belongs to the firm
@@ -307,7 +305,7 @@ class AdminService(BaseService):
             Dict containing success status and any error messages
         """
         try:
-            template = AdminService.get_template_by_id(template_id, firm_id)
+            template = self.get_template_by_id(template_id, firm_id)
             if not template:
                 return {
                     'success': False,
@@ -347,7 +345,7 @@ class AdminService(BaseService):
             }
     
 
-    def delete_template(self, self, template_id: int, firm_id: int) -> Dict[str, Any]:
+    def delete_template(self, template_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Delete a template and all its associated tasks
         
@@ -359,7 +357,7 @@ class AdminService(BaseService):
             Dict containing success status and any error messages
         """
         try:
-            template = AdminService.get_template_by_id(template_id, firm_id)
+            template = self.get_template_by_id(template_id, firm_id)
             if not template:
                 return {
                     'success': False,
@@ -391,7 +389,6 @@ class AdminService(BaseService):
             }
     
 
-    @transactional
     def get_work_types_for_firm(self, firm_id: int) -> List[WorkType]:
         """
         Get all work types for a specific firm
@@ -405,7 +402,6 @@ class AdminService(BaseService):
         return WorkType.query.filter_by(firm_id=firm_id).all()
     
 
-    @transactional
     def get_work_type_usage_stats(self, firm_id: int) -> Dict[int, int]:
         """
         Get usage statistics for work types (number of tasks using each work type)
@@ -416,7 +412,7 @@ class AdminService(BaseService):
         Returns:
             Dict mapping work_type_id to task count
         """
-        work_types = AdminService.get_work_types_for_firm(firm_id)
+        work_types = self.get_work_types_for_firm(firm_id)
         usage_stats = {}
         
         for wt in work_types:
@@ -578,6 +574,7 @@ class AdminService(BaseService):
             }
     
 
+    @transactional
     def update_task_status(self, status_id: int, name: str, color: str, position: int,
                           is_default: bool, is_terminal: bool, firm_id: int) -> Dict[str, Any]:
         """
@@ -622,7 +619,8 @@ class AdminService(BaseService):
             }
     
 
-    def create_user(self, self, name: str, role: str, firm_id: int) -> Dict[str, Any]:
+    @transactional
+    def create_user(self, name: str, role: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new user for a firm
         

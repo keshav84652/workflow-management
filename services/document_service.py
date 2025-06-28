@@ -188,29 +188,25 @@ class DocumentService:
             db.session.rollback()
             return {'success': False, 'error': str(e)}
     
-    @staticmethod
-    def get_checklists_for_firm(firm_id):
+    def get_checklists_for_firm(self, firm_id):
         """Get all checklists for a firm"""
         return DocumentChecklist.query.join(Client).filter(
             Client.firm_id == firm_id
         ).order_by(DocumentChecklist.created_at.desc()).all()
     
-    @staticmethod
-    def get_clients_for_firm(firm_id):
+    def get_clients_for_firm(self, firm_id):
         """Get all clients for a firm - used by document blueprints"""
         from models import Client
         return Client.query.filter_by(firm_id=firm_id).all()
     
-    @staticmethod
-    def get_uploaded_documents(firm_id):
+    def get_uploaded_documents(self, firm_id):
         """Get all uploaded documents for a firm"""
         from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
         return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
             Client.firm_id == firm_id
         ).order_by(ClientDocument.uploaded_at.desc()).all()
     
-    @staticmethod
-    def get_document_for_download(document_id, firm_id):
+    def get_document_for_download(self, document_id, firm_id):
         """Get document for download with firm access check"""
         from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
         return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
@@ -218,30 +214,26 @@ class DocumentService:
             Client.firm_id == firm_id
         ).first()
     
-    @staticmethod
-    def get_client_by_id_and_firm(client_id, firm_id):
+    def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
         from models import Client
         return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
     
-    @staticmethod
-    def get_checklists_by_client_and_firm(client_id, firm_id):
+    def get_checklists_by_client_and_firm(self, client_id, firm_id):
         """Get checklists for specific client and firm"""
         return DocumentChecklist.query.filter_by(
             client_id=client_id,
             firm_id=firm_id
         ).all()
     
-    @staticmethod
-    def get_checklist_by_token(token):
+    def get_checklist_by_token(self, token):
         """Get checklist by public access token"""
         return DocumentChecklist.query.filter_by(
             public_access_token=token,
             public_access_enabled=True
         ).first()
     
-    @staticmethod
-    def get_active_checklists_with_client_filter(firm_id):
+    def get_active_checklists_with_client_filter(self, firm_id):
         """Get active checklists with client join for firm"""
         return DocumentChecklist.query.join(Client).filter(
             Client.firm_id == firm_id,
@@ -256,8 +248,7 @@ class DocumentService:
             Client.firm_id == firm_id
         ).first()
     
-    @staticmethod
-    def get_document_filename_by_id(document_id):
+    def get_document_filename_by_id(self, document_id):
         """Get document filename by ID"""
         try:
             document = ClientDocument.query.get(document_id)
@@ -265,8 +256,7 @@ class DocumentService:
         except:
             return f'document_{document_id}'
     
-    @staticmethod
-    def get_income_worksheet_by_id_with_access_check(worksheet_id, firm_id):
+    def get_income_worksheet_by_id_with_access_check(self, worksheet_id, firm_id):
         """Get income worksheet by ID with firm access check"""
         from models import IncomeWorksheet
         worksheet = IncomeWorksheet.query.get(worksheet_id)
@@ -278,6 +268,30 @@ class DocumentService:
         if checklist and checklist.client and checklist.client.firm_id == firm_id:
             return worksheet
         return None
+    
+    def get_worksheet_data_for_download(self, worksheet_id, firm_id):
+        """Get worksheet data for download without exposing model to blueprint"""
+        import json
+        
+        worksheet = self.get_income_worksheet_by_id_with_access_check(worksheet_id, firm_id)
+        if not worksheet:
+            return {
+                'success': False,
+                'message': 'Worksheet not found or access denied'
+            }
+        
+        try:
+            worksheet_data = json.loads(worksheet.worksheet_data)
+            return {
+                'success': True,
+                'data': worksheet_data,
+                'worksheet_id': worksheet_id
+            }
+        except (json.JSONDecodeError, AttributeError) as e:
+            return {
+                'success': False,
+                'message': f'Error parsing worksheet data: {str(e)}'
+            }
     
     @staticmethod
     def perform_checklist_ai_analysis(checklist):

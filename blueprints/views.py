@@ -73,7 +73,8 @@ def search():
     
     # Use ClientService instead of direct database access - ARCHITECTURAL FIX
     if search_type in ['all', 'clients'] and query:
-        results['clients'] = ClientService.search_clients(firm_id, query, limit=20)
+        client_service = ClientService()
+        results['clients'] = client_service.search_clients(firm_id, query, limit=20)
     else:
         results['clients'] = []
     

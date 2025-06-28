@@ -169,8 +169,7 @@ class TaskService(BaseService):
         
         return filtered_tasks
     
-    @staticmethod
-    def get_task_by_id_with_access_check(task_id, firm_id):
+    def get_task_by_id_with_access_check(self, task_id, firm_id):
         """Get task by ID with firm access verification"""
         from models import Project
         task = Task.query.outerjoin(Project).filter(
@@ -182,15 +181,14 @@ class TaskService(BaseService):
         ).first()
         return task
     
-    @staticmethod
-    def get_project_tasks(project_id, firm_id, include_completed=True):
+    def get_project_tasks(self, project_id, firm_id, include_completed=True):
         """Get all tasks for a specific project"""
         from repositories.task_repository import TaskRepository
         task_repo = TaskRepository()
         return task_repo.get_project_tasks(project_id, firm_id, include_completed)
     
-    @staticmethod
-    def create_task_from_form(form_data, firm_id, user_id):
+    @transactional
+    def create_task_from_form(self, form_data, firm_id, user_id):
         """Create task from form data"""
         try:
             title = form_data.get('title', '').strip()
@@ -214,7 +212,7 @@ class TaskService(BaseService):
             if estimated_hours:
                 estimated_hours = float(estimated_hours)
             
-            return TaskService.create_task(
+            return self.create_task(
                 title=title,
                 description=form_data.get('description', ''),
                 firm_id=firm_id,
@@ -228,11 +226,10 @@ class TaskService(BaseService):
         except Exception as e:
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def update_task_from_form(task_id, form_data, firm_id, user_id):
+    def update_task_from_form(self, task_id, form_data, firm_id, user_id):
         """Update task from form data"""
         try:
-            task = TaskService.get_task_by_id_with_access_check(task_id, firm_id)
+            task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
@@ -270,11 +267,10 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def delete_task(task_id, firm_id, user_id):
+    def delete_task(self, task_id, firm_id, user_id):
         """Delete a task with access check"""
         try:
-            task = TaskService.get_task_by_id_with_access_check(task_id, firm_id)
+            task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
@@ -308,14 +304,13 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def add_task_comment(task_id, firm_id, comment_text, user_id):
+    def add_task_comment(self, task_id, firm_id, comment_text, user_id):
         """Add comment to task"""
         try:
             if not comment_text.strip():
                 return {'success': False, 'message': 'Comment cannot be empty'}
             
-            task = TaskService.get_task_by_id_with_access_check(task_id, firm_id)
+            task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
@@ -341,8 +336,7 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def bulk_update_tasks(task_ids, updates, firm_id, user_id):
+    def bulk_update_tasks(self, task_ids, updates, firm_id, user_id):
         """Bulk update multiple tasks"""
         try:
             from repositories.task_repository import TaskRepository
@@ -366,8 +360,7 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def bulk_delete_tasks(task_ids, firm_id, user_id):
+    def bulk_delete_tasks(self, task_ids, firm_id, user_id):
         """Bulk delete multiple tasks"""
         try:
             from repositories.task_repository import TaskRepository
@@ -391,11 +384,10 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def update_task_status(task_id, new_status, firm_id, user_id):
+    def update_task_status(self, task_id, new_status, firm_id, user_id):
         """Update task status"""
         try:
-            task = TaskService.get_task_by_id_with_access_check(task_id, firm_id)
+            task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
@@ -433,8 +425,7 @@ class TaskService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def would_create_circular_dependency(task_id, dependency_id):
+    def would_create_circular_dependency(self, task_id, dependency_id):
         """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
         def has_path(from_id, to_id, visited=None):
             if visited is None:

@@ -9,8 +9,7 @@ from services.base import BaseService, transactional
 
 
 class ClientService(BaseService):
-    @staticmethod
-    def search_clients(firm_id, query, limit=20):
+    def search_clients(self, firm_id, query, limit=20):
         """
         Search clients by name, email, and contact person for a specific firm
         This replaces direct database access in blueprints
@@ -31,23 +30,19 @@ class ClientService(BaseService):
         
         return clients
 
-    @staticmethod
-    def get_clients_by_firm(firm_id):
+    def get_clients_by_firm(self, firm_id):
         """Get all clients for a specific firm (raw objects)"""
         return Client.query.filter_by(firm_id=firm_id).all()
     
-    @staticmethod
-    def get_active_clients_by_firm(firm_id):
+    def get_active_clients_by_firm(self, firm_id):
         """Get all active clients for a specific firm"""
         return Client.query.filter_by(firm_id=firm_id, is_active=True).all()
     
-    @staticmethod
-    def get_client_by_id_and_firm(client_id, firm_id):
+    def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
         return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
         
-    @staticmethod
-    def get_clients_for_firm(firm_id):
+    def get_clients_for_firm(self, firm_id):
         """Get all clients for a firm (formatted for API)"""
         clients = Client.query.filter_by(firm_id=firm_id).all()
         return [{
@@ -103,15 +98,14 @@ class ClientService(BaseService):
             'client_id': client.id
         }
     
-    @staticmethod
-    def get_client_by_id(client_id, firm_id):
+    def get_client_by_id(self, client_id, firm_id):
         """Get client by ID with firm access check"""
         return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
     
     @transactional
     def update_client(self, client_id, updates, firm_id, user_id):
         """Update client information"""
-        client = ClientService.get_client_by_id(client_id, firm_id)
+        client = self.get_client_by_id(client_id, firm_id)
         if not client:
             return {'success': False, 'message': 'Client not found or access denied'}
         
@@ -132,7 +126,6 @@ class ClientService(BaseService):
         
         return {'success': True, 'message': 'Client updated successfully'}
     
-    @staticmethod
-    def get_clients_by_firm(firm_id):
+    def get_clients_by_firm_raw(self, firm_id):
         """Get all clients for a firm (alias for get_clients_for_firm)"""
         return Client.query.filter_by(firm_id=firm_id).all()

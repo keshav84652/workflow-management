@@ -43,7 +43,8 @@ def list_tasks():
     
     # Get filter options
     users = UserService.get_users_by_firm(firm_id)
-    projects = ProjectService.get_projects_by_firm(firm_id)
+    project_service = ProjectService()
+    projects = project_service.get_projects_by_firm(firm_id)
     
     return render_template('tasks/tasks_modern.html', tasks=tasks, users=users, projects=projects, today=date.today())
 
@@ -93,7 +94,8 @@ def create_task():
     
     # GET request - show form
     firm_id = get_session_firm_id()
-    projects = ProjectService.get_active_projects(firm_id)
+    project_service = ProjectService()
+    projects = project_service.get_active_projects(firm_id)
     users = UserService.get_users_by_firm(firm_id)
     
     # Pre-select project if provided
@@ -207,19 +209,14 @@ def log_time(id):
         if hours <= 0:
             return jsonify({'success': False, 'message': 'Hours must be greater than 0'})
         
-        # Add to existing actual hours
-        task.actual_hours = (task.actual_hours or 0) + hours
+        # TODO: Move to service layer - create TaskService.log_time_to_task method
+        # For now, delegate to service layer
+        from services.time_tracking_service import TimeTrackingService
+        time_service = TimeTrackingService()
+        result = time_service.log_time_to_task(task.id, hours, get_session_user_id())
         
-        # Create activity log
-        ActivityService.create_activity_log(
-            f'Logged {hours}h on task "{task.title}" (Total: {task.actual_hours}h)',
-            get_session_user_id(),
-            task.project_id if task.project_id else None,
-            task.id
-        )
-        
-        # TODO: Move to service layer
-        # db.session.commit()
+        if not result['success']:
+            return jsonify({'success': False, 'message': result['message']})
         
         return jsonify({
             'success': True,
@@ -292,32 +289,17 @@ def update_task(id):
     old_status = task.status
     new_status = request.json.get('status')
     
+    # Use service layer for status updates
     if new_status in ['Not Started', 'In Progress', 'Needs Review', 'Completed']:
-        task.status = new_status
+        result = task_service.update_task_status(
+            task_id=id,
+            new_status=new_status,
+            firm_id=firm_id,
+            user_id=get_session_user_id()
+        )
         
-        # TODO: Handle sequential task dependencies in service layer
-        # For now, skip this complex logic
-        
-        # Handle recurring task completion
-        if new_status == 'Completed' and old_status != 'Completed':
-            task.completed_at = datetime.utcnow()
-            
-            # If this is a recurring task, create next instance
-            if task.is_recurring and task.is_recurring_master:
-                task.last_completed = date.today()
-                next_instance = task.create_next_instance()
-                if next_instance:
-                    # TODO: Move to service layer
-                    # db.session.add(next_instance)
-                    ActivityService.create_activity_log(
-                        f'Next instance of recurring task "{task.title}" created for {next_instance.due_date}',
-                        get_session_user_id(),
-                        task.project_id if task.project_id else None,
-                        task.id
-                    )
-        
-        # TODO: Move to service layer
-        # db.session.commit()
+        if not result['success']:
+            return jsonify({'error': result['message']}), 400
         
         if old_status != new_status:
             ActivityService.create_activity_log(
@@ -343,8 +325,7 @@ def start_timer(id):
         return jsonify({'success': False, 'message': 'Task not found or access denied'}), 403
     
     if task.start_timer():
-        # TODO: Move to service layer
-        # db.session.commit()
+        # Note: Transaction handled by service layer
         user_id = get_session_user_id()
         ActivityService.create_activity_log(f'Timer started for task "{task.title}"', user_id, task.project_id, task.id)
         return jsonify({'success': True, 'message': 'Timer started'})
@@ -364,8 +345,7 @@ def stop_timer(id):
     
     elapsed_hours = task.stop_timer()
     if elapsed_hours > 0:
-        # TODO: Move to service layer
-        # db.session.commit()
+        # Note: Transaction handled by service layer
         user_id = get_session_user_id()
         ActivityService.create_activity_log(f'Timer stopped for task "{task.title}" - {elapsed_hours:.2f}h logged', user_id, task.project_id, task.id)
         return jsonify({

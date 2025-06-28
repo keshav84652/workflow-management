@@ -738,3 +738,214 @@ class AIService(BaseService):
                 
         except Exception as e:
             raise
+    
+    def transform_analysis_to_old_format(self, analysis_results):
+        """Transform new AI service data structure to old format expected by frontend"""
+        transformed = {
+            'azure_result': {},
+            'gemini_result': {}
+        }
+        
+        if not analysis_results:
+            return transformed
+        
+        # Extract from new structure
+        provider_results = analysis_results.get('provider_results', {})
+        combined_analysis = analysis_results.get('combined_analysis', {})
+        
+        # Map Azure results to original format
+        azure_data = provider_results.get('Azure Document Intelligence', {})
+        if azure_data and 'error' not in azure_data:
+            raw_results = azure_data.get('raw_results', {})
+            
+            # Get structured fields from raw results
+            azure_fields = raw_results.get('fields', {})
+            tables_data = raw_results.get('entities', [])
+            extracted_text = raw_results.get('text', '')
+            confidence = raw_results.get('confidence', azure_data.get('confidence_score', 0.9))
+            
+            # Convert fields to key-value pairs array (original format)
+            key_value_pairs = []
+            if isinstance(azure_fields, dict):
+                for field_name, field_data in azure_fields.items():
+                    if isinstance(field_data, dict):
+                        value = field_data.get('value', field_data.get('content', str(field_data)))
+                        key_value_pairs.append({
+                            'key': field_name,
+                            'value': str(value)
+                        })
+                    else:
+                        key_value_pairs.append({
+                            'key': field_name,
+                            'value': str(field_data)
+                        })
+            
+            # If no structured fields found, parse key information from extracted text
+            if not key_value_pairs and extracted_text:
+                key_value_pairs = self._parse_tax_document_text(extracted_text, raw_results)
+            
+            # Convert tables to original format
+            tables = []
+            for table in tables_data:
+                if isinstance(table, dict):
+                    tables.append({
+                        'row_count': table.get('row_count', 0),
+                        'column_count': table.get('column_count', 0),
+                        'cells': table.get('cells', [])
+                    })
+            
+            transformed['azure_result'] = {
+                'key_value_pairs': key_value_pairs,
+                'tables': tables,
+                'confidence_score': confidence,
+                'text_content': extracted_text
+            }
+        
+        # Map Gemini results to original format
+        gemini_data = provider_results.get('Google Gemini', {})
+        if gemini_data and 'error' not in gemini_data:
+            raw_results = gemini_data.get('raw_results', gemini_data)
+            
+            transformed['gemini_result'] = {
+                'document_type': raw_results.get('document_type', 'general_document'),
+                'summary': raw_results.get('summary', ''),
+                'key_findings': raw_results.get('key_findings', []),
+                'confidence_score': raw_results.get('confidence', gemini_data.get('confidence_score', 0.85)),
+                'analysis_text': raw_results.get('analysis_text', '')
+            }
+        
+        # Use combined analysis as fallback
+        if not transformed['azure_result'] and not transformed['gemini_result'] and combined_analysis:
+            # Extract from combined analysis if available
+            combined_raw = combined_analysis.get('raw_results', combined_analysis)
+            
+            # Try to get Azure-like data from combined
+            if 'text' in combined_raw or 'extracted_text' in combined_raw:
+                text = combined_raw.get('text', combined_raw.get('extracted_text', ''))
+                transformed['azure_result'] = {
+                    'key_value_pairs': self._extract_fields_as_kv_pairs(combined_raw.get('fields', {})),
+                    'tables': [],
+                    'confidence_score': combined_raw.get('confidence_score', 0.8),
+                    'text_content': text
+                }
+            
+            # Try to get Gemini-like data from combined
+            if 'document_type' in combined_raw:
+                transformed['gemini_result'] = {
+                    'document_type': combined_raw.get('document_type', 'general_document'),
+                    'summary': combined_raw.get('summary', 'Combined analysis result'),
+                    'key_findings': combined_raw.get('key_findings', []),
+                    'confidence_score': combined_raw.get('confidence_score', 0.8)
+                }
+        
+        return transformed
+    
+    def _parse_tax_document_text(self, extracted_text, raw_results):
+        """Parse tax document information from OCR text"""
+        import re
+        
+        key_value_pairs = []
+        text_lines = extracted_text.split('\n')
+        
+        for line in text_lines:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # Parse common tax form patterns
+            
+            # Box amounts with $ signs (e.g., "1 Unemployment compensation $ 123,456.00")
+            amount_match = re.search(r'(\d+)\s+([^$]+)\s*\$\s*([\d,]+\.?\d*)', line)
+            if amount_match:
+                box_num = amount_match.group(1)
+                description = amount_match.group(2).strip()
+                amount = amount_match.group(3)
+                key_value_pairs.append({
+                    'key': f'Box {box_num} - {description}',
+                    'value': f'${amount}'
+                })
+                continue
+            
+            # TIN numbers (e.g., "PAYER'S TIN 12-3456789")
+            tin_match = re.search(r"(PAYER'S TIN|RECIPIENT'S TIN)\s+([\d-]+)", line)
+            if tin_match:
+                tin_type = tin_match.group(1)
+                tin_value = tin_match.group(2)
+                key_value_pairs.append({
+                    'key': tin_type,
+                    'value': tin_value
+                })
+                continue
+            
+            # Names (e.g., "RECIPIENT'S name" followed by actual name)
+            if "RECIPIENT'S name" in line:
+                continue  # Skip the label line, get the actual name from next lines
+                
+            # Look for recipient name (typically all caps after the label)
+            if line.isupper() and len(line.split()) <= 4 and len(line) > 5:
+                # Likely a name
+                if 'RECIPIENT' not in line and 'PAYER' not in line and 'STATE' not in line:
+                    key_value_pairs.append({
+                        'key': "Recipient's Name",
+                        'value': line
+                    })
+                    continue
+            
+            # Addresses (lines with numbers and state abbreviations)
+            address_match = re.search(r'(\d+\s+[^,]+(?:,\s*APT\.?\s*\d+)?)', line)
+            if address_match and any(state in line for state in [' WA ', ' CA ', ' NY ', ' TX ', ' FL ']):
+                key_value_pairs.append({
+                    'key': 'Address',
+                    'value': line
+                })
+                continue
+            
+            # Form identification
+            form_match = re.search(r'Form\s+([\d-]+[A-Z]*)', line)
+            if form_match:
+                key_value_pairs.append({
+                    'key': 'Form Type',
+                    'value': form_match.group(1)
+                })
+                continue
+            
+            # Tax year
+            year_match = re.search(r'(?:calendar year|tax year)\s*(\d{4})', line, re.IGNORECASE)
+            if year_match:
+                key_value_pairs.append({
+                    'key': 'Tax Year',
+                    'value': year_match.group(1)
+                })
+                continue
+        
+        # If still no key-value pairs, add basic summary info
+        if not key_value_pairs:
+            key_value_pairs.append({
+                'key': 'Document Type',
+                'value': raw_results.get('document_type', 'Tax Document')
+            })
+            key_value_pairs.append({
+                'key': 'Text Length',
+                'value': f'{len(extracted_text)} characters'
+            })
+        
+        return key_value_pairs
+    
+    def _extract_fields_as_kv_pairs(self, fields):
+        """Convert fields dictionary to key-value pairs list"""
+        kv_pairs = []
+        if isinstance(fields, dict):
+            for key, value_data in fields.items():
+                if isinstance(value_data, dict):
+                    kv_pairs.append({
+                        'key': key,
+                        'value': value_data.get('value', str(value_data)),
+                        'confidence': value_data.get('confidence', 0)
+                    })
+                else:
+                    kv_pairs.append({
+                        'key': key,
+                        'value': str(value_data),
+                        'confidence': 1.0
+                    })
+        return kv_pairs

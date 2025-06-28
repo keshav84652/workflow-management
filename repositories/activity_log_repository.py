@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from core.db_import import db
 from models import ActivityLog
-from .base import CachedRepository
+from .base import CachedRepository, PaginationResult
 
 
 class ActivityLogRepository(CachedRepository[ActivityLog]):
@@ -16,9 +16,34 @@ class ActivityLogRepository(CachedRepository[ActivityLog]):
     def __init__(self):
         super().__init__(ActivityLog, cache_ttl=300)  # 5 minute cache
 
-    def get_by_firm(self, firm_id: int) -> List[ActivityLog]:
-        """Get all activity logs for a firm"""
-        return ActivityLog.query.filter(ActivityLog.firm_id == firm_id).order_by(ActivityLog.timestamp.desc()).all()
+    def get_by_firm(self, firm_id: int, limit: Optional[int] = 100) -> List[ActivityLog]:
+        """Get activity logs for a firm with default limit (WARNING: Use paginated version for large datasets)"""
+        query = ActivityLog.query.filter(ActivityLog.firm_id == firm_id).order_by(ActivityLog.timestamp.desc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
+    
+    def get_by_firm_paginated(self, firm_id: int, page: int = 1, per_page: int = 50) -> PaginationResult:
+        """Get activity logs for a firm with pagination"""
+        query = ActivityLog.query.filter(ActivityLog.firm_id == firm_id).order_by(ActivityLog.timestamp.desc())
+        
+        total = query.count()
+        pages = (total + per_page - 1) // per_page
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
 
     def get_recent_activities(self, firm_id: int, limit: int = 20) -> List[ActivityLog]:
         """Get recent activity logs for a firm"""

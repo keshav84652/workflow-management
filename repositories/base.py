@@ -4,12 +4,23 @@ Provides abstraction layer for data access operations.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List, Dict, Any, Generic, TypeVar
+from typing import Optional, List, Dict, Any, Generic, TypeVar, NamedTuple
 from datetime import datetime
 from core.db_import import db
 
 
 T = TypeVar('T')
+
+
+class PaginationResult(NamedTuple):
+    """Result of a paginated query"""
+    items: List[Any]
+    total: int
+    page: int
+    per_page: int
+    pages: int
+    has_prev: bool
+    has_next: bool
 
 
 class BaseRepository(ABC, Generic[T]):
@@ -68,8 +79,8 @@ class SqlAlchemyRepository(BaseRepository[T]):
         """Get entity by ID"""
         return self.model_class.query.get(entity_id)
     
-    def get_all(self, firm_id: Optional[int] = None, **filters) -> List[T]:
-        """Get all entities with optional filters"""
+    def get_all(self, firm_id: Optional[int] = None, limit: Optional[int] = None, **filters) -> List[T]:
+        """Get all entities with optional filters and limit"""
         query = self.model_class.query
         
         # Apply firm filter if applicable and provided
@@ -81,7 +92,50 @@ class SqlAlchemyRepository(BaseRepository[T]):
             if hasattr(self.model_class, field):
                 query = query.filter(getattr(self.model_class, field) == value)
         
+        # Apply limit if provided
+        if limit:
+            query = query.limit(limit)
+        
         return query.all()
+    
+    def paginate(self, page: int = 1, per_page: int = 50, firm_id: Optional[int] = None, 
+                 order_by=None, **filters) -> PaginationResult:
+        """Get entities with pagination"""
+        query = self.model_class.query
+        
+        # Apply firm filter if applicable and provided
+        if firm_id is not None and hasattr(self.model_class, 'firm_id'):
+            query = query.filter(self.model_class.firm_id == firm_id)
+        
+        # Apply additional filters
+        for field, value in filters.items():
+            if hasattr(self.model_class, field):
+                query = query.filter(getattr(self.model_class, field) == value)
+        
+        # Apply ordering
+        if order_by:
+            if isinstance(order_by, (list, tuple)):
+                for order_field in order_by:
+                    query = query.order_by(order_field)
+            else:
+                query = query.order_by(order_by)
+        
+        # Execute pagination
+        total = query.count()
+        pages = (total + per_page - 1) // per_page  # Ceiling division
+        
+        offset = (page - 1) * per_page
+        items = query.offset(offset).limit(per_page).all()
+        
+        return PaginationResult(
+            items=items,
+            total=total,
+            page=page,
+            per_page=per_page,
+            pages=pages,
+            has_prev=page > 1,
+            has_next=page < pages
+        )
     
     def create(self, data: Dict[str, Any]) -> T:
         """Create new entity"""
