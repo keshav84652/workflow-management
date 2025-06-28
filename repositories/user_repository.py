@@ -21,8 +21,8 @@ class UserRepository(CachedRepository[User]):
         """Get all users for a firm"""
         query = User.query.filter(User.firm_id == firm_id)
         
-        if not include_inactive:
-            query = query.filter(User.is_active == True)
+        # Note: is_active field doesn't exist in current schema, so we return all users
+        # TODO: Add is_active field to User model and database schema when ready
         
         return query.order_by(User.name.asc()).all()
     
@@ -30,15 +30,15 @@ class UserRepository(CachedRepository[User]):
         """Search users by name"""
         return User.query.filter(
             User.firm_id == firm_id,
-            User.name.ilike(f'%{search_term}%'),
-            User.is_active == True
+            User.name.ilike(f'%{search_term}%')
         ).order_by(User.name.asc()).all()
     
     def get_user_statistics(self, firm_id: int) -> Dict[str, int]:
         """Get user statistics"""
         total = self.count(firm_id=firm_id)
-        active = self.count(firm_id=firm_id, is_active=True)
-        inactive = total - active
+        # TODO: Implement active/inactive when is_active field is added
+        active = total  # All users considered active for now
+        inactive = 0
         
         return {
             'total': total,

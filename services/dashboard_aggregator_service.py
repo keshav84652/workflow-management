@@ -178,3 +178,17 @@ class DashboardAggregatorService(BaseService):
                 'overdue_count': 0,
                 'completion_rate': 0
             }
+    
+    def get_time_tracking_report(self, firm_id: int, start_date=None, end_date=None) -> Dict[str, Any]:
+        """
+        Get time tracking report by delegating to TimeTrackingService
+        
+        Args:
+            firm_id: The firm's ID
+            start_date: Start date for report (optional)
+            end_date: End date for report (optional)
+            
+        Returns:
+            Dictionary with time tracking analytics
+        """
+        return self.time_tracking.get_time_tracking_report(firm_id, start_date, end_date)
