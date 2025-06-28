@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 
 from models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
-from services.dashboard_service import DashboardService
+from services.dashboard_aggregator_service import DashboardAggregatorService
 from services.client_service import ClientService
 from services.user_service import UserService
 from services.project_service import ProjectService
@@ -25,8 +25,8 @@ def calendar_view():
     year = int(request.args.get('year', date.today().year))
     month = int(request.args.get('month', date.today().month))
     
-    # Use DashboardService for business logic
-    dashboard_service = DashboardService()
+    # Use DashboardAggregatorService for business logic
+    dashboard_service = DashboardAggregatorService()
     calendar_data = dashboard_service.get_calendar_data(firm_id, year, month)
     
     # Prepare task data for JSON serialization
@@ -64,8 +64,8 @@ def search():
     if search_type != 'all':
         filters['search_type'] = search_type
     
-    # Use DashboardService for business logic
-    dashboard_service = DashboardService()
+    # Use DashboardAggregatorService for business logic
+    dashboard_service = DashboardAggregatorService()
     results = dashboard_service.search_tasks_and_projects(firm_id, query, filters)
     
     # Add search type and clients if needed

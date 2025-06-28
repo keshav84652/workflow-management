@@ -76,9 +76,9 @@ class ViewsService:
     def get_time_tracking_data(firm_id, start_date=None, end_date=None, user_id=None, project_id=None):
         """Get time tracking report data with filtering"""
         try:
-            # Use DashboardService for time tracking logic
-            from services.dashboard_service import DashboardService
-            dashboard_service = DashboardService()
+            # Use DashboardAggregatorService for time tracking logic
+            from services.dashboard_aggregator_service import DashboardAggregatorService
+            dashboard_service = DashboardAggregatorService()
             
             # Get base report data
             report_data = dashboard_service.get_time_tracking_report(firm_id, start_date, end_date)
