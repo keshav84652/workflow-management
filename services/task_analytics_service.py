@@ -38,6 +38,14 @@ class TaskAnalyticsService(BaseService):
         not_started_tasks = len([task for task in filtered_tasks if task.status == 'Not Started'])
         needs_review_tasks = len([task for task in filtered_tasks if task.status == 'Needs Review'])
         
+        # Calculate due soon tasks (next 7 days)
+        cutoff_date = date.today() + timedelta(days=7)
+        due_soon_tasks = len([task for task in filtered_tasks 
+                             if (task.due_date and 
+                                 not task.is_completed and 
+                                 task.due_date <= cutoff_date and 
+                                 task.due_date >= date.today())])
+        
         return {
             'total': total_tasks,
             'active': total_tasks - completed_tasks,
@@ -46,6 +54,7 @@ class TaskAnalyticsService(BaseService):
             'in_progress': in_progress_tasks,
             'not_started': not_started_tasks,
             'needs_review': needs_review_tasks,
+            'due_soon': due_soon_tasks,
             'completion_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
         }
     
@@ -184,3 +193,16 @@ class TaskAnalyticsService(BaseService):
             List of recent Task objects
         """
         return self.task_repository.get_recent_tasks(firm_id, limit=limit)
+    
+    def get_filtered_tasks(self, firm_id: int) -> List:
+        """
+        Get all tasks filtered by dependency mode
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            List of filtered Task objects
+        """
+        all_tasks = self.task_repository.get_tasks_by_firm(firm_id)
+        return self._filter_tasks_by_dependency_mode(all_tasks)

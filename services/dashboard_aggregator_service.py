@@ -35,6 +35,7 @@ class DashboardAggregatorService(BaseService):
     def get_dashboard_data(self, firm_id: int) -> Dict[str, Any]:
         """
         Get comprehensive dashboard data by orchestrating focused services
+        Compatible with old DashboardService interface for seamless migration
         
         Args:
             firm_id: The firm's ID
@@ -55,13 +56,24 @@ class DashboardAggregatorService(BaseService):
             active_clients = self.client_repository.get_active_count(firm_id)
             users_count = self.user_repository.get_count_by_firm(firm_id)
             
-            # Get additional analytics
-            overdue_tasks = self.task_analytics.get_overdue_tasks(firm_id)
-            upcoming_deadlines = self.task_analytics.get_upcoming_deadlines(firm_id, days_ahead=7)
+            # Get additional data for compatibility
+            projects_list = self.project_analytics.get_active_projects(firm_id)
+            filtered_tasks = self.task_analytics.get_filtered_tasks(firm_id)
+            work_type_data = self._get_work_type_status_data(firm_id)
             
             return {
-                'projects': project_stats,
-                'tasks': task_stats,
+                'projects': {
+                    'active': project_stats.get('active', 0),
+                    'total': project_stats.get('total', 0)
+                },
+                'tasks': {
+                    'active': task_stats.get('active', 0),
+                    'total': task_stats.get('total', 0),
+                    'completed': task_stats.get('completed', 0),
+                    'overdue': task_stats.get('overdue', 0),
+                    'in_progress': task_stats.get('in_progress', 0),
+                    'due_soon': task_stats.get('due_soon', 0)
+                },
                 'clients': {
                     'active': active_clients
                 },
@@ -70,15 +82,9 @@ class DashboardAggregatorService(BaseService):
                 },
                 'recent_tasks': recent_tasks,
                 'recent_projects': recent_projects,
-                'overdue_tasks': overdue_tasks,
-                'upcoming_deadlines': upcoming_deadlines,
-                'summary': {
-                    'total_active_work': task_stats.get('active', 0) + project_stats.get('active', 0),
-                    'completion_trend': {
-                        'tasks': task_stats.get('completion_rate', 0),
-                        'projects': project_stats.get('completion_rate', 0)
-                    }
-                }
+                'work_type_data': work_type_data,
+                'projects_list': projects_list,
+                'filtered_tasks': filtered_tasks
             }
             
         except Exception as e:
@@ -88,16 +94,29 @@ class DashboardAggregatorService(BaseService):
             logger.error(f"Error getting dashboard data for firm {firm_id}: {e}")
             
             return {
-                'projects': {'active': 0, 'total': 0, 'completed': 0, 'completion_rate': 0},
-                'tasks': {'active': 0, 'total': 0, 'completed': 0, 'overdue': 0, 'in_progress': 0, 'completion_rate': 0},
+                'projects': {'active': 0, 'total': 0},
+                'tasks': {'active': 0, 'total': 0, 'completed': 0, 'overdue': 0, 'in_progress': 0, 'due_soon': 0},
                 'clients': {'active': 0},
                 'users': {'count': 0},
                 'recent_tasks': [],
                 'recent_projects': [],
-                'overdue_tasks': [],
-                'upcoming_deadlines': [],
+                'work_type_data': {},
+                'projects_list': [],
+                'filtered_tasks': [],
                 'error': 'Unable to load dashboard data'
             }
+    
+    def _get_work_type_status_data(self, firm_id: int) -> Dict[str, Any]:
+        """
+        Get work type data (compatibility method)
+        TODO: Move to WorkTypeRepository when available
+        """
+        try:
+            from models import WorkType
+            work_types = WorkType.query.filter_by(firm_id=firm_id, is_active=True).all()
+            return {wt.name: {'name': wt.name, 'color': wt.color} for wt in work_types}
+        except Exception:
+            return {}
     
     def get_advanced_analytics(self, firm_id: int) -> Dict[str, Any]:
         """

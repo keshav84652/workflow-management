@@ -158,3 +158,15 @@ class ProjectAnalyticsService(BaseService):
                 priority_groups[priority].append(project)
         
         return priority_groups
+    
+    def get_active_projects(self, firm_id: int) -> List:
+        """
+        Get all active projects for a firm
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            List of active Project objects
+        """
+        return self.project_repository.get_projects_by_firm(firm_id, filters={'status': 'Active'})

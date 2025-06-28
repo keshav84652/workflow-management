@@ -4,7 +4,7 @@ Main dashboard blueprint
 
 from flask import Blueprint, render_template, session
 
-from services.dashboard_service import DashboardService
+from services.dashboard_aggregator_service import DashboardAggregatorService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 
 dashboard_bp = Blueprint('dashboard', __name__)
@@ -15,8 +15,8 @@ def main():
     """Main dashboard route - now uses DashboardService exclusively"""
     firm_id = get_session_firm_id()
     
-    # Use service layer instead of direct database access
-    dashboard_service = DashboardService()
+    # Use refactored service layer with decomposed services
+    dashboard_service = DashboardAggregatorService()
     dashboard_data = dashboard_service.get_dashboard_data(firm_id)
     
     # All data now comes from the service layer - no direct database access!

@@ -56,3 +56,7 @@ class UserRepository(CachedRepository[User]):
             User.id == user_id,
             User.firm_id == firm_id
         ).first()
+    
+    def get_users_by_firm(self, firm_id: int, include_inactive: bool = False) -> List[User]:
+        """Alias for get_by_firm to maintain compatibility"""
+        return self.get_by_firm(firm_id, include_inactive)
