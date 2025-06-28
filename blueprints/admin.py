@@ -51,20 +51,20 @@ def dashboard():
 # Template Management Routes
 @admin_bp.route('/templates')
 def templates():
-    from services.admin_service import AdminService
+    from services.template_service import TemplateService
     from utils.consolidated import get_session_firm_id
     
     firm_id = get_session_firm_id()
-    admin_service = AdminService()
-    templates = admin_service.get_templates_for_firm(firm_id)
+    template_service = TemplateService()
+    templates = template_service.get_templates_by_firm(firm_id)
     return render_template('admin/templates.html', templates=templates)
 
 
 @admin_bp.route('/templates/create', methods=['GET', 'POST'])
 def create_template():
     if request.method == 'POST':
-        from services.admin_service import AdminService
-        from utils.consolidated import get_session_firm_id
+        from services.template_service import TemplateService
+        from utils.consolidated import get_session_firm_id, get_session_user_id
         
         firm_id = get_session_firm_id()
         
@@ -82,13 +82,14 @@ def create_template():
                     'recurrence_rule': recurrence_rules[i] if i < len(recurrence_rules) else None
                 })
         
-        admin_service = AdminService()
-        result = admin_service.create_template(
+        template_service = TemplateService()
+        result = template_service.create_template(
             name=request.form.get('name'),
             description=request.form.get('description'),
             task_dependency_mode=request.form.get('task_dependency_mode') == 'true',
             firm_id=firm_id,
-            tasks_data=tasks_data
+            tasks_data=tasks_data,
+            user_id=get_session_user_id()
         )
         
         if result['success']:
@@ -103,12 +104,12 @@ def create_template():
 
 @admin_bp.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 def edit_template(id):
-    from services.admin_service import AdminService
-    from utils.consolidated import get_session_firm_id
+    from services.template_service import TemplateService
+    from utils.consolidated import get_session_firm_id, get_session_user_id
     
     firm_id = get_session_firm_id()
-    admin_service = AdminService()
-    template = admin_service.get_template_by_id(id, firm_id)
+    template_service = TemplateService()
+    template = template_service.get_template_by_id(id, firm_id)
     if not template:
         flash('Template not found or access denied', 'error')
         return redirect(url_for('admin.templates'))
@@ -128,14 +129,15 @@ def edit_template(id):
                     'recurrence_rule': recurrence_rules[i] if i < len(recurrence_rules) else None
                 })
         
-        admin_service = AdminService()
-        result = admin_service.update_template(
+        template_service = TemplateService()
+        result = template_service.update_template(
             template_id=id,
             name=request.form.get('name'),
             description=request.form.get('description'),
             task_dependency_mode=request.form.get('task_dependency_mode') == 'true',
             firm_id=firm_id,
-            tasks_data=tasks_data
+            tasks_data=tasks_data,
+            user_id=get_session_user_id()
         )
         
         if result['success']:

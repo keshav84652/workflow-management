@@ -25,7 +25,8 @@ ai_bp = Blueprint('ai', __name__)
 def ai_services_status():
     """Check the status of AI services"""
     try:
-        status = AIService.get_ai_services_status(current_app.config)
+        ai_service = AIService(current_app.config)
+        status = ai_service.get_ai_services_status()
         status_code = 500 if 'error' in status else 200
         return jsonify(status), status_code
         
@@ -113,7 +114,8 @@ def get_document_analysis(document_id):
 
 def _get_document_filename(document_id):
     """Get document filename from database"""
-    return DocumentService.get_document_filename_by_id(document_id)
+    document_service = DocumentService()
+    return document_service.get_document_filename_by_id(document_id)
 
 
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
@@ -167,7 +169,8 @@ def export_checklist_analysis(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        result = AIService.export_checklist_analysis(checklist_id, firm_id)
+        ai_service = AIService(current_app.config)
+        result = ai_service.export_checklist_analysis(checklist_id, firm_id)
         
         if not result['success']:
             return jsonify(result), 500
@@ -221,7 +224,8 @@ def download_income_worksheet(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        result = AIService.get_income_worksheet_for_download(checklist_id, firm_id)
+        ai_service = AIService(current_app.config)
+        result = ai_service.get_income_worksheet_for_download(checklist_id, firm_id)
         
         if not result['success']:
             return jsonify(result), 500
@@ -277,7 +281,8 @@ def download_saved_worksheet(worksheet_id):
         firm_id = get_session_firm_id()
         
         # Get worksheet data via service layer
-        result = DocumentService.get_worksheet_data_for_download(worksheet_id, firm_id)
+        document_service = DocumentService()
+        result = document_service.get_worksheet_data_for_download(worksheet_id, firm_id)
         if not result['success']:
             return jsonify({'error': result['message']}), 404
         

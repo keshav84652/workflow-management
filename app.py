@@ -41,6 +41,10 @@ def create_app(config_name='default'):
     db.init_app(app)
     migrate.init_app(app, db)
 
+    # Register Jinja2 template filters
+    from utils.template_filters import register_template_filters
+    register_template_filters(app)
+    
     # Register blueprints
     from blueprints import ALL_BLUEPRINTS
     for blueprint in ALL_BLUEPRINTS:

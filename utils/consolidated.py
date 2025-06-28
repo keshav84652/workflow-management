@@ -71,28 +71,7 @@ def generate_access_code(length: int = 12) -> str:
 
 
 # ===== DATE/TIME UTILITIES =====
-
-def format_currency(amount: float) -> str:
-    """Format currency amount to string with dollar sign and commas"""
-    if amount is None:
-        return "$0.00"
-    try:
-        num_amount = float(amount)
-        if num_amount < 0:
-            return f"-${abs(num_amount):,.2f}"
-        return f"${num_amount:,.2f}"
-    except (ValueError, TypeError):
-        return "$0.00"
-
-
-def format_date(date_obj: datetime, format_str: str = "%Y-%m-%d") -> str:
-    """Format datetime object to readable string"""
-    if date_obj is None or date_obj == "":
-        return ""
-    try:
-        return date_obj.strftime(format_str)
-    except (AttributeError, TypeError):
-        return ""
+# Note: format_currency and format_date moved to utils/template_filters.py
 
 
 def calculate_business_days(start_date: datetime, end_date: datetime) -> int:
@@ -125,8 +104,6 @@ __all__ = [
     # Security
     'generate_access_code',
     
-    # Date/time utilities
-    'format_currency', 
-    'format_date',
+    # Date/time utilities  
     'calculate_business_days',
 ]

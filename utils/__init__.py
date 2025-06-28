@@ -10,9 +10,7 @@ from .consolidated import (
     get_session_firm_id,
     get_session_user_id,
     generate_access_code,
-    format_currency,
-    format_date,
-    calculate_business_days
+    calculate_business_days,
 )
 
 # NOTE: Service functions moved to their respective services
@@ -30,8 +28,6 @@ __all__ = [
     'generate_access_code',
     
     # Date/time utilities
-    'format_currency',
-    'format_date', 
     'calculate_business_days',
     
     # Health monitoring
