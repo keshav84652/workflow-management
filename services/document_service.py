@@ -1,14 +1,23 @@
 """
 DocumentService: Handles all business logic for documents and checklists, including sharing.
+Updated to use proper service patterns and repositories.
 """
 
-from core.db_import import db
-from models import DocumentChecklist, Client, ChecklistItem, ClientDocument
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 import secrets
 
-class DocumentService:
-    @classmethod
+from core.db_import import db
+from models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
+from services.base import BaseService, transactional
+from repositories.client_repository import ClientRepository
+
+
+class DocumentService(BaseService):
+    def __init__(self):
+        super().__init__()
+        self.client_repository = ClientRepository()
+    @staticmethod
     def update_checklist_item_status(token, item_id, new_status):
         """Update checklist item status via public token"""
         try:
@@ -75,7 +84,7 @@ class DocumentService:
             db.session.commit()
         return checklist
 
-    @classmethod
+    @staticmethod  
     def revoke_share(checklist_id, firm_id):
         checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
@@ -85,7 +94,7 @@ class DocumentService:
         db.session.commit()
         return checklist
 
-    @classmethod
+    @staticmethod
     def regenerate_share_token(checklist_id, firm_id):
         checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
@@ -96,8 +105,8 @@ class DocumentService:
         db.session.commit()
         return checklist
     
-    @classmethod
-    def create_checklist(cls, name, description=None, client_id=None, firm_id=None, user_id=None):
+    @staticmethod
+    def create_checklist(name, description=None, client_id=None, firm_id=None, user_id=None):
         """Create a new document checklist"""
         try:
             if not name or not name.strip():
@@ -133,8 +142,8 @@ class DocumentService:
             db.session.rollback()
             return {'success': False, 'error': str(e)}
     
-    @classmethod
-    def add_checklist_item(cls, checklist_id, name, description=None, firm_id=None, user_id=None):
+    @staticmethod
+    def add_checklist_item(checklist_id, name, description=None, firm_id=None, user_id=None):
         """Add item to checklist"""
         try:
             if not name or not name.strip():
@@ -159,8 +168,8 @@ class DocumentService:
             db.session.rollback()
             return {'success': False, 'error': str(e)}
     
-    @classmethod
-    def upload_file_to_checklist_item(cls, item_id, file_path, original_filename, firm_id=None, user_id=None):
+    @staticmethod
+    def upload_file_to_checklist_item(item_id, file_path, original_filename, firm_id=None, user_id=None):
         """Upload file to checklist item"""
         try:
             item = ChecklistItem.query.get(item_id)
@@ -196,8 +205,7 @@ class DocumentService:
     
     def get_clients_for_firm(self, firm_id):
         """Get all clients for a firm - used by document blueprints"""
-        from models import Client
-        return Client.query.filter_by(firm_id=firm_id).all()
+        return self.client_repository.get_by_firm(firm_id)
     
     def get_uploaded_documents(self, firm_id):
         """Get all uploaded documents for a firm"""

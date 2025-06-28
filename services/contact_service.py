@@ -3,12 +3,16 @@ ContactService: Handles all business logic for contacts, including creation, upd
 """
 
 from core.db_import import db
-from models import Contact, Client, ClientContact
+from models import Contact, ClientContact, Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from services.base import BaseService, transactional
+from repositories.client_repository import ClientRepository
 
-class ContactService:
+
+class ContactService(BaseService):
     def __init__(self):
-        self.activity_logger = ActivityService()
+        super().__init__()
+        self.client_repository = ClientRepository()
 
     def create_contact(self, form_data, user_id):
         try:
@@ -62,7 +66,9 @@ class ContactService:
 
     def associate_contact_with_client(self, contact_id, client_id, firm_id, user_id):
         try:
-            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
+            if not client:
+                return {'success': False, 'message': 'Client not found or access denied'}
             contact = Contact.query.get_or_404(contact_id)
             existing = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
             if existing:
@@ -85,7 +91,9 @@ class ContactService:
 
     def disassociate_contact_from_client(self, contact_id, client_id, firm_id, user_id):
         try:
-            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
+            if not client:
+                return {'success': False, 'message': 'Client not found or access denied'}
             contact = Contact.query.get_or_404(contact_id)
             association = ClientContact.query.filter_by(contact_id=contact_id, client_id=client_id).first()
             if association:
@@ -109,7 +117,9 @@ class ContactService:
     def link_contact_to_client(self, contact_id, client_id, relationship_type, is_primary, firm_id, user_id):
         try:
             contact = Contact.query.get_or_404(contact_id)
-            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+            client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
+            if not client:
+                return {'success': False, 'message': 'Client not found or access denied'}
             existing = ClientContact.query.filter_by(client_id=client_id, contact_id=contact_id).first()
             if existing:
                 return {'success': False, 'message': 'Contact is already associated with this client'}

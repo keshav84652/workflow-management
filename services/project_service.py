@@ -177,8 +177,11 @@ class ProjectService(BaseService):
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
-            # Check if project has tasks
-            task_count = Task.query.filter_by(project_id=project_id).count()
+            # Check if project has tasks  
+            from repositories.task_repository import TaskRepository
+            task_repo = TaskRepository()
+            project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
+            task_count = len(project_tasks)
             if task_count > 0:
                 return {'success': False, 'message': f'Cannot delete project with {task_count} tasks. Please remove tasks first.'}
             
@@ -311,9 +314,12 @@ class ProjectService(BaseService):
                     user_id=user_id
                 )
             
-            # Calculate updated progress for response
-            total_tasks = Task.query.filter_by(project_id=project_id).count()
-            completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
+            # Calculate updated progress for response  
+            from repositories.task_repository import TaskRepository
+            task_repo = TaskRepository()
+            project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
+            total_tasks = len(project_tasks)
+            completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
             progress_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
             
             return {
@@ -393,13 +399,16 @@ class ProjectService(BaseService):
             return
         
         try:
-            project = Project.query.get(project_id)
+            project = self.project_repository.get_by_id_and_firm(project_id, firm_id=None)  # Allow any firm for this internal check
             if not project:
                 return
             
             # Count total tasks and completed tasks
-            total_tasks = Task.query.filter_by(project_id=project_id).count()
-            completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
+            from repositories.task_repository import TaskRepository
+            task_repo = TaskRepository()
+            project_tasks = task_repo.get_project_tasks(project_id, project.firm_id, include_completed=True)
+            total_tasks = len(project_tasks)
+            completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
             
             # If all tasks are completed, mark project as completed
             if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
