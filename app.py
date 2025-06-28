@@ -125,12 +125,8 @@ def create_app(config_name='default'):
         print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")
 
     # Recurring tasks are now integrated into the Task model
-
-    def allowed_file_local(filename):
-        """Check if file extension is allowed"""
-        return '.' in filename and \
-               filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
+    
+    # Note: File validation logic moved to AttachmentService
     # Note: save_uploaded_file function moved to blueprints/attachments.py
 
     # Database initialization handled by init_db.py

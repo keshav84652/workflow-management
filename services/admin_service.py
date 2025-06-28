@@ -58,8 +58,7 @@ class AdminService(BaseService):
             }
     
 
-    @staticmethod
-    def is_admin_authenticated() -> bool:
+    def is_admin_authenticated(self) -> bool:
         """
         Check if current session has admin privileges
         
@@ -69,14 +68,12 @@ class AdminService(BaseService):
         return session.get('admin', False)
     
 
-    @staticmethod
-    def set_admin_session() -> None:
+    def set_admin_session(self) -> None:
         """Set admin authentication in session"""
         session['admin'] = True
     
 
-    @staticmethod
-    def clear_admin_session() -> None:
+    def clear_admin_session(self) -> None:
         """Clear admin authentication from session"""
         session.pop('admin', None)
     

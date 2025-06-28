@@ -108,6 +108,104 @@ class WorkTypeService(BaseService):
             return {}
     
     @transactional
+    def create_task_status(self, work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
+        """
+        Create a new task status for a work type
+        
+        Args:
+            work_type_id: The work type's ID
+            name: Status name
+            color: Status color (hex)
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing success status, status data, and any error messages
+        """
+        try:
+            # Verify work type belongs to firm
+            work_type = WorkType.query.filter_by(id=work_type_id, firm_id=firm_id).first()
+            if not work_type:
+                return {
+                    'success': False,
+                    'message': 'Work type not found or access denied'
+                }
+            
+            # Get next position
+            max_position = db.session.query(db.func.max(TaskStatus.position)).filter_by(
+                work_type_id=work_type_id
+            ).scalar() or 0
+            
+            status = TaskStatus(
+                firm_id=firm_id,
+                work_type_id=work_type_id,
+                name=name.strip(),
+                color=color,
+                position=max_position + 1
+            )
+            
+            db.session.add(status)
+            
+            return {
+                'success': True,
+                'message': f'Status "{name}" created successfully',
+                'status': {
+                    'id': status.id,
+                    'name': status.name,
+                    'color': status.color
+                }
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error creating status: {str(e)}',
+                'status': None
+            }
+    
+    @transactional
+    def update_task_status(self, status_id: int, name: str, color: str, position: int,
+                          is_default: bool, is_terminal: bool, firm_id: int) -> Dict[str, Any]:
+        """
+        Update an existing task status
+        
+        Args:
+            status_id: The status's ID
+            name: Updated status name
+            color: Updated status color
+            position: Updated status position
+            is_default: Whether this is the default status
+            is_terminal: Whether this is a terminal status
+            firm_id: The firm's ID for security check
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            status = TaskStatus.query.filter_by(id=status_id, firm_id=firm_id).first()
+            if not status:
+                return {
+                    'success': False,
+                    'message': 'Status not found or access denied'
+                }
+            
+            status.name = name.strip()
+            status.color = color
+            status.position = position
+            status.is_default = is_default
+            status.is_terminal = is_terminal
+            
+            return {
+                'success': True,
+                'message': f'Status "{name}" updated successfully'
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error updating status: {str(e)}'
+            }
+    
+    @transactional
     def create_work_type(self, name: str, description: str, firm_id: int, user_id: int = None) -> Dict[str, Any]:
         """Create a new work type with default statuses"""
         try:

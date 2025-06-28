@@ -29,11 +29,12 @@ def create_user():
     if request.method == 'POST':
         # Use standardized session management
         firm_id = SessionService.get_current_firm_id()
+        created_by_user_id = SessionService.get_current_user_id()
         name = request.form.get('name')
         role = request.form.get('role', 'Member')
         
-        admin_service = AdminService()
-        result = admin_service.create_user(name, role, firm_id)
+        user_service = UserService()
+        result = user_service.create_user(name, role, firm_id, created_by_user_id)
         
         if result['success']:
             flash(result['message'], 'success')
