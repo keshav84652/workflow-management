@@ -75,12 +75,142 @@ def get_document_analysis(document_id):
         ai_service = AIService(current_app.config)
         response_data = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis)
         
+        # Transform new data structure to old format for frontend compatibility
+        if response_data.get('success') and 'analysis_results' in response_data:
+            analysis_results = response_data['analysis_results']
+            
+            # Handle both string (from database) and dict (fresh analysis) formats
+            if isinstance(analysis_results, str):
+                try:
+                    analysis_results = json.loads(analysis_results)
+                except json.JSONDecodeError:
+                    analysis_results = {}
+            
+            # Transform new structure to old format expected by frontend
+            transformed_data = _transform_analysis_to_old_format(analysis_results)
+            
+            # Add metadata
+            transformed_data.update({
+                'status': 'completed',
+                'cached': response_data.get('was_cached', False),
+                'filename': _get_document_filename(document_id),
+                'processing_notes': f"Analysis completed at {datetime.utcnow().isoformat()}"
+            })
+            
+            return jsonify(transformed_data)
+        
         return jsonify(response_data)
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 404
     except Exception as e:
         return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
+
+
+def _transform_analysis_to_old_format(analysis_results):
+    """Transform new AI service data structure to old format expected by frontend"""
+    transformed = {
+        'azure_result': {},
+        'gemini_result': {}
+    }
+    
+    if not analysis_results:
+        return transformed
+    
+    # Extract from new structure
+    provider_results = analysis_results.get('provider_results', {})
+    combined_analysis = analysis_results.get('combined_analysis', {})
+    
+    # Map Azure results
+    azure_data = provider_results.get('Azure Document Intelligence', {})
+    if azure_data:
+        transformed['azure_result'] = {
+            'key_value_pairs': azure_data.get('fields', {}),
+            'tables': azure_data.get('entities', []),
+            'confidence': azure_data.get('confidence_score', 0),
+            'provider': 'Azure Document Intelligence'
+        }
+        
+        # Transform fields to key-value pairs format if needed
+        fields = azure_data.get('fields', {})
+        if isinstance(fields, dict):
+            kv_pairs = []
+            for key, value_data in fields.items():
+                if isinstance(value_data, dict):
+                    kv_pairs.append({
+                        'key': key,
+                        'value': value_data.get('value', str(value_data)),
+                        'confidence': value_data.get('confidence', 0)
+                    })
+                else:
+                    kv_pairs.append({
+                        'key': key,
+                        'value': str(value_data),
+                        'confidence': 1.0
+                    })
+            transformed['azure_result']['key_value_pairs'] = kv_pairs
+    
+    # Map Gemini results
+    gemini_data = provider_results.get('Google Gemini', {})
+    if gemini_data:
+        transformed['gemini_result'] = {
+            'document_type': gemini_data.get('document_type', ''),
+            'summary': gemini_data.get('summary', ''),
+            'key_findings': gemini_data.get('key_findings', []),
+            'recommendations': gemini_data.get('recommendations', []),
+            'confidence': gemini_data.get('confidence_score', 0),
+            'provider': 'Google Gemini'
+        }
+    
+    # Fall back to combined analysis if provider-specific data is missing
+    if not transformed['azure_result'] and not transformed['gemini_result']:
+        if combined_analysis:
+            # Use combined analysis for both (frontend expects both)
+            transformed['azure_result'] = {
+                'key_value_pairs': _extract_fields_as_kv_pairs(combined_analysis.get('fields', {})),
+                'tables': combined_analysis.get('entities', []),
+                'confidence': combined_analysis.get('confidence_score', 0),
+                'provider': 'Combined Analysis'
+            }
+            transformed['gemini_result'] = {
+                'document_type': combined_analysis.get('document_type', ''),
+                'summary': 'Combined analysis result',
+                'key_findings': [],
+                'recommendations': [],
+                'confidence': combined_analysis.get('confidence_score', 0),
+                'provider': 'Combined Analysis'
+            }
+    
+    return transformed
+
+
+def _extract_fields_as_kv_pairs(fields):
+    """Convert fields dictionary to key-value pairs list"""
+    kv_pairs = []
+    if isinstance(fields, dict):
+        for key, value_data in fields.items():
+            if isinstance(value_data, dict):
+                kv_pairs.append({
+                    'key': key,
+                    'value': value_data.get('value', str(value_data)),
+                    'confidence': value_data.get('confidence', 0)
+                })
+            else:
+                kv_pairs.append({
+                    'key': key,
+                    'value': str(value_data),
+                    'confidence': 1.0
+                })
+    return kv_pairs
+
+
+def _get_document_filename(document_id):
+    """Get document filename from database"""
+    try:
+        document = ClientDocument.query.get(document_id)
+        return document.original_filename if document else f'document_{document_id}'
+    except:
+        return f'document_{document_id}'
 
 
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])

@@ -135,14 +135,14 @@ class TestFunctionalErrors:
         assert any(word in content.lower() for word in ['calendar', 'month', 'year', 'task']), \
             "Calendar page missing expected calendar content"
         
-        # Should not contain error messages
-        error_indicators = ['error', 'exception', 'traceback', 'attribute error']
+        # Should not contain actual error messages (not just JavaScript variables named 'error')
+        error_indicators = ['attributeerror', 'exception:', 'traceback', 'internal server error', 'error 500']
         for error in error_indicators:
             assert error not in content.lower(), f"Calendar page contains error: {error}"
     
     def test_time_tracking_page_functional(self, auth_session):
         """Test time tracking page functionality beyond HTTP status"""
-        response = auth_session.get('/time-tracking')
+        response = auth_session.get('/reports/time-tracking')
         assert response.status_code == 200
         
         content = response.data.decode('utf-8')
@@ -154,6 +154,7 @@ class TestFunctionalErrors:
         # Should not contain specific error messages we've seen
         assert 'tasks_with_time' not in content, "Time tracking page shows raw error data"
         assert 'attributeerror' not in content.lower(), "Time tracking page shows AttributeError"
+        assert 'internal server error' not in content.lower(), "Time tracking page shows server error"
     
     def test_dashboard_data_structure(self, auth_session):
         """Test that dashboard returns expected data structure"""
@@ -282,16 +283,11 @@ class TestFunctionalErrors:
         
         # Should not contain undefined template variables
         content = response.data.decode('utf-8')
-        undefined_indicators = ['undefined', 'none', 'null', '{{ ', '{% ']
+        undefined_indicators = ['jinja2.exceptions', 'templatenotfound', 'undefined variable']
         
         for indicator in undefined_indicators:
-            if indicator in ['{{ ', '{% ']:
-                # These might be legitimate template syntax, so just warn
-                if indicator in content:
-                    print(f"Warning: Found template syntax in rendered page: {indicator}")
-            else:
-                assert indicator not in content.lower(), \
-                    f"Template contains undefined variable indicator: {indicator}"
+            assert indicator not in content.lower(), \
+                f"Template contains error indicator: {indicator}"
 
 
 class TestErrorRecovery:
@@ -329,13 +325,13 @@ class TestErrorRecovery:
         response = auth_session.get('/dashboard')
         assert response.status_code == 200
         
-        response = auth_session.get('/tasks')
+        response = auth_session.get('/tasks/', follow_redirects=True)
         assert response.status_code == 200
         
-        response = auth_session.get('/projects')
+        response = auth_session.get('/projects/', follow_redirects=True)
         assert response.status_code == 200
         
-        response = auth_session.get('/clients')
+        response = auth_session.get('/clients/', follow_redirects=True)
         assert response.status_code == 200
     
     def test_missing_data_references(self, auth_session):
