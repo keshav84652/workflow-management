@@ -432,3 +432,32 @@ class TaskService(BaseService):
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}
+    
+    @staticmethod
+    def would_create_circular_dependency(task_id, dependency_id):
+        """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
+        def has_path(from_id, to_id, visited=None):
+            if visited is None:
+                visited = set()
+            
+            if from_id == to_id:
+                return True
+            
+            if from_id in visited:
+                return False
+            
+            visited.add(from_id)
+            
+            # Get all tasks that depend on from_id
+            dependent_tasks = Task.query.filter(Task.dependencies.like(f'%{from_id}%')).all()
+            
+            for dependent_task in dependent_tasks:
+                if dependent_task.id in dependent_task.dependency_list:  # Safety check
+                    continue
+                if has_path(dependent_task.id, to_id, visited.copy()):
+                    return True
+            
+            return False
+        
+        # Check if dependency_id already depends on task_id (would create cycle)
+        return has_path(dependency_id, task_id)

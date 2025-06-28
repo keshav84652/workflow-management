@@ -101,99 +101,24 @@ def create_app(config_name='default'):
     from services.task_service import TaskService
     from services.client_service import ClientService
 
+    # Business logic functions moved to appropriate services:
+    # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis
+    # - would_create_circular_dependency -> TaskService.would_create_circular_dependency
+    # - check_and_update_project_completion -> ProjectService.check_and_update_project_completion
 
-    # AI Analysis Helper Functions
-    def perform_checklist_ai_analysis(checklist):
-        """Perform one-time AI analysis for a checklist and all its documents"""
-        if checklist.ai_analysis_completed:
-            return
-        
-        try:
-            import json
-            from datetime import datetime
-            
-            # Analyze all uploaded documents that haven't been analyzed yet
-            total_documents = 0
-            analyzed_documents = 0
-            document_types = {}
-            confidence_scores = []
-            
-            for item in checklist.items:
-                for document in item.client_documents:
-                    total_documents += 1
-                    if not document.ai_analysis_completed:
-                        # Skip analysis in this function - let individual requests handle it
-                        # to avoid database locking issues
-                        pass
-                    else:
-                        # Document already analyzed
-                        analyzed_documents += 1
-                        if document.ai_document_type:
-                            document_types[document.ai_document_type] = document_types.get(document.ai_document_type, 0) + 1
-                        if document.ai_confidence_score:
-                            confidence_scores.append(document.ai_confidence_score)
-            
-            # Only save checklist summary if we have some analyzed documents
-            if analyzed_documents > 0:
-                # Create checklist-level summary
-                checklist_summary = {
-                    'total_documents': total_documents,
-                    'analyzed_documents': analyzed_documents,
-                    'document_types': document_types,
-                    'average_confidence': sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0,
-                    'analysis_timestamp': datetime.utcnow().isoformat(),
-                    'status': 'completed' if analyzed_documents == total_documents else 'partial'
-                }
-                
-                try:
-                    # Save checklist analysis with proper error handling
-                    checklist.ai_analysis_completed = True
-                    checklist.ai_analysis_results = json.dumps(checklist_summary)
-                    checklist.ai_analysis_timestamp = datetime.utcnow()
-                    
-                    db.session.commit()
-                    
-                except Exception as db_error:
-                    print(f"Database error saving checklist analysis: {db_error}")
-                    db.session.rollback()
-            
-        except Exception as e:
-            print(f"Error performing checklist AI analysis: {e}")
-            try:
-                db.session.rollback()
-            except:
-                pass
     # AI Document Analysis Integration
     # AI services are now auto-detected based on available API keys in config
     from services.ai_service import AIService
 
     with app.app_context():
-        print("💡 AI Services status determined by configuration:")
-        print("   Azure Document Intelligence:", "✅" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "❌")
-        print("   Gemini API:", "✅" if app.config.get('GEMINI_API_KEY') else "❌")
-        print("   Overall AI Services:", "✅ Available" if config_class().AI_SERVICES_AVAILABLE else "❌ Not configured")
+        print("AI Services status determined by configuration:")
+        print("   Azure Document Intelligence:", "Available" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "Not configured")
+        print("   Gemini API:", "Available" if app.config.get('GEMINI_API_KEY') else "Not configured")
+        print("   Overall AI Services:", "Available" if config_class().AI_SERVICES_AVAILABLE else "Not configured")
         
         # Test AI service initialization
         ai_service = AIService(app.config)
-        print(f"   AI Service Status: {'✅ Ready' if ai_service.is_available() else '❌ Not available'}")
-
-    # try:
-    #     from backend.services.document_processor import DocumentProcessor
-    #     from backend.services.azure_service import AzureDocumentService
-    #     from backend.services.gemini_service import GeminiDocumentService
-    #     from backend.services.document_visualizer import DocumentVisualizer
-    #     from backend.agents.tax_document_analyst_agent import TaxDocumentAnalystAgent
-    #     from backend.models.document import FileUpload, ProcessedDocument
-    #     from backend.utils.config import settings
-    #     AI_SERVICES_AVAILABLE = True
-    #     print("✅ AI Services loaded successfully")
-    # except Exception as e:
-    #     AI_SERVICES_AVAILABLE = False
-    #     print(f"⚠️  AI Services not available: {e}")
-    #     print("💡 To enable AI features:")
-    #     print("   1. Copy .env.template to .env")
-    #     print("   2. Add your Azure and Gemini API keys")
-    #     print("   3. Install dependencies: pip install -r requirements.txt")
+        print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")
 
     # Recurring tasks are now integrated into the Task model
 
@@ -203,64 +128,6 @@ def create_app(config_name='default'):
                filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
     # Note: save_uploaded_file function moved to blueprints/attachments.py
-
-    def would_create_circular_dependency(task_id, dependency_id):
-        """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
-        def has_path(from_id, to_id, visited=None):
-            if visited is None:
-                visited = set()
-            
-            if from_id == to_id:
-                return True
-            
-            if from_id in visited:
-                return False
-            
-            visited.add(from_id)
-            
-            # Get all tasks that depend on from_id
-            dependent_tasks = Task.query.filter(Task.dependencies.like(f'%{from_id}%')).all()
-            
-            for dependent_task in dependent_tasks:
-                if dependent_task.id in dependent_task.dependency_list:  # Safety check
-                    continue
-                if has_path(dependent_task.id, to_id, visited.copy()):
-                    return True
-            
-            return False
-        
-        # Check if dependency_id already depends on task_id (would create cycle)
-        return has_path(dependency_id, task_id)
-
-    def check_and_update_project_completion(project_id):
-        """Check if all tasks in a project are completed and update project status accordingly"""
-        if not project_id:
-            return
-        
-        project = Project.query.get(project_id)
-        if not project:
-            return
-        
-        # Count total tasks and completed tasks
-        total_tasks = Task.query.filter_by(project_id=project_id).count()
-        completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
-        
-        # If all tasks are completed, mark project as completed
-        if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
-            project.status = 'Completed'
-            ActivityService.create_activity_log(
-                f'Project "{project.name}" automatically marked as completed (all tasks finished)',
-                session.get('user_id', 1),
-                project_id
-            )
-        # If project was marked completed but has incomplete tasks, reactivate it
-        elif project.status == 'Completed' and completed_tasks < total_tasks:
-            project.status = 'Active'
-            ActivityService.create_activity_log(
-                f'Project "{project.name}" reactivated (incomplete tasks detected)',
-                session.get('user_id', 1),
-                project_id
-            )
 
     # Database initialization handled by init_db.py
 
@@ -314,97 +181,6 @@ def create_app(config_name='default'):
         response.headers['X-XSS-Protection'] = '1; mode=block'
         
         return response
-
-    # Auth routes moved to auth blueprint
-
-
-
-    # Dashboard route moved to dashboard blueprint
-
-    # Admin routes moved to admin blueprint
-
-
-
-
-
-    # Project delete route moved to projects blueprint
-
-
-    # Task edit route moved to tasks blueprint
-
-    # Task view route moved to tasks blueprint
-
-    # Task comments route moved to tasks blueprint
-
-    # Task log-time route moved to tasks blueprint
-
-    # Task bulk-update route moved to tasks blueprint
-
-    # Task bulk-delete route moved to tasks blueprint
-
-    # Task update route moved to tasks blueprint
-
-    # Task timer start route moved to tasks blueprint
-
-    # Task timer stop route moved to tasks blueprint
-
-    # Task timer status route moved to tasks blueprint
-
-    # Reports time-tracking route moved to views blueprint
-
-    # User routes moved to users blueprint
-
-    # Client routes moved to clients blueprint
-
-    # Calendar route moved to views blueprint
-
-    # Kanban route moved to views blueprint
-
-    # API clients search route moved to api blueprint
-
-    # API project progress route moved to api blueprint
-
-    # Search route moved to views blueprint
-
-    # Export routes moved to export blueprint
-
-    # Additional client routes moved to clients blueprint
-
-    # Admin work_types routes moved to admin blueprint
-    # Admin work_types edit and status create routes moved to admin blueprint
-    # Remaining admin status routes moved to admin blueprint
-
-    # Contact routes moved to contacts blueprint
-
-    # Client and contact association routes moved to clients and contacts blueprints
-
-    # API clients route moved to api blueprint
-
-
-    # File upload and attachment routes moved to attachments blueprint
-
-    # Subtask management routes moved to subtasks blueprint
-
-    # Admin recurring task processing route moved to admin blueprint
-
-    # Document checklist management routes moved to documents blueprint
-
-    # Create and edit checklist routes moved to documents blueprint
-
-    # Client access setup and document checklist routes moved to clients and documents blueprints
-
-    # Client portal authentication routes moved to client_portal blueprint
-
-    # Client upload and status update routes moved to client_portal blueprint
-
-
-    # AI document analysis routes moved to ai blueprint
-
-    # All remaining routes moved to appropriate blueprints:
-    # - AI analysis routes → ai blueprint
-    # - Document sharing routes → documents blueprint
-
-    # End of blueprint migration - all routes successfully moved!
 
     # All application routes have been successfully migrated to blueprints!
     # Total routes migrated: 100 → 0 remaining in app.py

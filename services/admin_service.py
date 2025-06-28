@@ -16,20 +16,21 @@ from repositories.user_repository import UserRepository
 from repositories.template_repository import TemplateRepository
 from repositories.task_repository import TaskRepository
 from repositories.project_repository import ProjectRepository
+from services.base import BaseService, transactional
 
 
-class AdminService:
+class AdminService(BaseService):
     """Service class for administrative business operations"""
     
     def __init__(self):
+        super().__init__()
         self.firm_repository = FirmRepository()
         self.user_repository = UserRepository()
         self.template_repository = TemplateRepository()
         self.task_repository = TaskRepository()
         self.project_repository = ProjectRepository()
     
-    @staticmethod
-    def authenticate_admin(password: str) -> Dict[str, Any]:
+    def authenticate_admin(self, self, password: str) -> Dict[str, Any]:
         """
         Authenticate admin user with password
         
@@ -76,8 +77,7 @@ class AdminService:
         session.pop('admin', None)
     
 
-    @staticmethod
-    def get_all_firms() -> List[Firm]:
+    def get_all_firms(self, self) -> List[Firm]:
         """
         Get all firms in the system
         
@@ -87,8 +87,7 @@ class AdminService:
         return Firm.query.order_by(Firm.created_at.desc()).all()
     
 
-    @staticmethod
-    def get_firm_statistics() -> Dict[str, Any]:
+    def get_firm_statistics(self, self) -> Dict[str, Any]:
         """
         Get system-wide statistics
         
@@ -111,8 +110,8 @@ class AdminService:
         }
     
 
-    @staticmethod
-    def generate_firm_access_code(firm_name: str) -> Dict[str, Any]:
+    @transactional
+    def generate_firm_access_code(self, self, firm_name: str) -> Dict[str, Any]:
         """
         Generate a new access code for a firm
         
@@ -139,7 +138,6 @@ class AdminService:
             )
             
             db.session.add(firm)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -152,7 +150,7 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
+            # @transactional decorator handles rollback automatically
             return {
                 'success': False,
                 'message': f'Error generating access code: {str(e)}',
@@ -160,8 +158,8 @@ class AdminService:
             }
     
 
-    @staticmethod
-    def toggle_firm_status(firm_id: int) -> Dict[str, Any]:
+    @transactional
+    def toggle_firm_status(self, self, firm_id: int) -> Dict[str, Any]:
         """
         Toggle a firm's active status
         
@@ -180,7 +178,6 @@ class AdminService:
                 }
             
             firm.is_active = not firm.is_active
-            db.session.commit()
             
             status = 'activated' if firm.is_active else 'deactivated'
             return {
@@ -189,15 +186,14 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error updating firm status: {str(e)}'
             }
     
 
-    @staticmethod
-    def get_templates_for_firm(firm_id: int) -> List[Template]:
+    @transactional
+    def get_templates_for_firm(self, firm_id: int) -> List[Template]:
         """
         Get all templates for a specific firm
         
@@ -210,8 +206,8 @@ class AdminService:
         return Template.query.filter_by(firm_id=firm_id).order_by(Template.created_at.desc()).all()
     
 
-    @staticmethod
-    def create_template(name: str, description: str, task_dependency_mode: bool,
+    @transactional
+    def create_template(self, name: str, description: str, task_dependency_mode: bool,
                        firm_id: int, tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Create a new template with tasks
@@ -249,7 +245,6 @@ class AdminService:
                     )
                     db.session.add(template_task)
             
-            db.session.commit()
             
             # Auto-create work type from template
             work_type_created = False
@@ -271,7 +266,6 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error creating template: {str(e)}',
@@ -279,8 +273,8 @@ class AdminService:
             }
     
 
-    @staticmethod
-    def get_template_by_id(template_id: int, firm_id: int) -> Optional[Template]:
+    @transactional
+    def get_template_by_id(self, template_id: int, firm_id: int) -> Optional[Template]:
         """
         Get a template by ID, ensuring it belongs to the firm
         
@@ -294,8 +288,8 @@ class AdminService:
         return Template.query.filter_by(id=template_id, firm_id=firm_id).first()
     
 
-    @staticmethod
-    def update_template(template_id: int, name: str, description: str,
+    @transactional
+    def update_template(self, template_id: int, name: str, description: str,
                        task_dependency_mode: bool, firm_id: int,
                        tasks_data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
@@ -340,7 +334,6 @@ class AdminService:
                     )
                     db.session.add(template_task)
             
-            db.session.commit()
             
             return {
                 'success': True,
@@ -348,14 +341,13 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error updating template: {str(e)}'
             }
     
 
-    def delete_template(self, template_id: int, firm_id: int) -> Dict[str, Any]:
+    def delete_template(self, self, template_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Delete a template and all its associated tasks
         
@@ -386,7 +378,6 @@ class AdminService:
             
             # Delete template (cascade will handle template tasks)
             db.session.delete(template)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -394,15 +385,14 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error deleting template: {str(e)}'
             }
     
 
-    @staticmethod
-    def get_work_types_for_firm(firm_id: int) -> List[WorkType]:
+    @transactional
+    def get_work_types_for_firm(self, firm_id: int) -> List[WorkType]:
         """
         Get all work types for a specific firm
         
@@ -415,8 +405,8 @@ class AdminService:
         return WorkType.query.filter_by(firm_id=firm_id).all()
     
 
-    @staticmethod
-    def get_work_type_usage_stats(firm_id: int) -> Dict[int, int]:
+    @transactional
+    def get_work_type_usage_stats(self, firm_id: int) -> Dict[int, int]:
         """
         Get usage statistics for work types (number of tasks using each work type)
         
@@ -439,8 +429,8 @@ class AdminService:
         return usage_stats
     
 
-    @staticmethod
-    def create_work_type(name: str, description: str, firm_id: int) -> Dict[str, Any]:
+    @transactional
+    def create_work_type(self, name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new work type with default statuses
         
@@ -477,7 +467,6 @@ class AdminService:
                 )
                 db.session.add(status)
             
-            db.session.commit()
             
             return {
                 'success': True,
@@ -489,7 +478,6 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error creating work type: {str(e)}',
@@ -497,8 +485,8 @@ class AdminService:
             }
     
 
-    @staticmethod
-    def update_work_type(work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
+    @transactional
+    def update_work_type(self, work_type_id: int, name: str, description: str, firm_id: int) -> Dict[str, Any]:
         """
         Update an existing work type
         
@@ -521,7 +509,6 @@ class AdminService:
             
             work_type.name = name.strip()
             work_type.description = description.strip()
-            db.session.commit()
             
             return {
                 'success': True,
@@ -529,15 +516,14 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error updating work type: {str(e)}'
             }
     
 
-    @staticmethod
-    def create_task_status(work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
+    @transactional
+    def create_task_status(self, work_type_id: int, name: str, color: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new task status for a work type
         
@@ -573,7 +559,6 @@ class AdminService:
             )
             
             db.session.add(status)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -586,7 +571,6 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error creating status: {str(e)}',
@@ -594,7 +578,7 @@ class AdminService:
             }
     
 
-    def update_task_status(status_id: int, name: str, color: str, position: int,
+    def update_task_status(self, status_id: int, name: str, color: str, position: int,
                           is_default: bool, is_terminal: bool, firm_id: int) -> Dict[str, Any]:
         """
         Update an existing task status
@@ -625,7 +609,6 @@ class AdminService:
             status.is_default = is_default
             status.is_terminal = is_terminal
             
-            db.session.commit()
             
             return {
                 'success': True,
@@ -633,14 +616,13 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error updating status: {str(e)}'
             }
     
 
-    def create_user(self, name: str, role: str, firm_id: int) -> Dict[str, Any]:
+    def create_user(self, self, name: str, role: str, firm_id: int) -> Dict[str, Any]:
         """
         Create a new user for a firm
         
@@ -669,7 +651,6 @@ class AdminService:
             )
             
             db.session.add(user)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -682,7 +663,6 @@ class AdminService:
             }
             
         except Exception as e:
-            db.session.rollback()
             return {
                 'success': False,
                 'message': f'Error creating user: {str(e)}',

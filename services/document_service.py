@@ -255,3 +255,88 @@ class DocumentService:
             DocumentChecklist.id == checklist_id,
             Client.firm_id == firm_id
         ).first()
+    
+    @staticmethod
+    def get_document_filename_by_id(document_id):
+        """Get document filename by ID"""
+        try:
+            document = ClientDocument.query.get(document_id)
+            return document.original_filename if document else f'document_{document_id}'
+        except:
+            return f'document_{document_id}'
+    
+    @staticmethod
+    def get_income_worksheet_by_id_with_access_check(worksheet_id, firm_id):
+        """Get income worksheet by ID with firm access check"""
+        from models import IncomeWorksheet
+        worksheet = IncomeWorksheet.query.get(worksheet_id)
+        if not worksheet:
+            return None
+        
+        # Check firm access through checklist -> client -> firm
+        checklist = worksheet.checklist
+        if checklist and checklist.client and checklist.client.firm_id == firm_id:
+            return worksheet
+        return None
+    
+    @staticmethod
+    def perform_checklist_ai_analysis(checklist):
+        """Perform one-time AI analysis for a checklist and all its documents"""
+        if checklist.ai_analysis_completed:
+            return
+        
+        try:
+            import json
+            from datetime import datetime
+            
+            # Analyze all uploaded documents that haven't been analyzed yet
+            total_documents = 0
+            analyzed_documents = 0
+            document_types = {}
+            confidence_scores = []
+            
+            for item in checklist.items:
+                for document in item.client_documents:
+                    total_documents += 1
+                    if not document.ai_analysis_completed:
+                        # Skip analysis in this function - let individual requests handle it
+                        # to avoid database locking issues
+                        pass
+                    else:
+                        # Document already analyzed
+                        analyzed_documents += 1
+                        if document.ai_document_type:
+                            document_types[document.ai_document_type] = document_types.get(document.ai_document_type, 0) + 1
+                        if document.ai_confidence_score:
+                            confidence_scores.append(document.ai_confidence_score)
+            
+            # Only save checklist summary if we have some analyzed documents
+            if analyzed_documents > 0:
+                # Create checklist-level summary
+                checklist_summary = {
+                    'total_documents': total_documents,
+                    'analyzed_documents': analyzed_documents,
+                    'document_types': document_types,
+                    'average_confidence': sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0,
+                    'analysis_timestamp': datetime.utcnow().isoformat(),
+                    'status': 'completed' if analyzed_documents == total_documents else 'partial'
+                }
+                
+                try:
+                    # Save checklist analysis with proper error handling
+                    checklist.ai_analysis_completed = True
+                    checklist.ai_analysis_results = json.dumps(checklist_summary)
+                    checklist.ai_analysis_timestamp = datetime.utcnow()
+                    
+                    db.session.commit()
+                    
+                except Exception as db_error:
+                    print(f"Database error saving checklist analysis: {db_error}")
+                    db.session.rollback()
+            
+        except Exception as e:
+            print(f"Error performing checklist AI analysis: {e}")
+            try:
+                db.session.rollback()
+            except:
+                pass

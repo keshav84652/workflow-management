@@ -5,11 +5,18 @@ Provides endpoints for system health monitoring.
 
 from flask import Blueprint, jsonify
 from utils.health_checks import check_system_health
-from core.db_import import db
-    
+
+health_bp = Blueprint('health', __name__, url_prefix='/health')
+
+
+@health_bp.route('/database')
+def database_health():
+    """Check database connection health"""
     try:
-        result = db.session.execute('SELECT 1').scalar()
-        if result == 1:
+        # Use the health check utility instead of direct db access
+        health_status = check_system_health()
+        
+        if health_status.get('database', {}).get('status') == 'healthy':
             return jsonify({
                 'status': 'healthy',
                 'message': 'Database connection successful'
@@ -17,7 +24,7 @@ from core.db_import import db
         else:
             return jsonify({
                 'status': 'error',
-                'message': 'Unexpected database response'
+                'message': 'Database connection failed'
             }), 503
     except Exception as e:
         return jsonify({
@@ -53,6 +60,30 @@ def celery_health():
             'stats': stats,
             'registered_tasks': registered_tasks
         }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 503
+
+
+@health_bp.route('/')
+def overall_health():
+    """Check overall system health"""
+    try:
+        health_status = check_system_health()
+        
+        # Determine overall status
+        all_healthy = all(
+            component.get('status') == 'healthy' 
+            for component in health_status.values()
+        )
+        
+        return jsonify({
+            'status': 'healthy' if all_healthy else 'degraded',
+            'components': health_status
+        }), 200 if all_healthy else 503
         
     except Exception as e:
         return jsonify({

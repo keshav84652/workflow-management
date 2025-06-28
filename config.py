@@ -15,6 +15,8 @@ class BaseConfig:
     """Base configuration with common settings"""
     
     # Core Flask Settings
+    # WARNING: The fallback is for development only. In production, this MUST be set
+    # as an environment variable for session persistence and security.
     SECRET_KEY = os.environ.get('SECRET_KEY', secrets.token_hex(32))
     
     # Session Configuration for better persistence

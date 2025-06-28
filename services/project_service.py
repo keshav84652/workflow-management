@@ -329,3 +329,42 @@ class ProjectService:
             # Don't fail the main operation if task updates fail
             import logging
             logging.warning(f"Failed to update project tasks for workflow change: {e}")
+    
+    @staticmethod
+    def check_and_update_project_completion(project_id, user_id=None):
+        """Check if all tasks in a project are completed and update project status accordingly"""
+        if not project_id:
+            return
+        
+        try:
+            project = Project.query.get(project_id)
+            if not project:
+                return
+            
+            # Count total tasks and completed tasks
+            total_tasks = Task.query.filter_by(project_id=project_id).count()
+            completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
+            
+            # If all tasks are completed, mark project as completed
+            if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
+                project.status = 'Completed'
+                ActivityService.create_activity_log(
+                    f'Project "{project.name}" automatically marked as completed (all tasks finished)',
+                    user_id or 1,
+                    project_id
+                )
+                db.session.commit()
+            # If project was marked completed but has incomplete tasks, reactivate it
+            elif project.status == 'Completed' and completed_tasks < total_tasks:
+                project.status = 'Active'
+                ActivityService.create_activity_log(
+                    f'Project "{project.name}" reactivated (incomplete tasks detected)',
+                    user_id or 1,
+                    project_id
+                )
+                db.session.commit()
+                
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.error(f"Error checking project completion for project {project_id}: {e}")

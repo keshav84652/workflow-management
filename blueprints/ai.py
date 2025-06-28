@@ -15,6 +15,7 @@ from models import (
 )
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.ai_service import AIService
+from services.document_service import DocumentService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
@@ -315,11 +316,7 @@ def _extract_fields_as_kv_pairs(fields):
 
 def _get_document_filename(document_id):
     """Get document filename from database"""
-    try:
-        document = ClientDocument.query.get(document_id)
-        return document.original_filename if document else f'document_{document_id}'
-    except:
-        return f'document_{document_id}'
+    return DocumentService.get_document_filename_by_id(document_id)
 
 
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
@@ -483,10 +480,11 @@ def download_saved_worksheet(worksheet_id):
         firm_id = get_session_firm_id()
         
         # Get worksheet and verify access
-        worksheet = IncomeWorksheet.query.get_or_404(worksheet_id)
+        worksheet = DocumentService.get_income_worksheet_by_id_with_access_check(worksheet_id, firm_id)
+        if not worksheet:
+            return jsonify({'error': 'Worksheet not found or access denied'}), 404
+        
         checklist = worksheet.checklist
-        if checklist.client.firm_id != firm_id:
-            return jsonify({'error': 'Access denied'}), 403
         
         # Create temporary file for download
         worksheet_data = json.loads(worksheet.worksheet_data)
