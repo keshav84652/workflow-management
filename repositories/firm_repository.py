@@ -40,3 +40,10 @@ class FirmRepository(CachedRepository[Firm]):
                 setattr(firm, key, value)
         # Note: Transaction commit is handled by service layer
         return firm
+    
+    def get_by_access_code(self, access_code: str, active_only: bool = True) -> Optional[Firm]:
+        """Get firm by access code"""
+        query = Firm.query.filter(Firm.access_code == access_code)
+        if active_only:
+            query = query.filter(Firm.is_active == True)
+        return query.first()

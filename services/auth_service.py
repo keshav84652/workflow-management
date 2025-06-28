@@ -7,13 +7,16 @@ from datetime import datetime
 from flask import session, request
 from core.db_import import db
 from models import Firm, User, DemoAccessRequest
+from repositories.firm_repository import FirmRepository
+from repositories.user_repository import UserRepository
 
 
 class AuthService:
     """Service class for authentication-related business operations"""
 
     def __init__(self):
-        pass
+        self.firm_repository = FirmRepository()
+        self.user_repository = UserRepository()
     
 
     def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
@@ -33,7 +36,7 @@ class AuthService:
             email = email.strip()
             
             # Find active firm with matching access code
-            firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
+            firm = self.firm_repository.get_by_access_code(access_code, active_only=True)
             
             if not firm:
                 return {
@@ -74,7 +77,7 @@ class AuthService:
         Returns:
             Firm object if found and active, None otherwise
         """
-        return Firm.query.filter_by(access_code=access_code, is_active=True).first()
+        return self.firm_repository.get_by_access_code(access_code, active_only=True)
     
     def get_users_for_firm(self, firm_id: int) -> List[User]:
         """
@@ -86,7 +89,7 @@ class AuthService:
         Returns:
             List of User objects for the firm
         """
-        return User.query.filter_by(firm_id=firm_id).all()
+        return self.user_repository.get_by_firm(firm_id)
     
     @staticmethod
     def _track_demo_access(email: str) -> None:
@@ -136,7 +139,7 @@ class AuthService:
         Returns:
             List of User objects for the firm
         """
-        return User.query.filter_by(firm_id=firm_id).all()
+        return self.user_repository.get_by_firm(firm_id)
     
 
     def get_user_by_id(self, user_id: int, firm_id: int) -> Optional[User]:
@@ -150,7 +153,7 @@ class AuthService:
         Returns:
             User object if found and belongs to firm, None otherwise
         """
-        return User.query.filter_by(id=user_id, firm_id=firm_id).first()
+        return self.user_repository.get_by_id_and_firm(user_id, firm_id)
     
 
     def create_session(self, firm_data: Dict[str, Any], email: str) -> None:

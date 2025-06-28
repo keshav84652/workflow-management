@@ -84,7 +84,7 @@ class AdminService(BaseService):
         Returns:
             List of all Firm objects
         """
-        return Firm.query.order_by(Firm.created_at.desc()).all()
+        return self.firm_repository.get_all()
     
 
     def get_firm_statistics(self) -> Dict[str, Any]:
@@ -94,8 +94,9 @@ class AdminService(BaseService):
         Returns:
             Dictionary containing various system statistics
         """
-        total_firms = Firm.query.count()
-        active_firms = Firm.query.filter_by(is_active=True).count()
+        firms = self.firm_repository.get_all()
+        total_firms = len(firms)
+        active_firms = len([f for f in firms if f.is_active])
         total_users = User.query.count()
         total_projects = Project.query.count()
         total_tasks = Task.query.count()
@@ -126,7 +127,7 @@ class AdminService(BaseService):
             access_code = generate_access_code()
             
             # Ensure code is unique
-            while Firm.query.filter_by(access_code=access_code).first():
+            while self.firm_repository.get_by_access_code(access_code, active_only=False):
                 access_code = generate_access_code()
             
             # Create new firm
@@ -170,7 +171,7 @@ class AdminService(BaseService):
             Dict containing success status and any error messages
         """
         try:
-            firm = Firm.query.get(firm_id)
+            firm = self.firm_repository.get_by_id(firm_id)
             if not firm:
                 return {
                     'success': False,
