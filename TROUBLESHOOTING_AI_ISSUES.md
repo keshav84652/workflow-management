@@ -102,12 +102,52 @@ Gemini Provider → _standardize_results() → AI Service → Frontend Transform
 
 ### Current Status
 - ✅ Gemini Provider: Working correctly with meaningful analysis and key findings
-- ⚠️ Azure Provider: Still showing W-2 field names for 1099-G documents (needs investigation)
+- ⚠️ Azure Provider: Still showing W-2 field names for 1099-G documents (known issue - under investigation)
 
-### Next Steps
-1. Investigate why Azure provider still returns incorrect field names despite using tax-specific models
-2. Compare current Azure field extraction with working version from `be39018`
-3. Ensure tax model selection logic works correctly for 1099-G documents
+## Known Issue: Azure W-2 Field Names for 1099-G Documents
+
+### Problem Description
+Azure returns W-2 field names (e.g., `WagesTipsAndOtherCompensation`) for 1099-G documents, despite correctly identifying the document type (`W2FormVariant: 1099-G`).
+
+### Root Cause Identified: API Version Incompatibility
+According to Microsoft documentation:
+- **`prebuilt-tax.us.1099`**: Only supported in API version `2024-11-30` (GA)
+- **`prebuilt-tax.us.w2`**: Supported in multiple versions (`2024-11-30`, `2023-07-31`, `v2.1`)
+
+**Issue:** Azure client may be using older API version that doesn't support 1099 model
+1. Azure tries `prebuilt-tax.us.1099` model → **FAILS** (not available in older API version)
+2. Falls back to `prebuilt-tax.us.w2` model → **SUCCEEDS** (available in older versions)
+3. W-2 model processes 1099-G document but applies W-2 field schema
+4. Model correctly detects content type but field names remain W-2-specific
+
+### Enhanced Debugging Added
+Enhanced logging in Azure provider to track model selection:
+- `🔍 TRYING Azure model: [model_name]`
+- `❌ Model [model] not suitable/available...`
+- `✅ SUCCESS: Using Azure model [model]`
+- `📋 Extracted field: [field_name] = [value]`
+- `🎯 Azure analysis completed using model: [model]`
+
+### Solution Implemented: API Version Update
+**✅ FIXED**: Updated Azure client to explicitly use API version `2024-11-30`:
+```python
+self.client = DocumentIntelligenceClient(
+    endpoint=self.endpoint,
+    credential=AzureKeyCredential(self.key),
+    api_version="2024-11-30"  # Required for 1099 model support
+)
+```
+
+### Alternative Solutions (if API version fix doesn't work)
+1. **Model Reordering**: Try `prebuilt-document` before `prebuilt-tax.us.w2` to avoid W-2 schema contamination
+2. **Field Mapping**: Add post-processing to map W-2 field names to 1099-G equivalents when document type is detected as 1099-G
+3. **SDK Version Check**: Verify Azure SDK version supports latest API features
+4. **Alternative Strategy**: Use generic document model and add custom field extraction
+
+### Testing Required
+1. Run AI analysis to confirm `prebuilt-tax.us.1099` model now works
+2. Verify 1099-G documents show correct field names (e.g., "UnemploymentCompensation" instead of "WagesTipsAndOtherCompensation")
+3. Check enhanced logging shows successful 1099 model usage
 
 ---
 *Document created: 2025-06-28*

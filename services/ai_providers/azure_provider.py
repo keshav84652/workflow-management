@@ -52,12 +52,14 @@ class AzureProvider(AIProvider):
             return False
         
         try:
+            # Use latest API version that supports prebuilt-tax.us.1099 model
             self.client = DocumentIntelligenceClient(
                 endpoint=self.endpoint,
-                credential=AzureKeyCredential(self.key)
+                credential=AzureKeyCredential(self.key),
+                api_version="2024-11-30"  # Required for 1099 model support
             )
             self.is_initialized = True
-            logging.info("Azure Document Intelligence initialized successfully")
+            logging.info("Azure Document Intelligence initialized successfully with API version 2024-11-30")
             return True
         except Exception as e:
             logging.error(f"Failed to initialize Azure client: {e}")
