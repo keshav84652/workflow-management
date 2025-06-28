@@ -5,9 +5,10 @@ ClientService: Handles all business logic for clients, including search and retr
 from core.db_import import db
 from models import Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from services.base import BaseService, transactional
 
 
-class ClientService:
+class ClientService(BaseService):
     @staticmethod
     def search_clients(firm_id, query, limit=20):
         """
@@ -58,89 +59,78 @@ class ClientService:
             'is_active': client.is_active
         } for client in clients]
     
-    @staticmethod
-    def create_client(name, email=None, phone=None, entity_type=None, firm_id=None, user_id=None):
+    @transactional
+    def create_client(self, name, email=None, phone=None, entity_type=None, firm_id=None, user_id=None):
         """Create a new client"""
-        try:
-            if not name or not name.strip():
-                return {'success': False, 'message': 'Client name is required'}
-            
-            client = Client(
-                name=name.strip(),
-                email=email.strip() if email else None,
-                phone=phone.strip() if phone else None,
-                entity_type=entity_type,
-                firm_id=firm_id,
-                is_active=True
-            )
-            
-            db.session.add(client)
-            db.session.commit()
-            
-            # Log activity
-            ActivityService.log_entity_operation(
-                entity_type='CLIENT',
-                operation='CREATE',
-                entity_id=client.id,
-                entity_name=client.name,
-                details=f'Client created - Type: {entity_type}',
-                user_id=user_id
-            )
-            
-            # Publish client creation event
-            from events.schemas import ClientCreatedEvent
-            from events.publisher import publish_event
-            event = ClientCreatedEvent(
-                client_id=client.id,
-                firm_id=firm_id,
-                name=client.name,
-                is_active=client.is_active
-            )
-            publish_event(event)
-            
-            return {
-                'success': True,
-                'message': 'Client created successfully',
-                'client_id': client.id
-            }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        if not name or not name.strip():
+            return {'success': False, 'message': 'Client name is required'}
+        
+        client = Client(
+            name=name.strip(),
+            email=email.strip() if email else None,
+            phone=phone.strip() if phone else None,
+            entity_type=entity_type,
+            firm_id=firm_id,
+            is_active=True
+        )
+        
+        db.session.add(client)
+        
+        # Log activity
+        ActivityService.log_entity_operation(
+            entity_type='CLIENT',
+            operation='CREATE',
+            entity_id=client.id,
+            entity_name=client.name,
+            details=f'Client created - Type: {entity_type}',
+            user_id=user_id
+        )
+        
+        # Publish client creation event
+        from events.schemas import ClientCreatedEvent
+        from events.publisher import publish_event
+        event = ClientCreatedEvent(
+            client_id=client.id,
+            firm_id=firm_id,
+            name=client.name,
+            is_active=client.is_active
+        )
+        publish_event(event)
+        
+        return {
+            'success': True,
+            'message': 'Client created successfully',
+            'client_id': client.id
+        }
     
     @staticmethod
     def get_client_by_id(client_id, firm_id):
         """Get client by ID with firm access check"""
         return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
     
-    @staticmethod
-    def update_client(client_id, updates, firm_id, user_id):
+    @transactional
+    def update_client(self, client_id, updates, firm_id, user_id):
         """Update client information"""
-        try:
-            client = ClientService.get_client_by_id(client_id, firm_id)
-            if not client:
-                return {'success': False, 'message': 'Client not found or access denied'}
-            
-            # Update fields
-            for field, value in updates.items():
-                if hasattr(client, field):
-                    setattr(client, field, value)
-            
-            db.session.commit()
-            
-            # Log activity
-            ActivityService.log_entity_operation(
-                entity_type='CLIENT',
-                operation='UPDATE',
-                entity_id=client.id,
-                entity_name=client.name,
-                details='Client information updated',
-                user_id=user_id
-            )
-            
-            return {'success': True, 'message': 'Client updated successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        client = ClientService.get_client_by_id(client_id, firm_id)
+        if not client:
+            return {'success': False, 'message': 'Client not found or access denied'}
+        
+        # Update fields
+        for field, value in updates.items():
+            if hasattr(client, field):
+                setattr(client, field, value)
+        
+        # Log activity
+        ActivityService.log_entity_operation(
+            entity_type='CLIENT',
+            operation='UPDATE',
+            entity_id=client.id,
+            entity_name=client.name,
+            details='Client information updated',
+            user_id=user_id
+        )
+        
+        return {'success': True, 'message': 'Client updated successfully'}
     
     @staticmethod
     def get_clients_by_firm(firm_id):
