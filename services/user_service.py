@@ -5,19 +5,28 @@ UserService: Handles all business logic for user operations.
 from core.db_import import db
 from models import User, Firm
 from services.activity_logging_service import ActivityLoggingService as ActivityService
+from services.base import BaseService
+from repositories.user_repository import UserRepository
+from repositories.firm_repository import FirmRepository
 
 
-class UserService:
+class UserService(BaseService):
     def __init__(self):
+        super().__init__()
         self.activity_logger = ActivityService()
+        self.user_repository = UserRepository()
+        self.firm_repository = FirmRepository()
     
     def get_users_for_firm(self, firm_id):
         """Get all users for a firm"""
-        return User.query.filter_by(firm_id=firm_id).all()
+        return self.user_repository.get_users_by_firm(firm_id)
     
     def get_user_by_id_and_firm(self, user_id, firm_id):
         """Get user by ID with firm access check"""
-        return User.query.filter_by(id=user_id, firm_id=firm_id).first()
+        user = self.user_repository.get_by_id(user_id)
+        if user and user.firm_id == firm_id:
+            return user
+        return None
     
     def create_user(self, name, role, firm_id, created_by_user_id):
         """Create a new user"""
@@ -29,18 +38,15 @@ class UserService:
                 return {'success': False, 'message': 'Role is required'}
             
             # Check if firm exists
-            firm = Firm.query.get(firm_id)
+            firm = self.firm_repository.get_by_id(firm_id)
             if not firm:
                 return {'success': False, 'message': 'Firm not found'}
             
-            user = User(
-                name=name.strip(),
-                role=role,
-                firm_id=firm_id
-            )
-            
-            db.session.add(user)
-            db.session.commit()
+            user = self.user_repository.create({
+                'name': name.strip(),
+                'role': role,
+                'firm_id': firm_id
+            })
             
             # Log activity
             ActivityService.log_entity_operation(
@@ -69,7 +75,8 @@ class UserService:
     @staticmethod
     def get_users_by_firm(firm_id):
         """Get all users for a firm - static method for blueprint usage"""
-        return User.query.filter_by(firm_id=firm_id).all()
+        user_repository = UserRepository()
+        return user_repository.get_users_by_firm(firm_id)
     
     def update_user(self, user_id, name, role, firm_id, updated_by_user_id):
         """Update user information"""

@@ -5,20 +5,21 @@ ExportService: Handles all business logic for data export operations.
 from core.db_import import db
 from models import Task, Project, Client
 from typing import List, Dict, Any, Callable
+from repositories.task_repository import TaskRepository
+from repositories.project_repository import ProjectRepository
+from repositories.client_repository import ClientRepository
 
 
 class ExportService:
-    @staticmethod
-    def get_tasks_for_export(firm_id, filters=None):
+    def __init__(self):
+        self.task_repository = TaskRepository()
+        self.project_repository = ProjectRepository()
+        self.client_repository = ClientRepository()
+    def get_tasks_for_export(self, firm_id, filters=None):
         """Get all tasks for export with proper firm access control"""
         try:
-            # Get all tasks for the firm using proper joins
-            tasks = Task.query.outerjoin(Project).filter(
-                db.or_(
-                    Project.firm_id == firm_id,
-                    db.and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-                )
-            ).all()
+            # Get all tasks for the firm using repository
+            tasks = self.task_repository.get_tasks_by_firm(firm_id)
             
             return {
                 'success': True,
@@ -30,11 +31,10 @@ class ExportService:
                 'message': f'Error retrieving tasks for export: {str(e)}'
             }
     
-    @staticmethod 
-    def get_projects_for_export(firm_id, filters=None):
+    def get_projects_for_export(self, firm_id, filters=None):
         """Get all projects for export with proper firm access control"""
         try:
-            projects = Project.query.filter_by(firm_id=firm_id).all()
+            projects = self.project_repository.get_projects_by_firm(firm_id)
             
             return {
                 'success': True,
@@ -46,11 +46,10 @@ class ExportService:
                 'message': f'Error retrieving projects for export: {str(e)}'
             }
     
-    @staticmethod
-    def get_clients_for_export(firm_id, filters=None):
+    def get_clients_for_export(self, firm_id, filters=None):
         """Get all clients for export with proper firm access control"""
         try:
-            clients = Client.query.filter_by(firm_id=firm_id).all()
+            clients = self.client_repository.get_clients_by_firm(firm_id)
             
             return {
                 'success': True,
@@ -166,7 +165,7 @@ class ExportService:
             'address': lambda client: client.address or '',
             'contact_person': lambda client: client.contact_person or '',
             'tax_id': lambda client: client.tax_id or '',
-            'active_projects': lambda client: Project.query.filter_by(client_id=client.id, status='Active').count(),
+            'active_projects': lambda client: len([p for p in client.projects if p.status == 'Active']),
             'notes': lambda client: client.notes or '',
             'created_at': lambda client: client.created_at.strftime('%Y-%m-%d %H:%M:%S') if client.created_at else ''
         }
