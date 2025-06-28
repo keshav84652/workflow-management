@@ -6,6 +6,7 @@ import os
 import logging
 import time
 import base64
+import re
 from typing import Dict, Any, Optional
 
 from .base_provider import AIProvider
@@ -109,7 +110,22 @@ class GeminiProvider(AIProvider):
                 parts.append(f"Document content:\n{content_text[:2000]}")
             
             # Add analysis prompt (from working version)
-            parts.append(analysis_prompt)
+            prompt = f"""Analyze this tax document and extract key information.
+
+**Requirements:**
+1. Identify document type (W-2, 1099-DIV, 1099-G, 1098-T, etc.)
+2. Extract payer/recipient names and TINs
+3. Extract all numbered box amounts (Box1, Box1a, Box2, etc.)
+4. Identify tax withholdings (federal, state)
+5. Note if document is corrected
+
+**Important:**
+- Extract amounts exactly as shown, including $0.00
+- Only include visible information
+- Use "Unknown" for missing fields
+- Keep analysis summary under 200 words"""
+            
+            parts.append(prompt)
             
             # Use the correct API call from working version
             response = self.client.models.generate_content(
@@ -123,30 +139,33 @@ class GeminiProvider(AIProvider):
                 )
             )
             
-            processing_time = time.time() - start_time
+            # Calculate response time
+            response_time_ms = (time.time() - start_time) * 1000
             
             # Parse the response
-            if response.candidates and len(response.candidates) > 0:
-                result_text = response.candidates[0].content.parts[0].text
-                parsed_results = self._parse_gemini_response(result_text)
-            else:
-                raise Exception("No candidates returned from Gemini")
+            if not response.text:
+                raise ValueError("Empty response from Gemini API")
             
-            # Calculate confidence based on response quality
-            confidence = self._calculate_confidence(parsed_results, result_text)
+            analysis_text = response.text
+            logging.info(f"Gemini analysis completed in {response_time_ms:.2f}ms")
             
+            # Extract key findings from the analysis text (for frontend dropdown)
+            key_findings = self._extract_key_findings(analysis_text)
+            
+            # Clean the summary text to remove asterisks (same cleaning as key_findings)
+            clean_summary = self._clean_analysis_text(analysis_text[:500])
+            if len(analysis_text) > 500:
+                clean_summary += "..."
+            
+            # Return working format - standardize through base class  
             raw_results = {
-                'text': parsed_results.get('extracted_text', ''),
-                'fields': parsed_results.get('fields', {}),
-                'entities': parsed_results.get('entities', []),
-                'confidence': confidence,
-                'document_type': parsed_results.get('document_type', 'unknown'),
-                'processing_time': processing_time,
-                'metadata': {
-                    'gemini_model': 'gemini-1.5-flash',
-                    'raw_response': result_text[:500] + '...' if len(result_text) > 500 else result_text,
-                    'response_length': len(result_text)
-                }
+                'service': 'gemini',
+                'analysis_text': analysis_text,
+                'document_type': self._extract_document_type(analysis_text),
+                'confidence': 0.85,  # Use 'confidence' for base class compatibility
+                'summary': clean_summary,
+                'key_findings': key_findings,  # Added for frontend dropdown display
+                'response_time_ms': response_time_ms
             }
             
             return self._standardize_results(raw_results)
@@ -169,7 +188,7 @@ class GeminiProvider(AIProvider):
             'supports_key_value_pairs': True,
             'supports_document_understanding': True,
             'supports_multimodal': True,
-            'supported_models': ['gemini-1.5-flash', 'gemini-1.5-pro'],
+            'supported_models': ['gemini-1.5-flash'],
             'max_file_size_mb': 20,
             'supported_formats': self.get_supported_file_types()
         }
@@ -237,118 +256,60 @@ CONFIDENCE: [your confidence level 0-1]
 
 Be thorough and accurate in your extraction."""
     
-    def _parse_gemini_response(self, response_text: str) -> Dict[str, Any]:
-        """
-        Parse Gemini's response into structured data
-        
-        Args:
-            response_text: Raw response from Gemini
-            
-        Returns:
-            Parsed results dictionary
-        """
-        import json
-        import re
-        
-        results = {
-            'document_type': 'unknown',
-            'extracted_text': '',
-            'fields': {},
-            'entities': []
-        }
-        
-        try:
-            # Extract document type
-            doc_type_match = re.search(r'DOCUMENT_TYPE:\s*(.+)', response_text, re.IGNORECASE)
-            if doc_type_match:
-                results['document_type'] = doc_type_match.group(1).strip()
-            
-            # Extract full text
-            text_match = re.search(r'EXTRACTED_TEXT:\s*(.+?)(?=FIELDS:|ENTITIES:|$)', response_text, re.IGNORECASE | re.DOTALL)
-            if text_match:
-                results['extracted_text'] = text_match.group(1).strip()
-            
-            # Extract fields (JSON format)
-            fields_match = re.search(r'FIELDS:\s*({.+?})', response_text, re.IGNORECASE | re.DOTALL)
-            if fields_match:
-                try:
-                    fields_json = fields_match.group(1)
-                    results['fields'] = json.loads(fields_json)
-                except json.JSONDecodeError:
-                    # If JSON parsing fails, try to extract key-value pairs manually
-                    results['fields'] = self._extract_fields_manually(fields_match.group(1))
-            
-            # Extract entities
-            entities_match = re.search(r'ENTITIES:\s*(.+?)(?=CONFIDENCE:|$)', response_text, re.IGNORECASE | re.DOTALL)
-            if entities_match:
-                entities_text = entities_match.group(1).strip()
-                results['entities'] = self._parse_entities(entities_text)
-            
-        except Exception as e:
-            logging.warning(f"Failed to parse Gemini response structure: {e}")
-            # Fallback: use the entire response as extracted text
-            results['extracted_text'] = response_text
-        
-        return results
+    def _extract_document_type(self, text: str) -> str:
+        """Extract document type from analysis text"""
+        text_lower = text.lower()
+        if 'tax' in text_lower or 'form' in text_lower:
+            return 'tax_document'
+        elif 'invoice' in text_lower or 'bill' in text_lower:
+            return 'invoice'
+        elif 'receipt' in text_lower:
+            return 'receipt'
+        elif 'contract' in text_lower or 'agreement' in text_lower:
+            return 'contract'
+        else:
+            return 'general_document'
     
-    def _extract_fields_manually(self, fields_text: str) -> Dict[str, Any]:
-        """
-        Manually extract fields if JSON parsing fails
+    def _extract_key_findings(self, text: str) -> list:
+        """Extract key findings from Gemini analysis text with clean formatting"""
+        findings = []
+        lines = text.split('\n')
         
-        Args:
-            fields_text: Raw fields text
-            
-        Returns:
-            Fields dictionary
-        """
-        fields = {}
-        
-        # Look for key: value patterns
-        patterns = [
-            r'"([^"]+)":\s*"([^"]*)"',  # "key": "value"
-            r'(\w+):\s*([^\n,}]+)',     # key: value
-        ]
-        
-        for pattern in patterns:
-            matches = re.findall(pattern, fields_text)
-            for key, value in matches:
-                fields[key.strip()] = value.strip()
-        
-        return fields
-    
-    def _parse_entities(self, entities_text: str) -> list:
-        """
-        Parse entities from text
-        
-        Args:
-            entities_text: Raw entities text
-            
-        Returns:
-            List of entity dictionaries
-        """
-        entities = []
-        
-        # Simple parsing - look for patterns like "Name: John Doe (PERSON)"
-        lines = entities_text.split('\n')
         for line in lines:
             line = line.strip()
-            if ':' in line:
-                parts = line.split(':', 1)
-                if len(parts) == 2:
-                    entity_type = parts[0].strip()
-                    entity_value = parts[1].strip()
-                    
-                    # Remove parenthetical type info if present
-                    entity_value = re.sub(r'\s*\([^)]+\)$', '', entity_value)
-                    
-                    if entity_value:
-                        entities.append({
-                            'type': entity_type,
-                            'value': entity_value,
-                            'confidence': 0.8
-                        })
+            if not line:
+                continue
+            
+            # Look for specific patterns that indicate key findings
+            if any(keyword in line.lower() for keyword in [
+                'box', 'amount', 'withheld', 'payer', 'recipient', 'tin', 'ein', 'ssn',
+                'federal', 'state', 'income', 'tax', 'form', 'corrected', 'document type',
+                'employer', 'employee', 'wages', 'medicare', 'social security'
+            ]):
+                # Clean up the line and remove markdown formatting and asterisks
+                cleaned_line = line.replace('*', '').replace('#', '').replace('-', '').strip()
+                
+                # Remove asterisks from sensitive data (like TINs)
+                cleaned_line = cleaned_line.replace('*', '')
+                
+                if cleaned_line and len(cleaned_line) > 10:  # Filter out very short lines
+                    findings.append(cleaned_line)
         
-        return entities
+        # Limit to most relevant findings
+        return findings[:8]
+    
+    def _clean_analysis_text(self, text: str) -> str:
+        """Clean analysis text by removing asterisks and markdown formatting"""
+        # Remove asterisks used for masking sensitive data (like TINs)
+        cleaned_text = text.replace('*', '')
+        
+        # Remove excessive markdown formatting but keep basic structure
+        cleaned_text = cleaned_text.replace('###', '').replace('##', '').replace('#', '')
+        
+        # Clean up multiple spaces that might result from asterisk removal
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
+        return cleaned_text
     
     def _calculate_confidence(self, parsed_results: Dict, raw_response: str) -> float:
         """

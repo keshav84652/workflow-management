@@ -95,7 +95,7 @@ class AzureProvider(AIProvider):
             
             logging.info(f"Starting Azure document analysis for: {document_path}")
             
-            # Try different models in order of preference
+            # Use most capable models first, fallback to basic ones (restored from working version)
             models_to_try = [
                 "prebuilt-tax.us.1099",      # Tax form 1099 variants
                 "prebuilt-tax.us.w2",        # W-2 tax forms  
@@ -109,25 +109,26 @@ class AzureProvider(AIProvider):
             
             for model_id in models_to_try:
                 try:
-                    logging.info(f"Trying Azure model: {model_id}")
+                    logging.info(f"🔍 TRYING Azure model: {model_id}")
                     poller = self.client.begin_analyze_document(
                         model_id=model_id,
                         body=BytesIO(document_content)
                     )
                     result = poller.result()
                     successful_model = model_id
+                    logging.info(f"✅ SUCCESS: Using Azure model {model_id}")
                     break
                 except HttpResponseError as e:
                     last_error = e
                     if e.status_code == 400:
-                        logging.info(f"Model {model_id} not suitable for this document, trying next...")
+                        logging.warning(f"❌ Model {model_id} not suitable/available for this document, trying next...")
                         continue
                     else:
-                        logging.error(f"HTTP error with model {model_id}: {e}")
+                        logging.error(f"❌ HTTP error with model {model_id}: {e}")
                         continue
                 except Exception as e:
                     last_error = e
-                    logging.error(f"Error with model {model_id}: {e}")
+                    logging.error(f"❌ Error with model {model_id}: {e}")
                     continue
             
             if result is None:
@@ -135,28 +136,97 @@ class AzureProvider(AIProvider):
                 logging.error(error_msg)
                 raise Exception(error_msg)
             
-            # Process results
+            # Process results using exact working approach from be39018
             processing_time = time.time() - start_time
             
-            # Extract text content
+            # Convert to dictionary (from working version)
+            result_dict = result.as_dict() if hasattr(result, 'as_dict') else self._serialize_azure_result(result)
+            
+            # Calculate response time
+            response_time_ms = processing_time * 1000
+            
+            # Extract key information from Azure results (format for frontend)
+            extracted_data = {
+                'service': 'azure',
+                'model_id': successful_model or 'unknown',
+                'documents_found': len(result_dict.get('documents', [])),
+                'tables': [],
+                'key_value_pairs': [],  # Array format for frontend
+                'text_content': '',
+                'confidence_score': 0.9,
+                'response_time_ms': response_time_ms
+            }
+            
+            # Extract content from first document
+            documents = result_dict.get('documents', [])
             extracted_text = ""
-            if hasattr(result, 'content'):
-                extracted_text = result.content
-            
-            # Extract fields
             fields = {}
-            if hasattr(result, 'documents') and result.documents:
-                doc = result.documents[0]
-                if hasattr(doc, 'fields') and doc.fields:
-                    for field_name, field_value in doc.fields.items():
-                        if hasattr(field_value, 'value'):
-                            fields[field_name] = {
-                                'value': field_value.value,
-                                'confidence': getattr(field_value, 'confidence', 0.8)
-                            }
             
-            # Extract entities/key-value pairs
+            if documents:
+                doc = documents[0]
+                extracted_text = doc.get('content', '')
+                extracted_data['text_content'] = extracted_text
+                
+                # Extract fields as key-value pairs (as array) - working version
+                if 'fields' in doc:
+                    for field_name, field_data in doc['fields'].items():
+                        if isinstance(field_data, dict):
+                            # Comprehensive Azure field value parsing (restored from working version)
+                            value = None
+                            if 'value' in field_data:
+                                value = field_data['value']
+                            elif 'content' in field_data:
+                                value = field_data['content']
+                            elif 'valueString' in field_data:
+                                value = field_data['valueString']
+                            elif 'value_string' in field_data:
+                                value = field_data['value_string']
+                            elif 'valueNumber' in field_data:
+                                value = field_data['valueNumber']
+                            elif 'value_number' in field_data:
+                                value = field_data['value_number']
+                            elif 'valueDate' in field_data:
+                                value = field_data['valueDate']
+                            elif 'value_date' in field_data:
+                                value = field_data['value_date']
+                            elif 'valueBoolean' in field_data:
+                                value = field_data['valueBoolean']
+                            elif 'value_boolean' in field_data:
+                                value = field_data['value_boolean']
+                            elif 'text' in field_data:
+                                value = field_data['text']
+                            
+                            if value is not None:
+                                # Store in both formats for compatibility
+                                fields[field_name] = {
+                                    'value': value,
+                                    'confidence': field_data.get('confidence', 0.8)
+                                }
+                                extracted_data['key_value_pairs'].append({
+                                    'key': field_name,
+                                    'value': str(value)
+                                })
+                                # Debug logging for field extraction
+                                logging.debug(f"📋 Extracted field: {field_name} = {value}")
+            
+            # Extract tables from result (original approach)
             entities = []
+            if 'tables' in result_dict:
+                for table in result_dict['tables']:
+                    table_data = {
+                        'row_count': table.get('rowCount', 0),
+                        'column_count': table.get('columnCount', 0),
+                        'cells': []
+                    }
+                    for cell in table.get('cells', []):
+                        table_data['cells'].append({
+                            'content': cell.get('content', ''),
+                            'row_index': cell.get('rowIndex', 0),
+                            'column_index': cell.get('columnIndex', 0)
+                        })
+                    extracted_data['tables'].append(table_data)
+            
+            # Extract entities/key-value pairs from result level
             if hasattr(result, 'key_value_pairs') and result.key_value_pairs:
                 for kv_pair in result.key_value_pairs:
                     if hasattr(kv_pair, 'key') and hasattr(kv_pair, 'value'):
@@ -173,24 +243,22 @@ class AzureProvider(AIProvider):
             if entities:
                 confidence_scores.extend([entity['confidence'] for entity in entities if 'confidence' in entity])
             
-            overall_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.8
+            overall_confidence = sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.9
             
-            raw_results = {
+            logging.info(f"🎯 Azure analysis completed in {response_time_ms:.2f}ms using model: {successful_model}")
+            logging.info(f"📊 Extracted {len(fields)} fields from Azure model {successful_model}")
+            
+            # Return in format that matches frontend expectations
+            standardized_results = {
                 'text': extracted_text,
-                'fields': fields,
+                'fields': fields,  # For frontend compatibility
                 'entities': entities,
                 'confidence': overall_confidence,
-                'model_used': successful_model,
                 'document_type': self._detect_document_type(fields, entities),
-                'processing_time': processing_time,
-                'metadata': {
-                    'azure_model': successful_model,
-                    'pages_analyzed': len(result.pages) if hasattr(result, 'pages') and result.pages else 1,
-                    'api_version': getattr(result, 'api_version', 'unknown')
-                }
+                'extracted_data': extracted_data  # Keep original working format
             }
             
-            return self._standardize_results(raw_results)
+            return self._standardize_results(standardized_results)
             
         except Exception as e:
             error_info = self.format_error(e, f"Azure analysis of {document_path}")
@@ -224,6 +292,53 @@ class AzureProvider(AIProvider):
         """Get supported file types for Azure"""
         return ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp']
     
+    def _serialize_azure_result(self, result) -> Dict[str, Any]:
+        """Serialize Azure result to dictionary (from original working version)"""
+        try:
+            # Basic serialization for Azure Document Intelligence results
+            serialized = {
+                'model_id': getattr(result, 'model_id', 'unknown'),
+                'documents': [],
+                'tables': []
+            }
+            
+            # Serialize documents
+            if hasattr(result, 'documents') and result.documents:
+                for doc in result.documents:
+                    doc_dict = {
+                        'content': getattr(doc, 'content', ''),
+                        'fields': {}
+                    }
+                    if hasattr(doc, 'fields') and doc.fields:
+                        for field_name, field_value in doc.fields.items():
+                            if hasattr(field_value, 'value'):
+                                doc_dict['fields'][field_name] = {'value': field_value.value}
+                    serialized['documents'].append(doc_dict)
+            
+            # Serialize tables
+            if hasattr(result, 'tables') and result.tables:
+                for table in result.tables:
+                    table_dict = {
+                        'rowCount': getattr(table, 'row_count', 0),
+                        'columnCount': getattr(table, 'column_count', 0),
+                        'cells': []
+                    }
+                    if hasattr(table, 'cells') and table.cells:
+                        for cell in table.cells:
+                            cell_dict = {
+                                'content': getattr(cell, 'content', ''),
+                                'rowIndex': getattr(cell, 'row_index', 0),
+                                'columnIndex': getattr(cell, 'column_index', 0)
+                            }
+                            table_dict['cells'].append(cell_dict)
+                    serialized['tables'].append(table_dict)
+            
+            return serialized
+            
+        except Exception as e:
+            logging.warning(f"Failed to serialize Azure result: {e}")
+            return {'model_id': 'unknown', 'documents': [], 'tables': []}
+
     def _detect_document_type(self, fields: Dict, entities: list) -> str:
         """
         Detect document type based on extracted fields and entities
