@@ -347,3 +347,13 @@ class TaskRepository(CachedRepository[Task]):
                 and_(Task.project_id.is_(None), Task.firm_id == firm_id)
             )
         ).order_by(Task.created_at.desc()).limit(limit).all()
+    
+    def get_by_id_with_firm_access(self, task_id: int, firm_id: int) -> Optional[Task]:
+        """Get task by ID with firm access verification"""
+        return Task.query.outerjoin(Project).filter(
+            Task.id == task_id,
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        ).first()

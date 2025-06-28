@@ -6,9 +6,14 @@ from core.db_import import db
 from models import Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
+from repositories.client_repository import ClientRepository
 
 
 class ClientService(BaseService):
+    def __init__(self):
+        super().__init__()
+        self.client_repository = ClientRepository()
+    
     def search_clients(self, firm_id, query, limit=20):
         """
         Search clients by name, email, and contact person for a specific firm
@@ -17,34 +22,24 @@ class ClientService(BaseService):
         if not query:
             return []
         
-        # Build search filters
-        client_filters = db.or_(
-            Client.name.ilike(f'%{query}%'),
-            Client.email.ilike(f'%{query}%'),
-            Client.contact_person.ilike(f'%{query}%') if hasattr(Client, 'contact_person') else False
-        )
-        
-        clients = Client.query.filter(
-            Client.firm_id == firm_id
-        ).filter(client_filters).limit(limit).all()
-        
-        return clients
+        # Use repository search method
+        return self.client_repository.search_by_name(firm_id, query, limit)
 
     def get_clients_by_firm(self, firm_id):
         """Get all clients for a specific firm (raw objects)"""
-        return Client.query.filter_by(firm_id=firm_id).all()
+        return self.client_repository.get_by_firm(firm_id)
     
     def get_active_clients_by_firm(self, firm_id):
         """Get all active clients for a specific firm"""
-        return Client.query.filter_by(firm_id=firm_id, is_active=True).all()
+        return self.client_repository.get_by_firm(firm_id, include_inactive=False)
     
     def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
-        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        return self.client_repository.get_by_id_and_firm(client_id, firm_id)
         
     def get_clients_for_firm(self, firm_id):
         """Get all clients for a firm (formatted for API)"""
-        clients = Client.query.filter_by(firm_id=firm_id).all()
+        clients = self.client_repository.get_by_firm(firm_id)
         return [{
             'id': client.id,
             'name': client.name,
@@ -100,7 +95,7 @@ class ClientService(BaseService):
     
     def get_client_by_id(self, client_id, firm_id):
         """Get client by ID with firm access check"""
-        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        return self.client_repository.get_by_id_and_firm(client_id, firm_id)
     
     @transactional
     def update_client(self, client_id, updates, firm_id, user_id):
@@ -128,4 +123,4 @@ class ClientService(BaseService):
     
     def get_clients_by_firm_raw(self, firm_id):
         """Get all clients for a firm (alias for get_clients_for_firm)"""
-        return Client.query.filter_by(firm_id=firm_id).all()
+        return self.client_repository.get_by_firm(firm_id)

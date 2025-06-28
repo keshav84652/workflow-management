@@ -7,8 +7,13 @@ from models import Task
 from sqlalchemy import or_, and_
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
+from repositories.task_repository import TaskRepository
 
 class TaskService(BaseService):
+    def __init__(self):
+        super().__init__()
+        self.task_repository = TaskRepository()
+        
     @transactional
     def create_task(self, title, description, firm_id, user_id, project_id=None, assignee_id=None,
                    due_date=None, priority='Medium', estimated_hours=None):
@@ -171,21 +176,11 @@ class TaskService(BaseService):
     
     def get_task_by_id_with_access_check(self, task_id, firm_id):
         """Get task by ID with firm access verification"""
-        from models import Project
-        task = Task.query.outerjoin(Project).filter(
-            Task.id == task_id,
-            or_(
-                Project.firm_id == firm_id,
-                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
-            )
-        ).first()
-        return task
+        return self.task_repository.get_by_id_with_firm_access(task_id, firm_id)
     
     def get_project_tasks(self, project_id, firm_id, include_completed=True):
         """Get all tasks for a specific project"""
-        from repositories.task_repository import TaskRepository
-        task_repo = TaskRepository()
-        return task_repo.get_project_tasks(project_id, firm_id, include_completed)
+        return self.task_repository.get_project_tasks(project_id, firm_id, include_completed)
     
     @transactional
     def create_task_from_form(self, form_data, firm_id, user_id):

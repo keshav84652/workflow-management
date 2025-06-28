@@ -6,21 +6,20 @@ from core.db_import import db
 from models import Project, Task, Client, User, WorkType
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
+from repositories.project_repository import ProjectRepository
 
 
 class ProjectService(BaseService):
     def __init__(self):
         super().__init__()
+        self.project_repository = ProjectRepository()
     def get_projects_for_firm(self, firm_id, include_inactive=False):
         """Get all projects for a firm"""
-        query = Project.query.filter_by(firm_id=firm_id)
-        if not include_inactive:
-            query = query.filter(Project.status != 'Completed')
-        return query.order_by(Project.created_at.desc()).all()
+        return self.project_repository.get_by_firm(firm_id, include_inactive)
     
     def get_project_by_id_and_firm(self, project_id, firm_id):
         """Get project by ID with firm access check"""
-        return Project.query.filter_by(id=project_id, firm_id=firm_id).first()
+        return self.project_repository.get_by_id_and_firm(project_id, firm_id)
     
     def get_project_progress(self, project_id, firm_id):
         """Get project progress with access check"""
@@ -28,8 +27,11 @@ class ProjectService(BaseService):
         if not project:
             return {'error': 'Project not found or access denied'}, 403
         
-        total_tasks = Task.query.filter_by(project_id=project_id).count()
-        completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
+        from repositories.task_repository import TaskRepository
+        task_repo = TaskRepository()
+        project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
+        total_tasks = len(project_tasks)
+        completed_tasks = len([t for t in project_tasks if t.status == 'Completed'])
         progress_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
         
         return {
@@ -231,9 +233,7 @@ class ProjectService(BaseService):
     
     def get_active_projects(self, firm_id):
         """Get active projects for a firm"""
-        return Project.query.filter_by(firm_id=firm_id).filter(
-            Project.status.in_(['Not Started', 'In Progress'])
-        ).order_by(Project.created_at.desc()).all()
+        return self.project_repository.get_by_firm(firm_id, include_inactive=False)
     
     def get_project_by_id(self, project_id, firm_id):
         """Get project by ID for firm"""
@@ -241,7 +241,7 @@ class ProjectService(BaseService):
     
     def get_projects_by_firm(self, firm_id):
         """Get all projects for firm (alias for consistency)"""
-        return self.get_projects_for_firm(firm_id)
+        return self.project_repository.get_by_firm(firm_id)
     
     @transactional
     def move_project_status(self, project_id, status_id, firm_id, user_id=None):
