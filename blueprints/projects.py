@@ -135,7 +135,8 @@ def edit_project(id):
             return redirect(url_for('projects.edit_project', id=id))
     
     # GET request - show form
-    users = UserService.get_users_by_firm(firm_id)
+    user_service = UserService()
+    users = user_service.get_users_by_firm(firm_id)
     return render_template('projects/edit_project.html', project=project, users=users)
 
 @projects_bp.route('/<int:id>/delete', methods=['POST'])

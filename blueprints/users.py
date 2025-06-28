@@ -19,7 +19,8 @@ def list_users():
     # Use standardized session management
     firm_id = SessionService.get_current_firm_id()
     # Use UserService for getting users
-    users = UserService.get_users_by_firm(firm_id)
+    user_service = UserService()
+    users = user_service.get_users_by_firm(firm_id)
     return render_template('admin/users.html', users=users)
 
 

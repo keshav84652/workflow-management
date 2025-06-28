@@ -72,11 +72,9 @@ class UserService(BaseService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    @staticmethod
-    def get_users_by_firm(firm_id):
-        """Get all users for a firm - static method for blueprint usage"""
-        user_repository = UserRepository()
-        return user_repository.get_users_by_firm(firm_id)
+    def get_users_by_firm(self, firm_id):
+        """Get all users for a firm"""
+        return self.user_repository.get_users_by_firm(firm_id)
     
     def update_user(self, user_id, name, role, firm_id, updated_by_user_id):
         """Update user information"""

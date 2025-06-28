@@ -42,7 +42,8 @@ def list_tasks():
     tasks = [item['task'] for item in task_data_list]
     
     # Get filter options
-    users = UserService.get_users_by_firm(firm_id)
+    user_service = UserService()
+    users = user_service.get_users_by_firm(firm_id)
     project_service = ProjectService()
     projects = project_service.get_projects_by_firm(firm_id)
     
@@ -96,7 +97,8 @@ def create_task():
     firm_id = get_session_firm_id()
     project_service = ProjectService()
     projects = project_service.get_active_projects(firm_id)
-    users = UserService.get_users_by_firm(firm_id)
+    user_service = UserService()
+    users = user_service.get_users_by_firm(firm_id)
     
     # Pre-select project if provided
     selected_project = request.args.get('project_id')
@@ -138,7 +140,8 @@ def edit_task(id):
             return redirect(url_for('tasks.edit_task', id=id))
     
     # GET request - show form
-    users = UserService.get_users_by_firm(firm_id)
+    user_service = UserService()
+    users = user_service.get_users_by_firm(firm_id)
     
     # Get other tasks in the same project for dependency selection
     project_tasks = []
