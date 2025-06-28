@@ -71,45 +71,55 @@ def run_quick_service_test():
     print("=" * 40)
     
     try:
+        from app import create_app
         from services.dashboard_aggregator_service import DashboardAggregatorService
         
-        service = DashboardAggregatorService()
+        app = create_app()
+        # CRITICAL: Use test database to avoid affecting production data
+        app.config['TESTING'] = True
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         
-        # Test critical methods
-        critical_methods = [
-            'get_dashboard_data',
-            'get_calendar_data', 
-            'get_time_tracking_report'
-        ]
-        
-        all_passed = True
-        
-        for method_name in critical_methods:
-            if hasattr(service, method_name):
-                print(f"✅ {method_name}: EXISTS")
-                
-                # Try to call with safe parameters
-                try:
-                    method = getattr(service, method_name)
-                    if method_name == 'get_calendar_data':
-                        result = method(1, 2024, 12)
-                    else:
-                        result = method(1)
+        with app.app_context():
+            # Create tables in test database
+            from core.db_import import db
+            db.create_all()
+            service = DashboardAggregatorService()
+            
+            # Test critical methods
+            critical_methods = [
+                'get_dashboard_data',
+                'get_calendar_data', 
+                'get_time_tracking_report'
+            ]
+            
+            all_passed = True
+            
+            for method_name in critical_methods:
+                if hasattr(service, method_name):
+                    print(f"✅ {method_name}: EXISTS")
                     
-                    if isinstance(result, dict) and 'error' not in result:
-                        print(f"✅ {method_name}: FUNCTIONAL")
-                    else:
-                        print(f"⚠️  {method_name}: Returns data but may have issues")
+                    # Try to call with safe parameters
+                    try:
+                        method = getattr(service, method_name)
+                        if method_name == 'get_calendar_data':
+                            result = method(1, 2024, 12)
+                        else:
+                            result = method(1)
                         
-                except Exception as e:
-                    print(f"❌ {method_name}: ERROR - {e}")
+                        if isinstance(result, dict) and 'error' not in result:
+                            print(f"✅ {method_name}: FUNCTIONAL")
+                        else:
+                            print(f"⚠️  {method_name}: Returns data but may have issues")
+                            
+                    except Exception as e:
+                        print(f"❌ {method_name}: ERROR - {e}")
+                        all_passed = False
+                else:
+                    print(f"❌ {method_name}: MISSING")
                     all_passed = False
-            else:
-                print(f"❌ {method_name}: MISSING")
-                all_passed = False
-        
-        print()
-        return all_passed
+            
+            print()
+            return all_passed
         
     except Exception as e:
         print(f"❌ Service test error: {e}")

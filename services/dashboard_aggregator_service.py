@@ -235,6 +235,7 @@ class DashboardAggregatorService(BaseService):
                 'year': year,
                 'month': month,
                 'month_name': calendar.month_name[month],
+                'current_date': date.today().isoformat(),
                 'tasks_by_date': tasks_by_date,
                 'total_tasks': sum(len(tasks) for tasks in tasks_by_date.values()),
                 'dates_with_tasks': list(tasks_by_date.keys())
@@ -249,6 +250,7 @@ class DashboardAggregatorService(BaseService):
                 'year': year,
                 'month': month,
                 'month_name': calendar.month_name[month] if month <= 12 else 'Unknown',
+                'current_date': date.today().isoformat(),
                 'tasks_by_date': {},
                 'total_tasks': 0,
                 'dates_with_tasks': [],
