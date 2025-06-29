@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from core.db_import import db
-from models import (
+from src.models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
     IncomeWorksheet, User, Attachment
 )

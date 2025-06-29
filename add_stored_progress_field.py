@@ -6,7 +6,7 @@ Run this after implementing the unified project state management system
 
 from app import app
 from src.shared.database.db_import import db
-from models import Project
+from src.models import Project
 
 def add_stored_progress_field():
     """Add the stored_progress_percentage field and populate it"""

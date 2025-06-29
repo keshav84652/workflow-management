@@ -8,7 +8,7 @@ from datetime import datetime
 import secrets
 
 from core.db_import import db
-from models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
+from src.models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
 from services.base import BaseService, transactional
 from repositories.client_repository import ClientRepository
 
@@ -209,14 +209,14 @@ class DocumentService(BaseService):
     
     def get_uploaded_documents(self, firm_id):
         """Get all uploaded documents for a firm"""
-        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        from src.models import ClientDocument, ChecklistItem, DocumentChecklist, Client
         return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
             Client.firm_id == firm_id
         ).order_by(ClientDocument.uploaded_at.desc()).all()
     
     def get_document_for_download(self, document_id, firm_id):
         """Get document for download with firm access check"""
-        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        from src.models import ClientDocument, ChecklistItem, DocumentChecklist, Client
         return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
             ClientDocument.id == document_id,
             Client.firm_id == firm_id
@@ -224,7 +224,7 @@ class DocumentService(BaseService):
     
     def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
-        from models import Client
+        from src.models import Client
         return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
     
     def get_checklists_by_client_and_firm(self, client_id, firm_id):
@@ -266,7 +266,7 @@ class DocumentService(BaseService):
     
     def get_income_worksheet_by_id_with_access_check(self, worksheet_id, firm_id):
         """Get income worksheet by ID with firm access check"""
-        from models import IncomeWorksheet
+        from src.models import IncomeWorksheet
         worksheet = IncomeWorksheet.query.get(worksheet_id)
         if not worksheet:
             return None

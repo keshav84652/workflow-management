@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import or_, and_
 
 from core.db_import import db
-from models import Task, Project
+from src.models import Task, Project
 from .base import CachedRepository, PaginationResult
 
 
@@ -194,7 +194,7 @@ class TaskRepository(CachedRepository[Task]):
     def create_from_template(self, template_id: int, project_id: int, 
                            firm_id: int, user_id: int) -> Optional[Task]:
         """Create task from template"""
-        from models import TemplateTask
+        from src.models import TemplateTask
         
         template = TemplateTask.query.get(template_id)
         if not template:

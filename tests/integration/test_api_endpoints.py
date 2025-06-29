@@ -8,7 +8,7 @@ import json
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date, timedelta
 
-from models import Task, Project, Client, User, Firm
+from src.models import Task, Project, Client, User, Firm
 
 
 class TestTaskAPIEndpoints:

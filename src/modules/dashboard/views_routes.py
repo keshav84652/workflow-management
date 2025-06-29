@@ -5,7 +5,7 @@ Views and interface modes blueprint (Calendar, Kanban, Search, Reports)
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
 
-from models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
+from src.models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
 from services.dashboard_aggregator_service import DashboardAggregatorService
 from services.client_service import ClientService
 from services.user_service import UserService

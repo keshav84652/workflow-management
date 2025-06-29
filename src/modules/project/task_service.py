@@ -3,7 +3,7 @@ TaskService: Handles all business logic for tasks and subtasks.
 """
 
 from core.db_import import db
-from models import Task
+from src.models import Task
 from sqlalchemy import or_, and_
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
@@ -309,7 +309,7 @@ class TaskService(BaseService):
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
-            from models import TaskComment
+            from src.models import TaskComment
             comment = TaskComment(
                 comment=comment_text,
                 task_id=task_id,

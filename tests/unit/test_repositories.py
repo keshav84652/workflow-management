@@ -9,7 +9,7 @@ from datetime import datetime, date
 
 from repositories.base import BaseRepository
 from repositories.task_repository import TaskRepository
-from models import Task, Project, User, Firm
+from src.models import Task, Project, User, Firm
 
 
 class TestBaseRepository:

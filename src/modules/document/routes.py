@@ -10,7 +10,7 @@ import mimetypes
 from werkzeug.utils import secure_filename
 
 from core.db_import import db
-from models import (
+from src.models import (
     DocumentChecklist, ChecklistItem, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )

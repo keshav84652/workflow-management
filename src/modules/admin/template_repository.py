@@ -5,7 +5,7 @@ Provides data access layer for template-related operations.
 
 from typing import List, Optional
 from core.db_import import db
-from models import Template
+from src.models import Template
 from .base import CachedRepository
 
 

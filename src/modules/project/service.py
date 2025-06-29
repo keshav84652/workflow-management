@@ -3,7 +3,7 @@ ProjectService: Handles all business logic for project operations.
 """
 
 from core.db_import import db
-from models import Project, Task, Client, User, WorkType
+from src.models import Project, Task, Client, User, WorkType
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
 from repositories.project_repository import ProjectRepository
@@ -72,7 +72,7 @@ class ProjectService(BaseService):
             # Set initial workflow status if work type exists
             if work_type_id:
                 # Find the default status for this work type
-                from models import TaskStatus
+                from src.models import TaskStatus
                 default_status = TaskStatus.query.filter_by(
                     work_type_id=work_type_id,
                     is_default=True
@@ -266,7 +266,7 @@ class ProjectService(BaseService):
                 
                 # Find terminal status for this work type
                 if project.work_type_id:
-                    from models import TaskStatus
+                    from src.models import TaskStatus
                     terminal_status = TaskStatus.query.filter_by(
                         work_type_id=project.work_type_id,
                         is_terminal=True
@@ -278,7 +278,7 @@ class ProjectService(BaseService):
                 # status_id should be a TaskStatus ID
                 try:
                     status_id = int(status_id)
-                    from models import TaskStatus
+                    from src.models import TaskStatus
                     task_status = TaskStatus.query.filter_by(
                         id=status_id,
                         work_type_id=project.work_type_id
@@ -344,7 +344,7 @@ class ProjectService(BaseService):
         - etc.
         """
         try:
-            from models import TaskStatus
+            from src.models import TaskStatus
             
             # Get the workflow statuses for this work type in order
             if not project.work_type_id:

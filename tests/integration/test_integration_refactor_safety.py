@@ -28,7 +28,7 @@ import os
 from core.db_import import db
 
 # Import models
-from models import (
+from src.models import (
     User, Firm, Client, Project, Task, 
     DocumentChecklist, ChecklistItem, ClientDocument
 )

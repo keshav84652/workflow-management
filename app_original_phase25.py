@@ -15,7 +15,7 @@ from flask_migrate import Migrate
 import os
 
 # Import models
-from models import (
+from src.models import (
     Firm, User, Template, TemplateTask, Project, Task, ActivityLog, 
     Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, 
     Attachment, ClientUser, DocumentChecklist, ChecklistItem, 

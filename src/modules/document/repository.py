@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from core.db_import import db
-from models import ClientDocument, DocumentChecklist, Client
+from src.models import ClientDocument, DocumentChecklist, Client
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from services.task_service import TaskService
 from services.project_service import ProjectService
 from services.document_service import DocumentService
 from services.client_service import ClientService
-from models import Task, Project, Client, User, Firm, DocumentChecklist, ChecklistItem
+from src.models import Task, Project, Client, User, Firm, DocumentChecklist, ChecklistItem
 
 
 class TestKanbanWorkflow:

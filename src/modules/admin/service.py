@@ -8,7 +8,7 @@ from flask import session
 import os
 
 from core.db_import import db
-from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
+from src.models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
 from utils.consolidated import generate_access_code
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from repositories.firm_repository import FirmRepository

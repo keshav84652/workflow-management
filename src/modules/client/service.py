@@ -3,7 +3,7 @@ ClientService: Handles all business logic for clients, including search and retr
 """
 
 from core.db_import import db
-from models import Client
+from src.models import Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
 from .repository import ClientRepository

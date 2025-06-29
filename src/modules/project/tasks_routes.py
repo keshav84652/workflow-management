@@ -6,7 +6,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 
 from core.db_import import db
-from models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
+from src.models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
 from services.task_service import TaskService
 from services.user_service import UserService
 from services.project_service import ProjectService

@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from core.db_import import db
-from models import Template, Task, ActivityLog, TaskComment, TemplateTask, Project
+from src.models import Template, Task, ActivityLog, TaskComment, TemplateTask, Project
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService, transactional
 

@@ -11,7 +11,7 @@ import uuid
 import mimetypes
 
 from core.db_import import db
-from models import (
+from src.models import (
     ClientUser, Client, DocumentChecklist, ChecklistItem, ClientDocument
 )
 

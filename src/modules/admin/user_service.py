@@ -3,7 +3,7 @@ UserService: Handles all business logic for user operations.
 """
 
 from core.db_import import db
-from models import User, Firm
+from src.models import User, Firm
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.base import BaseService
 from repositories.user_repository import UserRepository

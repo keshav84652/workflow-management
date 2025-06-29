@@ -6,7 +6,7 @@ UPDATED: Now uses modern service infrastructure and standardized session managem
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from core.db_import import db
-from models import User
+from src.models import User
 from services.base import SessionService
 from services.admin_service import AdminService
 from services.user_service import UserService

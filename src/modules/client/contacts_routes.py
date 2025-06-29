@@ -5,7 +5,7 @@ Contact management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 
 from core.db_import import db
-from models import Contact, ClientContact, Client
+from src.models import Contact, ClientContact, Client
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 

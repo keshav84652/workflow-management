@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import or_, and_
 
 from core.db_import import db
-from models import Client
+from src.models import Client
 from repositories.base import CachedRepository, PaginationResult
 
 

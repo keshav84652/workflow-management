@@ -18,7 +18,7 @@ from core.db_import import db
 from flask_migrate import Migrate
 
 # Import models
-from models import (
+from src.models import (
     Firm, User, Template, TemplateTask, Project, Task, ActivityLog, 
     Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, 
     Attachment, ClientUser, DocumentChecklist, ChecklistItem, 

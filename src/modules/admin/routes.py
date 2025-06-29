@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 
 from core.db_import import db
-from models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
+from src.models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
 from utils.consolidated import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')

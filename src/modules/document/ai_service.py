@@ -10,7 +10,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from core.db_import import db
-from models import ClientDocument
+from src.models import ClientDocument
 from services.base import BaseService
 from .ai_providers import AIProviderFactory, AIProvider
 
@@ -472,7 +472,7 @@ class AIService(BaseService):
     
     def analyze_checklist_documents(self, checklist_id: int, firm_id: int, force_reanalysis: bool = False) -> Dict[str, Any]:
         """Analyze all documents in a checklist"""
-        from models import DocumentChecklist, Client
+        from src.models import DocumentChecklist, Client
         from core.db_import import db
         import os
         import logging
@@ -588,7 +588,7 @@ class AIService(BaseService):
     
     def get_or_analyze_document(self, document_id: int, firm_id: int, force_reanalysis: bool = False) -> Dict[str, Any]:
         """Get existing analysis or perform new analysis for a single document"""
-        from models import ClientDocument, Client
+        from src.models import ClientDocument, Client
         from core.db_import import db
         import os
         import logging
@@ -645,7 +645,7 @@ class AIService(BaseService):
     
     def generate_income_worksheet(self, checklist_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
         """Generate income worksheet from analyzed documents"""
-        from models import DocumentChecklist, Client, IncomeWorksheet
+        from src.models import DocumentChecklist, Client, IncomeWorksheet
         from core.db_import import db
         import json
         from datetime import datetime
@@ -702,7 +702,7 @@ class AIService(BaseService):
     
     def get_saved_income_worksheet(self, checklist_id: int, firm_id: int) -> Dict[str, Any]:
         """Get saved income worksheet data"""
-        from models import DocumentChecklist, Client, IncomeWorksheet
+        from src.models import DocumentChecklist, Client, IncomeWorksheet
         from core.db_import import db
         import json
         
