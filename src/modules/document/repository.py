@@ -1,147 +1,120 @@
 """
-Checklist Repository for CPA WorkflowPilot
-Provides data access layer for checklist-related operations.
+Document Repository
+
+Handles all database operations for document analysis results.
+This extracts the persistence logic from the AIService God Object.
 """
 
-from typing import List, Dict, Any, Optional
-from sqlalchemy import or_, and_
+import json
+import logging
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 from core.db_import import db
-from models.documents import DocumentChecklist, ChecklistItem, ClientDocument
-from models.clients import Client
-from repositories.base import CachedRepository
+from models import ClientDocument, DocumentChecklist, Client
+
+logger = logging.getLogger(__name__)
 
 
-class ChecklistRepository(CachedRepository[DocumentChecklist]):
-    """Repository for DocumentChecklist entity with caching support"""
+class DocumentAnalysisRepository:
+    """
+    Repository for managing document analysis data persistence.
+    
+    Handles saving and retrieving AI analysis results, managing document
+    metadata, and providing data access for the document analysis system.
+    """
     
     def __init__(self):
-        super().__init__(DocumentChecklist, cache_ttl=600)  # 10 minute cache
+        """Initialize the document analysis repository"""
+        pass
     
-    def get_by_firm(self, firm_id: int, include_inactive: bool = False) -> List[DocumentChecklist]:
-        """Get all checklists for a firm"""
-        query = DocumentChecklist.query.join(Client).filter(Client.firm_id == firm_id)
+    def save_analysis_results(self, document_id: int, results: Dict[str, Any]) -> bool:
+        """
+        Save analysis results to the database
         
-        if not include_inactive:
-            query = query.filter(DocumentChecklist.is_active == True)
-        
-        return query.order_by(DocumentChecklist.created_at.desc()).all()
-    
-    def get_by_id_and_firm(self, checklist_id: int, firm_id: int) -> Optional[DocumentChecklist]:
-        """Get checklist by ID ensuring it belongs to the firm"""
-        return DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first()
-    
-    def get_by_client(self, client_id: int, firm_id: int) -> List[DocumentChecklist]:
-        """Get all checklists for a client"""
-        return DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.client_id == client_id,
-            Client.firm_id == firm_id,
-            DocumentChecklist.is_active == True
-        ).order_by(DocumentChecklist.created_at.desc()).all()
-    
-    def get_by_access_token(self, access_token: str) -> Optional[DocumentChecklist]:
-        """Get checklist by access token for public access"""
-        return DocumentChecklist.query.filter_by(
-            access_token=access_token,
-            is_active=True
-        ).first()
-    
-    def get_checklist_statistics(self, firm_id: int) -> Dict[str, Any]:
-        """Get checklist statistics for a firm"""
-        total = self.count_by_firm(firm_id)
-        active = self.count_by_firm(firm_id, is_active=True)
-        inactive = total - active
-        
-        # Count checklists needing AI analysis
-        needs_analysis = DocumentChecklist.query.join(Client).filter(
-            Client.firm_id == firm_id,
-            DocumentChecklist.ai_analysis_completed == False
-        ).count()
-        
-        return {
-            'total': total,
-            'active': active,
-            'inactive': inactive,
-            'needs_ai_analysis': needs_analysis
-        }
-    
-    def count_by_firm(self, firm_id: int, is_active: bool = None) -> int:
-        """Count checklists for a firm"""
-        query = DocumentChecklist.query.join(Client).filter(Client.firm_id == firm_id)
-        
-        if is_active is not None:
-            query = query.filter(DocumentChecklist.is_active == is_active)
-        
-        return query.count()
-    
-    def update_checklist_status(self, checklist_id: int, firm_id: int, is_active: bool) -> Optional[DocumentChecklist]:
-        """Update checklist active status"""
-        checklist = self.get_by_id_and_firm(checklist_id, firm_id)
-        if not checklist:
-            return None
-        
-        checklist.is_active = is_active
-        # Note: Transaction commit is handled by service layer
-        
-        return checklist
-
-
-class ChecklistItemRepository(CachedRepository[ChecklistItem]):
-    """Repository for ChecklistItem entity with caching support"""
-    
-    def __init__(self):
-        super().__init__(ChecklistItem, cache_ttl=300)  # 5 minute cache
-    
-    def get_by_checklist(self, checklist_id: int) -> List[ChecklistItem]:
-        """Get all items for a checklist ordered by sort_order"""
-        return ChecklistItem.query.filter_by(
-            checklist_id=checklist_id
-        ).order_by(ChecklistItem.sort_order).all()
-    
-    def get_by_id_and_checklist(self, item_id: int, checklist_id: int) -> Optional[ChecklistItem]:
-        """Get item by ID ensuring it belongs to the checklist"""
-        return ChecklistItem.query.filter_by(
-            id=item_id,
-            checklist_id=checklist_id
-        ).first()
-    
-    def update_item_status(self, item_id: int, status: str) -> Optional[ChecklistItem]:
-        """Update item status"""
-        item = self.get_by_id(item_id)
-        if not item:
-            return None
-        
-        item.status = status
-        item.updated_at = datetime.utcnow()
-        # Note: Transaction commit is handled by service layer
-        
-        return item
-    
-    def get_max_sort_order(self, checklist_id: int) -> int:
-        """Get maximum sort order for a checklist"""
-        result = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
-            checklist_id=checklist_id
-        ).scalar()
-        return result or 0
-    
-    def reorder_items(self, checklist_id: int, item_orders: List[Dict[str, int]]) -> bool:
-        """Reorder checklist items"""
-        try:
-            for order_data in item_orders:
-                item_id = order_data.get('item_id')
-                new_order = order_data.get('sort_order')
-                
-                if item_id and new_order is not None:
-                    item = self.get_by_id_and_checklist(item_id, checklist_id)
-                    if item:
-                        item.sort_order = new_order
+        Args:
+            document_id: Document ID
+            results: Analysis results to save
             
-            # Note: Transaction commit is handled by service layer
+        Returns:
+            bool: True if saved successfully, False otherwise
+        """
+        try:
+            # Find the document
+            document = ClientDocument.query.get(document_id)
+            if not document:
+                logger.warning(f"Document {document_id} not found for saving AI results")
+                return False
+            
+            # Save analysis data
+            document.ai_analysis_results = json.dumps(results)
+            document.ai_analysis_completed = True
+            document.ai_analysis_timestamp = datetime.utcnow()
+            
+            # Extract and save summary fields
+            combined = results.get('combined_analysis', {})
+            document.ai_confidence_score = results.get('confidence_score', 0)
+            document.ai_document_type = combined.get('document_type', 'unknown')
+            
+            db.session.commit()
+            logger.info(f"Saved AI analysis results for document {document_id}")
             return True
-        except Exception:
-            # Note: Transaction rollback is handled by service layer
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to save AI analysis results for document {document_id}: {e}")
             return False
+    
+    def get_analysis_results(self, document_id: int, firm_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get existing analysis results for a document
+        
+        Args:
+            document_id: Document ID
+            firm_id: Firm ID for access control
+            
+        Returns:
+            Analysis results if found, None otherwise
+        """
+        try:
+            # Get document with firm verification
+            document = db.session.query(ClientDocument).join(Client).filter(
+                ClientDocument.id == document_id,
+                Client.firm_id == firm_id
+            ).first()
+            
+            if not document:
+                return None
+            
+            if not document.ai_analysis_completed or not document.ai_analysis_results:
+                return None
+            
+            try:
+                return json.loads(document.ai_analysis_results)
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON in analysis results for document {document_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error retrieving analysis results for document {document_id}: {e}")
+            return None
+    
+    def get_document_with_firm_check(self, document_id: int, firm_id: int) -> Optional[ClientDocument]:
+        """
+        Get document with firm access verification
+        
+        Args:
+            document_id: Document ID
+            firm_id: Firm ID for access control
+            
+        Returns:
+            Document if found and accessible, None otherwise
+        """
+        try:
+            return db.session.query(ClientDocument).join(Client).filter(
+                ClientDocument.id == document_id,
+                Client.firm_id == firm_id
+            ).first()
+        except Exception as e:
+            logger.error(f"Error retrieving document {document_id}: {e}")
+            return None
