@@ -58,29 +58,28 @@ def create_app(config_name='default'):
     
     # Register modules
     from .modules.auth import register_module as register_auth
+    from .modules.client import register_module as register_client
     
     # Register remaining blueprints that haven't been moved to modules yet
     from blueprints import (
-        admin_bp, dashboard_bp, projects_bp, tasks_bp, clients_bp, 
-        contacts_bp, users_bp, views_bp, documents_bp, client_portal_bp, 
+        admin_bp, dashboard_bp, projects_bp, tasks_bp, 
+        users_bp, views_bp, documents_bp, 
         export_bp, api_bp, attachments_bp, subtasks_bp, ai_bp
     )
     from blueprints.health import health_bp
     
     # Register modules
     register_auth(app)
+    register_client(app)
     
     # Register remaining blueprints
     app.register_blueprint(admin_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(tasks_bp)
-    app.register_blueprint(clients_bp)
-    app.register_blueprint(contacts_bp)
     app.register_blueprint(users_bp)
     app.register_blueprint(views_bp)
     app.register_blueprint(documents_bp)
-    app.register_blueprint(client_portal_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(attachments_bp)
