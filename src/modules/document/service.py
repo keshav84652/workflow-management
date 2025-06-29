@@ -123,8 +123,8 @@ class DocumentService(BaseService):
             db.session.commit()
             
             # Publish document creation event
-            from events.schemas import DocumentCreatedEvent
-            from events.publisher import publish_event
+            from src.shared.events.schemas import DocumentCreatedEvent
+            from src.shared.events.publisher import publish_event
             event = DocumentCreatedEvent(
                 document_id=checklist.id,
                 firm_id=firm_id or 0,

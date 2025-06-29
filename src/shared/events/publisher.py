@@ -38,7 +38,7 @@ class EventPublisher:
         Publish event to Redis channel
         
         Args:
-            event: Event to publish
+            event: Event to publish (firm_id and user_id must be set by caller)
             channel: Redis channel name (uses default if not specified)
             
         Returns:
@@ -47,21 +47,11 @@ class EventPublisher:
         start_time = time.time()
         
         try:
-            # Set default context if not provided (only if attributes exist)
+            # Validate that required context is provided
             if hasattr(event, 'firm_id') and getattr(event, 'firm_id', None) is None:
-                try:
-                    from flask import session
-                    event.firm_id = session.get('firm_id')
-                except (RuntimeError, ImportError):
-                    # No Flask application context available
-                    pass
+                logger.warning(f"Event {event.event_type} published without firm_id - this may cause issues")
             if hasattr(event, 'user_id') and getattr(event, 'user_id', None) is None:
-                try:
-                    from flask import session
-                    event.user_id = session.get('user_id')
-                except (RuntimeError, ImportError):
-                    # No Flask application context available
-                    pass
+                logger.warning(f"Event {event.event_type} published without user_id - this may cause issues")
             
             # Use default channel if not specified
             target_channel = channel or self.default_channel

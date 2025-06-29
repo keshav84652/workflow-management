@@ -101,8 +101,8 @@ class ProjectService(BaseService):
             )
             
             # Publish project creation event
-            from events.schemas import ProjectCreatedEvent
-            from events.publisher import publish_event
+            from src.shared.events.schemas import ProjectCreatedEvent
+            from src.shared.events.publisher import publish_event
             event = ProjectCreatedEvent(
                 project_id=project.id,
                 firm_id=firm_id,
@@ -215,8 +215,8 @@ class ProjectService(BaseService):
             )
             
             # Publish project updated event
-            from events.schemas import ProjectUpdatedEvent
-            from events.publisher import publish_event
+            from src.shared.events.schemas import ProjectUpdatedEvent
+            from src.shared.events.publisher import publish_event
             event = ProjectUpdatedEvent(
                 project_id=project.id,
                 firm_id=firm_id,

@@ -283,8 +283,8 @@ class TaskService(BaseService):
             )
             
             # Publish task deletion event
-            from events.schemas import TaskDeletedEvent
-            from events.publisher import publish_event
+            from src.shared.events.schemas import TaskDeletedEvent
+            from src.shared.events.publisher import publish_event
             event = TaskDeletedEvent(
                 task_id=task_id,
                 task_title=task_title,
@@ -402,8 +402,8 @@ class TaskService(BaseService):
             )
             
             # Publish status change event
-            from events.schemas import TaskStatusChangedEvent
-            from events.publisher import publish_event
+            from src.shared.events.schemas import TaskStatusChangedEvent
+            from src.shared.events.publisher import publish_event
             event = TaskStatusChangedEvent(
                 task_id=task_id,
                 task_title=task.title,
