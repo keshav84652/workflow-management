@@ -13,7 +13,7 @@ from datetime import datetime
 
 from .ai_orchestrator import AIAnalysisOrchestrator
 from .repository import DocumentAnalysisRepository
-from services.base import BaseService, transactional
+from src.shared.base import BaseService, transactional
 
 logger = logging.getLogger(__name__)
 

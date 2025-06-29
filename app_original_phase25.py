@@ -10,7 +10,7 @@ import uuid
 
 # Import configuration and core utilities
 from config import get_config
-from core.db_import import db
+from src.shared.database.db_import import db
 from flask_migrate import Migrate
 import os
 

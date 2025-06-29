@@ -7,10 +7,10 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import secrets
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
-from services.base import BaseService, transactional
-from repositories.client_repository import ClientRepository
+from src.shared.base import BaseService, transactional
+from src.modules.client.repository import ClientRepository
 
 
 class DocumentService(BaseService):

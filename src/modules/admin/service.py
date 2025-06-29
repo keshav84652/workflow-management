@@ -16,6 +16,7 @@ from src.modules.auth.repository import UserRepository
 from src.modules.admin.template_repository import TemplateRepository
 from src.shared.base import BaseService, transactional
 from src.modules.admin.template_service import TemplateService
+from sqlalchemy import func
 
 
 class AdminService(BaseService):

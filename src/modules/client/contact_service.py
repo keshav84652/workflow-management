@@ -2,10 +2,10 @@
 ContactService: Handles all business logic for contacts, including creation, updates, associations, and activity logging.
 """
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Contact, ClientContact, Client
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService, transactional
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService, transactional
 from .repository import ClientRepository
 
 

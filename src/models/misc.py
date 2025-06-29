@@ -3,7 +3,7 @@ Miscellaneous models for various features
 """
 
 from datetime import datetime
-from core.db_import import db
+from src.shared.database.db_import import db
 
 
 class ClientUser(db.Model):

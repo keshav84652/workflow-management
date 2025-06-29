@@ -6,13 +6,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 
 from src.models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
-from services.dashboard_aggregator_service import DashboardAggregatorService
-from services.client_service import ClientService
-from services.user_service import UserService
-from services.project_service import ProjectService
-from services.views_service import ViewsService
-from services.worktype_service import WorkTypeService
-from utils.consolidated import get_session_firm_id
+from .aggregator_service import DashboardAggregatorService
+from src.modules.client.service import ClientService
+from src.modules.admin.user_service import UserService
+from src.modules.project.service import ProjectService
+from src.shared.services import ViewsService
+# from services.worktype_service import WorkTypeService
+from src.shared.utils.consolidated import get_session_firm_id
 
 views_bp = Blueprint('views', __name__)
 

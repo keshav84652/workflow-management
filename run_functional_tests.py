@@ -81,7 +81,7 @@ def run_quick_service_test():
         
         with app.app_context():
             # Create tables in test database
-            from core.db_import import db
+            from src.shared.database.db_import import db
             db.create_all()
             service = DashboardAggregatorService()
             

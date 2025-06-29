@@ -14,7 +14,7 @@ import os
 # Add parent directory to path to access root-level modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .config import get_config
-from core.db_import import db
+from src.shared.database.db_import import db
 from flask_migrate import Migrate
 
 # Import models
@@ -53,7 +53,7 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
 
     # Register Jinja2 template filters
-    from utils.template_filters import register_template_filters
+    from src.shared.utils.template_filters import register_template_filters
     register_template_filters(app)
     
     # Register modules
@@ -65,10 +65,10 @@ def create_app(config_name='default'):
     from .modules.dashboard import register_module as register_dashboard
     
     # Register remaining blueprints that haven't been moved to modules yet
-    from blueprints import (
-        export_bp, api_bp, attachments_bp
-    )
-    from blueprints.health import health_bp
+    # from blueprints import (
+    #     export_bp, api_bp, attachments_bp
+    # )
+    # from blueprints.health import health_bp  # TODO: Move to modules or create these
     
     # Register modules
     register_auth(app)
@@ -79,10 +79,10 @@ def create_app(config_name='default'):
     register_dashboard(app)
     
     # Register remaining blueprints
-    app.register_blueprint(export_bp)
-    app.register_blueprint(api_bp)
-    app.register_blueprint(attachments_bp)
-    app.register_blueprint(health_bp)
+    # app.register_blueprint(export_bp)
+    # app.register_blueprint(api_bp)
+    # app.register_blueprint(attachments_bp)
+    # app.register_blueprint(health_bp)  # TODO: Move to modules or create these
 
     # Add error handlers
     from werkzeug.routing import BuildError
@@ -134,10 +134,10 @@ def create_app(config_name='default'):
         else:
             return redirect(url_for('auth.login'))
 
-    from utils.consolidated import generate_access_code
-    from services.activity_logging_service import ActivityLoggingService as ActivityService
-    from services.task_service import TaskService
-    from services.client_service import ClientService
+    from src.shared.utils.consolidated import generate_access_code
+    # from services.activity_logging_service import ActivityLoggingService as ActivityService  # TODO: Fix location
+    from src.modules.project.task_service import TaskService
+    from src.modules.client.service import ClientService
 
     # Business logic functions moved to appropriate services:
     # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis
@@ -146,7 +146,7 @@ def create_app(config_name='default'):
 
     # AI Document Analysis Integration
     # AI services are now auto-detected based on available API keys in config
-    from services.ai_service import AIService
+    from src.modules.document.ai_service import AIService
 
     with app.app_context():
         print("AI Services status determined by configuration:")

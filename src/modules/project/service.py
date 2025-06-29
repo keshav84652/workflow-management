@@ -2,11 +2,11 @@
 ProjectService: Handles all business logic for project operations.
 """
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Project, Task, Client, User, WorkType
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService, transactional
-from repositories.project_repository import ProjectRepository
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService, transactional
+from src.modules.project.repository import ProjectRepository
 
 
 class ProjectService(BaseService):
@@ -27,7 +27,7 @@ class ProjectService(BaseService):
         if not project:
             return {'error': 'Project not found or access denied'}, 403
         
-        from repositories.task_repository import TaskRepository
+        from src.modules.project.task_repository import TaskRepository
         task_repo = TaskRepository()
         project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
         total_tasks = len(project_tasks)
@@ -178,7 +178,7 @@ class ProjectService(BaseService):
                 return {'success': False, 'message': 'Project not found or access denied'}
             
             # Check if project has tasks  
-            from repositories.task_repository import TaskRepository
+            from src.modules.project.task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
             task_count = len(project_tasks)
@@ -315,7 +315,7 @@ class ProjectService(BaseService):
                 )
             
             # Calculate updated progress for response  
-            from repositories.task_repository import TaskRepository
+            from src.modules.project.task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
             total_tasks = len(project_tasks)
@@ -404,7 +404,7 @@ class ProjectService(BaseService):
                 return
             
             # Count total tasks and completed tasks
-            from repositories.task_repository import TaskRepository
+            from src.modules.project.task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, project.firm_id, include_completed=True)
             total_tasks = len(project_tasks)
@@ -433,3 +433,99 @@ class ProjectService(BaseService):
             db.session.rollback()
             import logging
             logging.error(f"Error checking project completion for project {project_id}: {e}")
+    
+    def get_project_statistics(self, firm_id: int) -> dict:
+        """Get project statistics for dashboard"""
+        try:
+            from src.models import Project
+            
+            total = Project.query.filter_by(firm_id=firm_id).count()
+            active = Project.query.filter_by(firm_id=firm_id, is_completed=False).count()
+            completed = Project.query.filter_by(firm_id=firm_id, is_completed=True).count()
+            
+            return {
+                'success': True,
+                'statistics': {
+                    'total': total,
+                    'active': active,
+                    'completed': completed
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Failed to get project statistics: {str(e)}',
+                'statistics': {}
+            }
+    
+    def get_projects_by_firm(self, firm_id: int) -> dict:
+        """Get all projects for a firm"""
+        try:
+            from src.models import Project, Client
+            
+            query = db.session.query(Project).outerjoin(Client).filter(
+                Project.firm_id == firm_id
+            ).order_by(Project.created_at.desc())
+            
+            projects = []
+            for project in query.all():
+                project_dict = {
+                    'id': project.id,
+                    'name': project.name,
+                    'description': project.description,
+                    'status': 'Completed' if project.is_completed else 'Active',
+                    'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+                    'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                    'client_id': project.client_id,
+                    'client_name': project.client.name if project.client else 'No Client',
+                    'created_at': project.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'is_completed': project.is_completed
+                }
+                projects.append(project_dict)
+            
+            return {
+                'success': True,
+                'projects': projects
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'projects': [],
+                'message': str(e)
+            }
+    
+    def get_recent_projects(self, firm_id: int, limit: int = 5) -> dict:
+        """Get recent projects for dashboard"""
+        try:
+            from src.models import Project, Client
+            from datetime import datetime, timedelta
+            
+            # Get projects created in the last 60 days
+            sixty_days_ago = datetime.now() - timedelta(days=60)
+            
+            query = db.session.query(Project).outerjoin(Client).filter(
+                Project.firm_id == firm_id,
+                Project.created_at >= sixty_days_ago
+            ).order_by(Project.created_at.desc()).limit(limit)
+            
+            projects = []
+            for project in query.all():
+                project_dict = {
+                    'id': project.id,
+                    'name': project.name,
+                    'status': 'Completed' if project.is_completed else 'Active',
+                    'client_name': project.client.name if project.client else 'No Client',
+                    'created_at': project.created_at.strftime('%Y-%m-%d %H:%M')
+                }
+                projects.append(project_dict)
+            
+            return {
+                'success': True,
+                'projects': projects
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'projects': [],
+                'message': str(e)
+            }

@@ -2,10 +2,10 @@
 ClientService: Handles all business logic for clients, including search and retrieval.
 """
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Client
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService, transactional
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService, transactional
 from .repository import ClientRepository
 
 
@@ -124,3 +124,57 @@ class ClientService(BaseService):
     def get_clients_by_firm_raw(self, firm_id):
         """Get all clients for a firm (alias for get_clients_for_firm)"""
         return self.client_repository.get_by_firm(firm_id)
+    
+    def get_client_statistics(self, firm_id: int) -> dict:
+        """Get client statistics for dashboard"""
+        try:
+            from src.models import Client
+            
+            total = Client.query.filter_by(firm_id=firm_id).count()
+            # For now, consider all clients as active (can add is_active field later)
+            active = total
+            
+            return {
+                'success': True,
+                'statistics': {
+                    'total': total,
+                    'active': active
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Failed to get client statistics: {str(e)}',
+                'statistics': {}
+            }
+    
+    def get_clients_by_firm(self, firm_id: int) -> dict:
+        """Get all clients for a firm"""
+        try:
+            from src.models import Client
+            
+            query = Client.query.filter_by(firm_id=firm_id).order_by(Client.name.asc())
+            
+            clients = []
+            for client in query.all():
+                client_dict = {
+                    'id': client.id,
+                    'name': client.name,
+                    'email': client.email,
+                    'phone': client.phone,
+                    'address': client.address,
+                    'status': 'Active',  # Default status for now
+                    'created_at': client.created_at.strftime('%Y-%m-%d %H:%M') if client.created_at else ''
+                }
+                clients.append(client_dict)
+            
+            return {
+                'success': True,
+                'clients': clients
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'clients': [],
+                'message': str(e)
+            }

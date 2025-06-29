@@ -4,15 +4,15 @@ Subtask management blueprint
 
 from flask import Blueprint, request, session, jsonify
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Task
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.consolidated import get_session_firm_id, get_session_user_id
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
 
 
-from services.task_service import TaskService
+from src.modules.project.task_service import TaskService
 
 @subtasks_bp.route('/<int:task_id>/subtasks/create', methods=['POST'])
 def create_subtask(task_id):

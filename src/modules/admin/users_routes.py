@@ -5,11 +5,11 @@ UPDATED: Now uses modern service infrastructure and standardized session managem
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import User
-from services.base import SessionService
-from services.admin_service import AdminService
-from services.user_service import UserService
+from src.shared.base import SessionService
+from src.modules.admin.service import AdminService
+from src.modules.admin.user_service import UserService
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 

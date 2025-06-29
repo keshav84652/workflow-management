@@ -14,7 +14,7 @@ from datetime import datetime
 from .ai_providers import AIProviderFactory, AIProvider
 from .result_combiner import AIResultCombiner
 from .repository import DocumentAnalysisRepository
-from services.base import BaseService
+from src.shared.base import BaseService
 
 logger = logging.getLogger(__name__)
 

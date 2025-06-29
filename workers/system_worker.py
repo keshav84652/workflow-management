@@ -28,7 +28,7 @@ def process_recurring_tasks() -> Dict[str, Any]:
         # Import models and utilities (lazy import)
         from models.tasks import Task
         from utils.core import process_recurring_tasks as process_recurring
-        from core.db_import import db
+        from src.shared.database.db_import import db
         
         # Process recurring tasks using existing utility
         result = process_recurring()
@@ -230,7 +230,7 @@ def system_health_check() -> Dict[str, Any]:
 def _check_database_health() -> Dict[str, Any]:
     """Check database connectivity and basic metrics"""
     try:
-        from core.db_import import db
+        from src.shared.database.db_import import db
         from models.auth import Firm, User
         from models.tasks import Task
         from models.projects import Project

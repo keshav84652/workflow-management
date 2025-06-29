@@ -3,7 +3,7 @@ Project and template management models
 """
 
 from datetime import datetime, date
-from core.db_import import db
+from src.shared.database.db_import import db
 
 
 class WorkType(db.Model):

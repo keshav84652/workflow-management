@@ -4,7 +4,7 @@ Authentication and session management blueprint
 
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash, make_response, jsonify
 from datetime import datetime
-from core.db_import import db
+from src.shared.database.db_import import db
 from .service import AuthService
 
 auth_bp = Blueprint('auth', __name__)
@@ -56,7 +56,8 @@ def select_user():
     
     firm_id = session['firm_id']
     # Use AuthService to get users
-    users = AuthService.get_users_for_firm(firm_id)
+    auth_service = AuthService()
+    users = auth_service.get_users_for_firm(firm_id)
     return render_template('auth/select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 

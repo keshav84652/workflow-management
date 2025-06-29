@@ -10,7 +10,7 @@ import os
 import uuid
 import mimetypes
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import (
     ClientUser, Client, DocumentChecklist, ChecklistItem, ClientDocument
 )

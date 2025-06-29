@@ -4,9 +4,9 @@ Provides data access layer for template-related operations.
 """
 
 from typing import List, Optional
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Template
-from .base import CachedRepository
+from src.shared.repositories import CachedRepository
 
 
 class TemplateRepository(CachedRepository[Template]):

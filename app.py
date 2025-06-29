@@ -11,7 +11,7 @@ import uuid
 
 # Import configuration and core utilities
 from src.config import get_config
-from core.db_import import db
+from src.shared.database.db_import import db
 from flask_migrate import Migrate
 
 # Import models
@@ -60,6 +60,7 @@ def create_app(config_name='default'):
     from src.modules.admin import register_module as register_admin
     from src.modules.project import register_module as register_project
     from src.modules.dashboard import register_module as register_dashboard
+    from src.modules.export import register_module as register_export
     
     # Register modules
     register_auth(app)
@@ -68,6 +69,7 @@ def create_app(config_name='default'):
     register_admin(app)
     register_project(app)
     register_dashboard(app)
+    register_export(app)
     
     # TODO: Missing blueprints that need to be implemented in modules:
     # - export_bp (CSV export functionality)

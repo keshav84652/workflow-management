@@ -3,7 +3,7 @@ Authentication and user management models
 """
 
 from datetime import datetime
-from core.db_import import db
+from src.shared.database.db_import import db
 
 
 class Firm(db.Model):

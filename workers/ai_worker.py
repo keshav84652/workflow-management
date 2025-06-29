@@ -175,7 +175,7 @@ def analyze_checklist(checklist_id: int, firm_id: Optional[int] = None) -> Dict[
         
         # Import models (lazy import)
         from models.documents import DocumentChecklist, ClientDocument
-        from core import db
+        from src.shared.database.db_import import db
         
         # Get checklist and documents
         checklist = DocumentChecklist.query.get(checklist_id)
@@ -300,7 +300,7 @@ def _update_document_analysis_results(document_id: int, document_type: str,
     try:
         # Import models and database (lazy import)
         from models.documents import ClientDocument
-        from core import db
+        from src.shared.database.db_import import db
         import json
         
         document = ClientDocument.query.get(document_id)

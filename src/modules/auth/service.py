@@ -5,9 +5,9 @@ Authentication service layer for business logic
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from flask import session, request
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Firm, User, DemoAccessRequest
-from repositories.firm_repository import FirmRepository
+from .firm_repository import FirmRepository
 from .repository import UserRepository
 
 

@@ -2,12 +2,12 @@
 TaskService: Handles all business logic for tasks and subtasks.
 """
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Task
 from sqlalchemy import or_, and_
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService, transactional
-from repositories.task_repository import TaskRepository
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService, transactional
+from src.modules.project.task_repository import TaskRepository
 
 class TaskService(BaseService):
     def __init__(self):
@@ -143,7 +143,7 @@ class TaskService(BaseService):
         Get tasks with dependency information for a firm
         CRITICAL: This applies interdependency filtering for sequential projects
         """
-        from repositories.task_repository import TaskRepository
+        from src.modules.project.task_repository import TaskRepository
         task_repo = TaskRepository()
         all_tasks = task_repo.get_filtered_tasks(firm_id, filters)
         
@@ -334,7 +334,7 @@ class TaskService(BaseService):
     def bulk_update_tasks(self, task_ids, updates, firm_id, user_id):
         """Bulk update multiple tasks"""
         try:
-            from repositories.task_repository import TaskRepository
+            from src.modules.project.task_repository import TaskRepository
             task_repo = TaskRepository()
             result = task_repo.bulk_update(task_ids, updates, firm_id)
             
@@ -358,7 +358,7 @@ class TaskService(BaseService):
     def bulk_delete_tasks(self, task_ids, firm_id, user_id):
         """Bulk delete multiple tasks"""
         try:
-            from repositories.task_repository import TaskRepository
+            from src.modules.project.task_repository import TaskRepository
             task_repo = TaskRepository()
             result = task_repo.bulk_delete(task_ids, firm_id)
             
@@ -448,3 +448,175 @@ class TaskService(BaseService):
         
         # Check if dependency_id already depends on task_id (would create cycle)
         return has_path(dependency_id, task_id)
+    
+    def get_task_statistics(self, firm_id: int) -> dict:
+        """Get task statistics for dashboard"""
+        try:
+            # Import models here to avoid circular imports
+            from src.models import Task, Project
+            from datetime import date
+            
+            # Base query for firm tasks
+            base_query = db.session.query(Task).join(Project).filter(Project.firm_id == firm_id)
+            
+            total = base_query.count()
+            completed = base_query.filter(Task.status == 'Completed').count()
+            in_progress = base_query.filter(Task.status == 'In Progress').count()
+            not_started = base_query.filter(Task.status == 'Not Started').count()
+            
+            # Overdue tasks (due date in the past and not completed)
+            today = date.today()
+            overdue = base_query.filter(
+                Task.due_date < today,
+                Task.status != 'Completed'
+            ).count()
+            
+            # Due soon (next 7 days)
+            from datetime import timedelta
+            week_from_now = today + timedelta(days=7)
+            due_soon = base_query.filter(
+                Task.due_date >= today,
+                Task.due_date <= week_from_now,
+                Task.status != 'Completed'
+            ).count()
+            
+            return {
+                'success': True,
+                'statistics': {
+                    'total': total,
+                    'completed': completed,
+                    'pending': not_started,
+                    'in_progress': in_progress,
+                    'active': total - completed,
+                    'overdue': overdue,
+                    'due_soon': due_soon
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Failed to get task statistics: {str(e)}',
+                'statistics': {}
+            }
+    
+    def get_work_type_distribution(self, firm_id: int) -> dict:
+        """Get work type distribution for dashboard"""
+        try:
+            from src.models import Task, Project, WorkType
+            
+            # Get work type distribution
+            query = db.session.query(
+                WorkType.name, 
+                db.func.count(Task.id)
+            ).join(
+                Task, Task.work_type_id == WorkType.id
+            ).join(
+                Project, Task.project_id == Project.id
+            ).filter(
+                Project.firm_id == firm_id
+            ).group_by(WorkType.name)
+            
+            distribution = {}
+            for work_type_name, count in query.all():
+                distribution[work_type_name] = count
+            
+            return {
+                'success': True,
+                'distribution': distribution
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'distribution': {}
+            }
+    
+    def get_recent_tasks(self, firm_id: int, limit: int = 10) -> dict:
+        """Get recent tasks for dashboard"""
+        try:
+            from src.models import Task, Project, User
+            from datetime import datetime, timedelta
+            
+            # Get tasks created in the last 30 days
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            
+            query = db.session.query(Task).join(Project).outerjoin(User).filter(
+                Project.firm_id == firm_id,
+                Task.created_at >= thirty_days_ago
+            ).order_by(Task.created_at.desc()).limit(limit)
+            
+            tasks = []
+            for task in query.all():
+                task_dict = {
+                    'id': task.id,
+                    'title': task.title,
+                    'status': task.status,
+                    'priority': task.priority,
+                    'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
+                    'project_name': task.project.name if task.project else '',
+                    'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
+                    'created_at': task.created_at.strftime('%Y-%m-%d %H:%M')
+                }
+                tasks.append(task_dict)
+            
+            return {
+                'success': True,
+                'tasks': tasks
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'tasks': [],
+                'message': str(e)
+            }
+    
+    def get_tasks_by_firm(self, firm_id: int, filters: dict = None) -> dict:
+        """Get all tasks for a firm with optional filtering"""
+        try:
+            from src.models import Task, Project, User
+            
+            # Base query
+            query = db.session.query(Task).join(Project).outerjoin(User).filter(
+                Project.firm_id == firm_id
+            )
+            
+            # Apply filters
+            if filters:
+                if 'status' in filters:
+                    query = query.filter(Task.status == filters['status'])
+                if 'assignee_id' in filters:
+                    query = query.filter(Task.assignee_id == filters['assignee_id'])
+                if 'project_id' in filters:
+                    query = query.filter(Task.project_id == filters['project_id'])
+                if 'priority' in filters:
+                    query = query.filter(Task.priority == filters['priority'])
+                if 'limit' in filters:
+                    query = query.limit(filters['limit'])
+            
+            tasks = []
+            for task in query.all():
+                task_dict = {
+                    'id': task.id,
+                    'title': task.title,
+                    'description': task.description,
+                    'status': task.status,
+                    'priority': task.priority,
+                    'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
+                    'project_id': task.project_id,
+                    'project_name': task.project.name if task.project else '',
+                    'assignee_id': task.assignee_id,
+                    'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
+                    'created_at': task.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'estimated_hours': task.estimated_hours
+                }
+                tasks.append(task_dict)
+            
+            return {
+                'success': True,
+                'tasks': tasks
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'tasks': [],
+                'message': str(e)
+            }

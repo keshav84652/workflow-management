@@ -2,18 +2,18 @@
 UserService: Handles all business logic for user operations.
 """
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import User, Firm
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService
-from repositories.user_repository import UserRepository
-from repositories.firm_repository import FirmRepository
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService
+from src.modules.auth.repository import UserRepository
+# from src.shared.base import FirmRepository  # TODO: Create FirmRepository
 
 
 class UserService(BaseService):
     def __init__(self):
         super().__init__()
-        self.activity_logger = ActivityService()
+        # ActivityService is now a static class, no need to instantiate
         self.user_repository = UserRepository()
         self.firm_repository = FirmRepository()
     

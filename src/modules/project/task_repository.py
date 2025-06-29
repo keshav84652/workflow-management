@@ -7,9 +7,9 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 from sqlalchemy import or_, and_
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Task, Project
-from .base import CachedRepository, PaginationResult
+from src.shared.repositories import CachedRepository, PaginationResult
 
 
 class TaskRepository(CachedRepository[Task]):
