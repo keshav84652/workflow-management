@@ -5,7 +5,7 @@ Client management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 from .service import ClientService
-from ...shared.utils.consolidated import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 clients_bp = Blueprint('clients', __name__, url_prefix='/clients')
 

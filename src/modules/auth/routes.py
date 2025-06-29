@@ -4,7 +4,7 @@ Authentication and session management blueprint
 
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash, make_response, jsonify
 from datetime import datetime
-from ...shared.database.db_import import db
+from core.db_import import db
 from .service import AuthService
 
 auth_bp = Blueprint('auth', __name__)

@@ -3,7 +3,7 @@ Document and checklist management models
 """
 
 from datetime import datetime
-from ...shared.database.db_import import db
+from core.db_import import db
 
 
 class Attachment(db.Model):

@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy import or_, and_
 from datetime import datetime
 
-from ...shared.database.db_import import db
+from core.db_import import db
 from models.documents import DocumentChecklist, ChecklistItem, ClientDocument
 from models.clients import Client
 from repositories.base import CachedRepository

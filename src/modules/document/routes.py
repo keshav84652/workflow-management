@@ -9,13 +9,13 @@ import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
 
-from ...shared.database.db_import import db
+from core.db_import import db
 from models import (
     DocumentChecklist, ChecklistItem, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
 from services.activity_logging_service import ActivityLoggingService as ActivityService
-from ...shared.utils.consolidated import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 from .service import DocumentService
 
 documents_bp = Blueprint('documents', __name__)

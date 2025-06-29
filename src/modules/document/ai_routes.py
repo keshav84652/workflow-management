@@ -8,7 +8,7 @@ import os
 import json
 from pathlib import Path
 
-from ...shared.database.db_import import db
+from core.db_import import db
 from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
     IncomeWorksheet, User, Attachment
@@ -16,7 +16,7 @@ from models import (
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from .ai_service import AIService
 from .service import DocumentService
-from ...shared.utils.consolidated import get_session_firm_id, get_session_user_id
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
 

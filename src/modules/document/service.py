@@ -7,9 +7,9 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import secrets
 
-from ...shared.database.db_import import db
+from core.db_import import db
 from models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
-from ...shared.base import BaseService, transactional
+from services.base import BaseService, transactional
 from repositories.client_repository import ClientRepository
 
 

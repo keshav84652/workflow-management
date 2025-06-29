@@ -6,7 +6,7 @@ Provides data access layer for client-related operations.
 from typing import List, Dict, Any, Optional
 from sqlalchemy import or_, and_
 
-from ...shared.database.db_import import db
+from core.db_import import db
 from models import Client
 from repositories.base import CachedRepository, PaginationResult
 

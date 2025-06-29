@@ -8,7 +8,7 @@ and standardize service layer architecture.
 from typing import Dict, Any, Optional, Callable
 from functools import wraps
 from flask import session, request
-from .database.db_import import db
+from core.db_import import db
 
 
 class DatabaseService:
