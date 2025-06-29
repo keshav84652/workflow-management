@@ -5,14 +5,14 @@ Task management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime, date, timedelta
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
-from services.task_service import TaskService
-from services.user_service import UserService
-from services.project_service import ProjectService
-from services.template_service import TemplateService
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.consolidated import get_session_firm_id, get_session_user_id
+from src.modules.project.task_service import TaskService
+from src.modules.admin.user_service import UserService
+from src.modules.project.service import ProjectService
+from src.modules.admin.template_service import TemplateService
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
 tasks_bp = Blueprint('tasks', __name__, url_prefix='/tasks')
 
@@ -146,7 +146,8 @@ def edit_task(id):
     # Get other tasks in the same project for dependency selection
     project_tasks = []
     if task.project_id:
-        project_tasks = TemplateService.get_project_tasks_for_dependency(task.project_id)
+        template_service = TemplateService()
+        project_tasks = template_service.get_project_tasks_for_dependency(task.project_id)
     
     return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
@@ -162,11 +163,14 @@ def view_task(id):
         flash('Task not found or access denied', 'error')
         return redirect(url_for('tasks.list_tasks'))
     
+    # Create template service instance for data retrieval
+    template_service = TemplateService()
+    
     # Get task activity logs
-    activity_logs = TemplateService.get_activity_logs_for_task(id, limit=10)
+    activity_logs = template_service.get_activity_logs_for_task(id, limit=10)
     
     # Get task comments
-    comments = TemplateService.get_task_comments(id)
+    comments = template_service.get_task_comments(id)
     
     return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
 
@@ -214,7 +218,7 @@ def log_time(id):
         
         # TODO: Move to service layer - create TaskService.log_time_to_task method
         # For now, delegate to service layer
-        from services.time_tracking_service import TimeTrackingService
+        # from services.time_tracking_service import TimeTrackingService
         time_service = TimeTrackingService()
         result = time_service.log_time_to_task(task.id, hours, get_session_user_id())
         

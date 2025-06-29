@@ -7,18 +7,15 @@ from datetime import datetime
 from flask import session
 import os
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
-from utils.consolidated import generate_access_code
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from repositories.firm_repository import FirmRepository
-from repositories.user_repository import UserRepository
-from repositories.template_repository import TemplateRepository
-from repositories.task_repository import TaskRepository
-from repositories.project_repository import ProjectRepository
-from services.base import BaseService, transactional
-from services.worktype_service import WorkTypeService
-from services.template_service import TemplateService
+from src.shared.utils.consolidated import generate_access_code
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.modules.auth.firm_repository import FirmRepository
+from src.modules.auth.repository import UserRepository
+from src.modules.admin.template_repository import TemplateRepository
+from src.shared.base import BaseService, transactional
+from src.modules.admin.template_service import TemplateService
 
 
 class AdminService(BaseService):
@@ -29,9 +26,6 @@ class AdminService(BaseService):
         self.firm_repository = FirmRepository()
         self.user_repository = UserRepository()
         self.template_repository = TemplateRepository()
-        self.task_repository = TaskRepository()
-        self.project_repository = ProjectRepository()
-        self.worktype_service = WorkTypeService()
         self.template_service = TemplateService()
     
     def authenticate_admin(self, password: str) -> Dict[str, Any]:
@@ -98,9 +92,29 @@ class AdminService(BaseService):
         firms = self.firm_repository.get_all()
         total_firms = len(firms)
         active_firms = len([f for f in firms if f.is_active])
-        total_users = User.query.count()
-        total_projects = Project.query.count()
-        total_tasks = Task.query.count()
+        
+        # Get total users across all firms
+        total_users = 0
+        for firm in firms:
+            total_users += len(self.user_repository.get_by_firm(firm.id))
+        
+        # Use service layer for cross-module data
+        from src.modules.project.service import ProjectService
+        from src.modules.project.task_service import TaskService
+        
+        project_service = ProjectService()
+        task_service = TaskService()
+        
+        # Get total projects and tasks across all firms
+        total_projects = 0
+        total_tasks = 0
+        for firm in firms:
+            projects = project_service.get_projects_by_firm(firm.id)
+            total_projects += len(projects)
+            
+            tasks_result = task_service.get_tasks_by_firm(firm.id)
+            if tasks_result['success']:
+                total_tasks += len(tasks_result['tasks'])
         
         return {
             'total_firms': total_firms,

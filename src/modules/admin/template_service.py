@@ -6,10 +6,10 @@ Updated to use instance methods and extract template management from AdminServic
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Template, Task, ActivityLog, TaskComment, TemplateTask, Project
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from services.base import BaseService, transactional
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.base import BaseService, transactional
 
 
 class TemplateService(BaseService):
@@ -195,34 +195,29 @@ class TemplateService(BaseService):
                 'message': f'Error deleting template: {str(e)}'
             }
     
-    # Static helper methods for backward compatibility
-    @staticmethod
-    def get_tasks_by_project(project_id):
+    # Instance helper methods for consistent service patterns
+    def get_tasks_by_project(self, project_id):
         """Get all tasks for a specific project"""
         return Task.query.filter_by(project_id=project_id).order_by(Task.due_date.asc()).all()
     
-    @staticmethod
-    def get_activity_logs_for_project(project_id, limit=10):
+    def get_activity_logs_for_project(self, project_id, limit=10):
         """Get recent activity logs for a project"""
         return ActivityLog.query.filter_by(project_id=project_id).order_by(
             ActivityLog.timestamp.desc()
         ).limit(limit).all()
     
-    @staticmethod
-    def get_activity_logs_for_task(task_id, limit=10):
+    def get_activity_logs_for_task(self, task_id, limit=10):
         """Get recent activity logs for a task"""
         return ActivityLog.query.filter_by(task_id=task_id).order_by(
             ActivityLog.timestamp.desc()
         ).limit(limit).all()
     
-    @staticmethod
-    def get_task_comments(task_id):
+    def get_task_comments(self, task_id):
         """Get all comments for a task"""
         return TaskComment.query.filter_by(task_id=task_id).order_by(
             TaskComment.created_at.desc()
         ).all()
     
-    @staticmethod
-    def get_project_tasks_for_dependency(project_id):
+    def get_project_tasks_for_dependency(self, project_id):
         """Get tasks for dependency calculations"""
         return Task.query.filter_by(project_id=project_id).order_by(Task.title).all()

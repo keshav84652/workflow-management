@@ -5,15 +5,15 @@ Project management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 
-from core.db_import import db
+from src.shared.database.db_import import db
 from src.models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog, TaskComment, Attachment
-from services.project_service import ProjectService
-from services.task_service import TaskService
-from services.client_service import ClientService
-from services.template_service import TemplateService
-from services.user_service import UserService
-from services.activity_logging_service import ActivityLoggingService as ActivityService
-from utils.consolidated import get_session_firm_id, get_session_user_id
+from src.modules.project.service import ProjectService
+from src.modules.project.task_service import TaskService
+from src.modules.client.service import ClientService
+from src.modules.admin.template_service import TemplateService
+from src.modules.admin.user_service import UserService
+from src.shared.services import ActivityLoggingService as ActivityService
+from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
 projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 
@@ -83,8 +83,10 @@ def view_project(id):
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
-    tasks = TemplateService.get_tasks_by_project(id)
-    activity_logs = TemplateService.get_activity_logs_for_project(id, limit=10)
+    # Create template service instance to get tasks and activity logs
+    template_service = TemplateService()
+    tasks = template_service.get_tasks_by_project(id)
+    activity_logs = template_service.get_activity_logs_for_project(id, limit=10)
     
     return render_template('projects/view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
@@ -168,7 +170,7 @@ def delete_project(id):
 @projects_bp.route('/<int:id>/move-status', methods=['POST'])
 def move_project_status(id):
     """Move project to different status for Kanban board"""
-    from services.auth_service import AuthService
+    from src.modules.auth.service import AuthService
     
     # Check authentication
     auth_redirect = AuthService.require_authentication()
