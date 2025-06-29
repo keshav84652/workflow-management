@@ -244,13 +244,17 @@ def transactional(func):
     def wrapper(*args, **kwargs):
         try:
             result = func(*args, **kwargs)
-            db.session.commit()
             
-            # If the function already returns a success dict, return it as-is
+            # If the function already returns a success dict, check if we should commit
             if isinstance(result, dict) and 'success' in result:
+                if result['success']:
+                    db.session.commit()
+                else:
+                    db.session.rollback()
                 return result
             
-            # Otherwise, wrap the result
+            # Otherwise, wrap the result and commit
+            db.session.commit()
             return {
                 'success': True,
                 'result': result,

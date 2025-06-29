@@ -17,7 +17,11 @@ class Task(db.Model):
     is_billable = db.Column(db.Boolean, default=True)  # Whether this task is billable
     timer_start = db.Column(db.DateTime)  # When timer was started
     timer_running = db.Column(db.Boolean, default=False)  # Whether timer is currently running
-    status = db.Column(db.String(20), default='Not Started', nullable=False)  # Legacy field for migration
+    # TODO: TECHNICAL DEBT - Dual source of truth for status
+    # This is a known issue from the forensic analysis. The legacy 'status' field
+    # should be removed after a proper data migration to populate all status_id values.
+    # For now, both fields exist for backward compatibility.
+    status = db.Column(db.String(20), default='Not Started', nullable=False)  # Legacy field - TO BE REMOVED
     status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # New status system
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
     project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=True)

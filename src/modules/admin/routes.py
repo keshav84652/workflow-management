@@ -171,7 +171,7 @@ def generate_access_code_route():
 
 @admin_bp.route('/work_types', methods=['GET'])
 def admin_work_types():
-    from src.modules.admin.service import WorkTypeService
+    from src.modules.admin.service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
@@ -179,10 +179,10 @@ def admin_work_types():
         return redirect(url_for('dashboard.main'))
     
     firm_id = get_session_firm_id()
-    worktype_service = WorkTypeService()
-    work_types_result = worktype_service.get_work_types_for_firm(firm_id)
+    admin_service = AdminService()
+    work_types_result = admin_service.get_work_types_for_firm(firm_id)
     work_types = work_types_result.get('work_types', []) if work_types_result['success'] else []
-    work_type_usage = worktype_service.get_work_type_usage_stats(firm_id)
+    work_type_usage = admin_service.get_work_type_usage_stats(firm_id)
     
     return render_template('admin/admin_work_types.html', 
                          work_types=work_types, 
@@ -191,7 +191,7 @@ def admin_work_types():
 
 @admin_bp.route('/work_types/create', methods=['POST'])
 def admin_create_work_type():
-    from src.modules.admin.service import WorkTypeService
+    from src.modules.admin.service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
     
     if session.get('user_role') != 'Admin':
@@ -201,8 +201,8 @@ def admin_create_work_type():
     description = request.form.get('description')
     firm_id = get_session_firm_id()
     
-    worktype_service = WorkTypeService()
-    result = worktype_service.create_work_type(name, description, firm_id, get_session_user_id())
+    admin_service = AdminService()
+    result = admin_service.create_work_type(name, description, firm_id, get_session_user_id())
     
     if result['success']:
         flash(result['message'], 'success')
@@ -214,7 +214,7 @@ def admin_create_work_type():
 
 @admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
-    from src.modules.admin.service import WorkTypeService
+    from src.modules.admin.service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
     
     if session.get('user_role') != 'Admin':
@@ -224,8 +224,8 @@ def admin_edit_work_type(work_type_id):
     description = request.form.get('description')
     firm_id = get_session_firm_id()
     
-    worktype_service = WorkTypeService()
-    result = worktype_service.update_work_type(work_type_id, name, description, firm_id, get_session_user_id())
+    admin_service = AdminService()
+    result = admin_service.update_work_type(work_type_id, name, description, firm_id, get_session_user_id())
     
     if result['success']:
         flash(result['message'], 'success')
@@ -237,7 +237,7 @@ def admin_edit_work_type(work_type_id):
 
 @admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
 def admin_create_status(work_type_id):
-    from src.modules.admin.service import WorkTypeService
+    from src.modules.admin.service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
@@ -247,8 +247,8 @@ def admin_create_status(work_type_id):
     color = request.form.get('color', '#6b7280')
     firm_id = get_session_firm_id()
     
-    worktype_service = WorkTypeService()
-    result = worktype_service.create_task_status(work_type_id, name, color, firm_id)
+    admin_service = AdminService()
+    result = admin_service.create_task_status(work_type_id, name, color, firm_id)
     
     if result['success']:
         flash(result['message'], 'success')
@@ -261,7 +261,7 @@ def admin_create_status(work_type_id):
 @admin_bp.route('/statuses/<int:status_id>/edit', methods=['POST'])
 def admin_edit_status(status_id):
     """Edit a task status"""
-    from src.modules.admin.service import WorkTypeService
+    from src.modules.admin.service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
@@ -274,8 +274,8 @@ def admin_edit_status(status_id):
     is_terminal = request.form.get('is_terminal') == 'true'
     firm_id = get_session_firm_id()
     
-    worktype_service = WorkTypeService()
-    result = worktype_service.update_task_status(
+    admin_service = AdminService()
+    result = admin_service.update_task_status(
         status_id, name, color, position, is_default, is_terminal, firm_id
     )
     

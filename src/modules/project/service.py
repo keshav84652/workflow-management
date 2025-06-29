@@ -6,7 +6,7 @@ from src.shared.database.db_import import db
 from src.models import Project, Task, Client, User, WorkType
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
-from src.modules.project.repository import ProjectRepository
+from .repository import ProjectRepository
 
 
 class ProjectService(BaseService):

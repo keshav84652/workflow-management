@@ -11,7 +11,8 @@ from src.modules.project.service import ProjectService
 from src.modules.project.task_service import TaskService
 from src.modules.client.service import ClientService
 from src.modules.admin.template_service import TemplateService
-from src.modules.admin.user_service import UserService
+from src.shared.services.user_service import SharedUserService
+from .helper_service import ProjectHelperService
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -83,10 +84,10 @@ def view_project(id):
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
-    # Create template service instance to get tasks and activity logs
-    template_service = TemplateService()
-    tasks = template_service.get_tasks_by_project(id)
-    activity_logs = template_service.get_activity_logs_for_project(id, limit=10)
+    # Create helper service instance to get tasks and activity logs
+    helper_service = ProjectHelperService()
+    tasks = helper_service.get_tasks_by_project(id)
+    activity_logs = helper_service.get_activity_logs_for_project(id, limit=10)
     
     return render_template('projects/view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
@@ -141,7 +142,7 @@ def edit_project(id):
             return redirect(url_for('projects.edit_project', id=id))
     
     # GET request - show form
-    user_service = UserService()
+    user_service = SharedUserService()
     users = user_service.get_users_by_firm(firm_id)
     return render_template('projects/edit_project.html', project=project, users=users)
 

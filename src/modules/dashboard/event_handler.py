@@ -10,7 +10,7 @@ from events.schemas import (
     TaskCreatedEvent, TaskUpdatedEvent, TaskStatusChangedEvent,
     TaskDeletedEvent, TaskAssignedEvent
 )
-from core.redis_client import redis_client
+from src.shared.database.redis_client import redis_client
 
 
 class DashboardEventHandler(EventHandler):

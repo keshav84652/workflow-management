@@ -74,7 +74,7 @@ class Template(db.Model):
         db.session.flush()  # Get the ID
         
         # Create statuses from template tasks
-        for i, template_task in enumerate(sorted(self.template_tasks, key=lambda t: t.workflow_order or t.order)):
+        for i, template_task in enumerate(sorted(self.template_tasks, key=lambda t: t.position)):
             status = TaskStatus(
                 firm_id=self.firm_id,
                 work_type_id=work_type.id,
@@ -100,7 +100,10 @@ class TemplateTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    order = db.Column(db.Integer, default=0)
+    # TODO: ARCHITECTURAL IMPROVEMENT - Consolidated ordering field
+    # Previously had both 'order' and 'workflow_order' fields which was confusing.
+    # Now using single 'position' field for all ordering needs.
+    position = db.Column(db.Integer, default=0)  # Position/order in template (replaces both order and workflow_order)
     estimated_hours = db.Column(db.Float)
     default_priority = db.Column(db.String(10), default='Medium')  # High, Medium, Low
     days_from_start = db.Column(db.Integer)  # Days from project start for auto due date
@@ -108,7 +111,6 @@ class TemplateTask(db.Model):
     recurrence_rule = db.Column(db.String(100))
     template_id = db.Column(db.Integer, db.ForeignKey('template.id'), nullable=False)
     default_status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # Maps to specific workflow status
-    workflow_order = db.Column(db.Integer, default=0)  # Order in the kanban workflow (overrides 'order' for workflow)
     dependencies = db.Column(db.String(500))  # Comma-separated list of template task IDs this depends on
     
     default_assignee = db.relationship('User', backref='default_template_tasks')

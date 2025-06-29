@@ -422,8 +422,25 @@ class TaskService(BaseService):
             return {'success': False, 'message': str(e)}
     
     def would_create_circular_dependency(self, task_id, dependency_id):
-        """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
-        def has_path(from_id, to_id, visited=None):
+        """
+        Check if adding dependency_id as a dependency of task_id would create a circular dependency.
+        Optimized version that fetches all dependencies at once to avoid N+1 query problem.
+        """
+        # Fetch all task dependencies in a single query
+        all_tasks = Task.query.filter(
+            Task.dependencies.isnot(None),
+            Task.dependencies != ''
+        ).all()
+        
+        # Build dependency graph in memory
+        dependency_graph = {}
+        for task in all_tasks:
+            task_deps = task.dependency_list  # Uses the property that parses the comma-separated string
+            if task_deps:
+                dependency_graph[task.id] = task_deps
+        
+        def has_path_in_graph(from_id, to_id, visited=None):
+            """Check if there's a path from from_id to to_id using in-memory graph"""
             if visited is None:
                 visited = set()
             
@@ -435,19 +452,16 @@ class TaskService(BaseService):
             
             visited.add(from_id)
             
-            # Get all tasks that depend on from_id
-            dependent_tasks = Task.query.filter(Task.dependencies.like(f'%{from_id}%')).all()
-            
-            for dependent_task in dependent_tasks:
-                if dependent_task.id in dependent_task.dependency_list:  # Safety check
-                    continue
-                if has_path(dependent_task.id, to_id, visited.copy()):
-                    return True
+            # Check all tasks that depend on from_id
+            for task_id_key, deps in dependency_graph.items():
+                if from_id in deps:  # task_id_key depends on from_id
+                    if has_path_in_graph(task_id_key, to_id, visited.copy()):
+                        return True
             
             return False
         
         # Check if dependency_id already depends on task_id (would create cycle)
-        return has_path(dependency_id, task_id)
+        return has_path_in_graph(dependency_id, task_id)
     
     def get_task_statistics(self, firm_id: int) -> dict:
         """Get task statistics for dashboard"""

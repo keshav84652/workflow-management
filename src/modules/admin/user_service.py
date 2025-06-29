@@ -7,7 +7,7 @@ from src.models import User, Firm
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService
 from src.modules.auth.repository import UserRepository
-# from src.shared.base import FirmRepository  # TODO: Create FirmRepository
+from src.modules.auth.firm_repository import FirmRepository
 
 
 class UserService(BaseService):

@@ -11,7 +11,9 @@ from .documents import (
     Attachment, DocumentChecklist, ChecklistItem, ClientDocument,
     DocumentTemplate, DocumentTemplateItem, IncomeWorksheet
 )
-from .misc import ClientUser, DemoAccessRequest, ClientChecklistAccess
+# Import from new modular locations
+from ..modules.auth.models import ClientUser, DemoAccessRequest
+from ..modules.document.models import ClientChecklistAccess
 
 # Export all models for backwards compatibility
 __all__ = [

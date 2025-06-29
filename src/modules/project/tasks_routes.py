@@ -8,9 +8,9 @@ from datetime import datetime, date, timedelta
 from src.shared.database.db_import import db
 from src.models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
 from src.modules.project.task_service import TaskService
-from src.modules.admin.user_service import UserService
+from src.shared.services.user_service import SharedUserService
 from src.modules.project.service import ProjectService
-from src.modules.admin.template_service import TemplateService
+from .helper_service import ProjectHelperService
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -42,7 +42,7 @@ def list_tasks():
     tasks = [item['task'] for item in task_data_list]
     
     # Get filter options
-    user_service = UserService()
+    user_service = SharedUserService()
     users = user_service.get_users_by_firm(firm_id)
     project_service = ProjectService()
     projects = project_service.get_projects_by_firm(firm_id)
@@ -97,7 +97,7 @@ def create_task():
     firm_id = get_session_firm_id()
     project_service = ProjectService()
     projects = project_service.get_active_projects(firm_id)
-    user_service = UserService()
+    user_service = SharedUserService()
     users = user_service.get_users_by_firm(firm_id)
     
     # Pre-select project if provided
@@ -140,14 +140,14 @@ def edit_task(id):
             return redirect(url_for('tasks.edit_task', id=id))
     
     # GET request - show form
-    user_service = UserService()
+    user_service = SharedUserService()
     users = user_service.get_users_by_firm(firm_id)
     
     # Get other tasks in the same project for dependency selection
     project_tasks = []
     if task.project_id:
-        template_service = TemplateService()
-        project_tasks = template_service.get_project_tasks_for_dependency(task.project_id)
+        helper_service = ProjectHelperService()
+        project_tasks = helper_service.get_project_tasks_for_dependency(task.project_id)
     
     return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
@@ -163,14 +163,14 @@ def view_task(id):
         flash('Task not found or access denied', 'error')
         return redirect(url_for('tasks.list_tasks'))
     
-    # Create template service instance for data retrieval
-    template_service = TemplateService()
+    # Create helper service instance for data retrieval
+    helper_service = ProjectHelperService()
     
     # Get task activity logs
-    activity_logs = template_service.get_activity_logs_for_task(id, limit=10)
+    activity_logs = helper_service.get_activity_logs_for_task(id, limit=10)
     
     # Get task comments
-    comments = template_service.get_task_comments(id)
+    comments = helper_service.get_task_comments(id)
     
     return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
 

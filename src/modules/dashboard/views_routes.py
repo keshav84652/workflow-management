@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 from src.models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
 from .aggregator_service import DashboardAggregatorService
 from src.modules.client.service import ClientService
-from src.modules.admin.user_service import UserService
+from src.shared.services.user_service import SharedUserService
 from src.modules.project.service import ProjectService
 from src.shared.services import ViewsService
 # from services.worktype_service import WorkTypeService

@@ -123,6 +123,53 @@ class ActivityService(BaseService):
         
         return result
     
+    @staticmethod
+    def log_entity_operation(
+        entity_type: str,
+        operation: str,
+        entity_id: int,
+        entity_name: str,
+        details: str,
+        user_id: int
+    ) -> None:
+        """
+        Static method to log entity operations
+        This is a simplified logging method for backward compatibility
+        
+        Args:
+            entity_type: Type of entity (e.g., 'USER', 'PROJECT', 'TASK')
+            operation: Operation performed (e.g., 'CREATE', 'UPDATE', 'DELETE')
+            entity_id: ID of the entity
+            entity_name: Name of the entity
+            details: Additional details about the operation
+            user_id: ID of the user performing the operation
+        """
+        try:
+            from src.models import ActivityLog
+            
+            # Create a simple activity log entry
+            activity_log = ActivityLog(
+                action=f"{operation} {entity_type}",
+                user_id=user_id,
+                details=f"{entity_name}: {details}",
+                timestamp=datetime.utcnow()
+            )
+            
+            # Set entity-specific fields if available
+            if entity_type in ['PROJECT']:
+                activity_log.project_id = entity_id
+            elif entity_type in ['TASK']:
+                activity_log.task_id = entity_id
+            
+            db.session.add(activity_log)
+            db.session.commit()
+            
+        except Exception as e:
+            # Log the error but don't fail the main operation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to log entity operation: {e}")
+    
     def get_user_activity_summary(self, user_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Get activity summary for a specific user

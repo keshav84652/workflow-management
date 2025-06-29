@@ -11,7 +11,7 @@ from typing import Optional, List, Dict, Any, Callable
 from datetime import datetime
 import threading
 
-from core.redis_client import redis_client
+from src.shared.database.redis_client import redis_client
 from events.base import BaseEvent, EventHandler, EventProcessingResult, event_registry
 
 logger = logging.getLogger(__name__)

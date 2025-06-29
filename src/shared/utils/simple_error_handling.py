@@ -88,8 +88,8 @@ def log_and_continue(operation: str):
 
 class SimpleCache:
     """
-    Simple in-memory cache for fallback values.
-    Replaces the complex Redis-based fallback system for basic needs.
+    Simple cache for fallback values that uses Redis when available, 
+    falls back to in-memory cache for single-worker environments.
     """
     
     def __init__(self, default_ttl: int = 300):  # 5 minutes default
@@ -99,40 +99,102 @@ class SimpleCache:
         Args:
             default_ttl: Default time-to-live in seconds
         """
-        self._cache = {}
-        self._timestamps = {}
         self.default_ttl = default_ttl
+        self._redis_client = None
+        self._in_memory_cache = {}
+        self._in_memory_timestamps = {}
+        
+        # Try to use Redis for shared cache
+        try:
+            from src.shared.database.redis_client import redis_client
+            if redis_client and redis_client.is_available():
+                self._redis_client = redis_client
+                logger.info("SimpleCache using Redis backend for multi-worker compatibility")
+            else:
+                logger.warning("Redis not available, using in-memory cache (not suitable for multi-worker)")
+        except Exception as e:
+            logger.warning(f"Failed to initialize Redis for cache: {e}. Using in-memory fallback.")
     
     def get(self, key: str, default: Any = None) -> Any:
         """Get value from cache if not expired"""
-        if key not in self._cache:
+        if self._redis_client:
+            try:
+                import json
+                cached_data = self._redis_client.get(f"fallback_cache:{key}")
+                if cached_data:
+                    return json.loads(cached_data)
+                return default
+            except Exception as e:
+                logger.warning(f"Redis cache get failed: {e}")
+                # Fall through to in-memory cache
+        
+        # In-memory fallback
+        if key not in self._in_memory_cache:
             return default
         
         # Check if expired
-        if time.time() - self._timestamps[key] > self.default_ttl:
+        if time.time() - self._in_memory_timestamps[key] > self.default_ttl:
             self.remove(key)
             return default
         
-        return self._cache[key]
+        return self._in_memory_cache[key]
     
     def set(self, key: str, value: Any, ttl: Optional[int] = None):
         """Set value in cache with optional TTL"""
-        self._cache[key] = value
-        self._timestamps[key] = time.time()
+        actual_ttl = ttl or self.default_ttl
+        
+        if self._redis_client:
+            try:
+                import json
+                self._redis_client.setex(f"fallback_cache:{key}", actual_ttl, json.dumps(value))
+                return
+            except Exception as e:
+                logger.warning(f"Redis cache set failed: {e}")
+                # Fall through to in-memory cache
+        
+        # In-memory fallback
+        self._in_memory_cache[key] = value
+        self._in_memory_timestamps[key] = time.time()
     
     def remove(self, key: str):
         """Remove value from cache"""
-        self._cache.pop(key, None)
-        self._timestamps.pop(key, None)
+        if self._redis_client:
+            try:
+                self._redis_client.delete(f"fallback_cache:{key}")
+                return
+            except Exception as e:
+                logger.warning(f"Redis cache remove failed: {e}")
+        
+        # In-memory fallback
+        self._in_memory_cache.pop(key, None)
+        self._in_memory_timestamps.pop(key, None)
     
     def clear(self):
         """Clear all cached values"""
-        self._cache.clear()
-        self._timestamps.clear()
+        if self._redis_client:
+            try:
+                # Get all fallback cache keys and delete them
+                keys = self._redis_client.keys("fallback_cache:*")
+                if keys:
+                    self._redis_client.delete(*keys)
+                return
+            except Exception as e:
+                logger.warning(f"Redis cache clear failed: {e}")
+        
+        # In-memory fallback
+        self._in_memory_cache.clear()
+        self._in_memory_timestamps.clear()
     
     def size(self) -> int:
         """Get current cache size"""
-        return len(self._cache)
+        if self._redis_client:
+            try:
+                return len(self._redis_client.keys("fallback_cache:*"))
+            except Exception as e:
+                logger.warning(f"Redis cache size check failed: {e}")
+        
+        # In-memory fallback
+        return len(self._in_memory_cache)
 
 
 # Global simple cache instance for fallback values
