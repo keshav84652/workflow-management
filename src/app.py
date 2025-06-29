@@ -60,12 +60,13 @@ def create_app(config_name='default'):
     from .modules.auth import register_module as register_auth
     from .modules.client import register_module as register_client
     from .modules.document import register_module as register_document
+    from .modules.admin import register_module as register_admin
+    from .modules.project import register_module as register_project
+    from .modules.dashboard import register_module as register_dashboard
     
     # Register remaining blueprints that haven't been moved to modules yet
     from blueprints import (
-        admin_bp, dashboard_bp, projects_bp, tasks_bp, 
-        users_bp, views_bp, 
-        export_bp, api_bp, attachments_bp, subtasks_bp
+        export_bp, api_bp, attachments_bp
     )
     from blueprints.health import health_bp
     
@@ -73,18 +74,14 @@ def create_app(config_name='default'):
     register_auth(app)
     register_client(app)
     register_document(app)
+    register_admin(app)
+    register_project(app)
+    register_dashboard(app)
     
     # Register remaining blueprints
-    app.register_blueprint(admin_bp)
-    app.register_blueprint(dashboard_bp)
-    app.register_blueprint(projects_bp)
-    app.register_blueprint(tasks_bp)
-    app.register_blueprint(users_bp)
-    app.register_blueprint(views_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(attachments_bp)
-    app.register_blueprint(subtasks_bp)
     app.register_blueprint(health_bp)
 
     # Add error handlers
