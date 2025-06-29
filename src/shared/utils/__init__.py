@@ -19,6 +19,15 @@ from .consolidated import (
 # Import health checks
 from .health_checks import check_system_health
 
+# Import simplified error handling (replaces complex circuit breakers)
+from .simple_error_handling import (
+    safe_execute,
+    with_simple_retry,
+    log_and_continue,
+    with_fallback_cache,
+    handle_service_unavailable
+)
+
 __all__ = [
     # Session management
     'get_session_firm_id',
@@ -31,5 +40,12 @@ __all__ = [
     'calculate_business_days',
     
     # Health monitoring
-    'check_system_health'
+    'check_system_health',
+    
+    # Simplified error handling
+    'safe_execute',
+    'with_simple_retry', 
+    'log_and_continue',
+    'with_fallback_cache',
+    'handle_service_unavailable'
 ]
