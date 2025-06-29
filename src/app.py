@@ -14,7 +14,7 @@ import os
 # Add parent directory to path to access root-level modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .config import get_config
-from core.db_import import db
+from .shared.database.db_import import db
 from flask_migrate import Migrate
 
 # Import models
@@ -53,7 +53,7 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
 
     # Register Jinja2 template filters
-    from utils.template_filters import register_template_filters
+    from .shared.utils.template_filters import register_template_filters
     register_template_filters(app)
     
     # Register blueprints
@@ -111,7 +111,7 @@ def create_app(config_name='default'):
         else:
             return redirect(url_for('auth.login'))
 
-    from utils.consolidated import generate_access_code
+    from .shared.utils.consolidated import generate_access_code
     from services.activity_logging_service import ActivityLoggingService as ActivityService
     from services.task_service import TaskService
     from services.client_service import ClientService
