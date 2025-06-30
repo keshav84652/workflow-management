@@ -74,23 +74,6 @@ def generate_access_code(length: int = 12) -> str:
 # Note: format_currency and format_date moved to utils/template_filters.py
 
 
-def calculate_business_days(start_date: datetime, end_date: datetime) -> int:
-    """Calculate number of business days between two dates (exclusive of end date)"""
-    if start_date is None or end_date is None:
-        return 0
-    if start_date >= end_date:
-        return 0
-    
-    business_days = 0
-    current_date = start_date
-    
-    while current_date < end_date:  # Changed to < for exclusive end date
-        # Monday = 0, Sunday = 6
-        if current_date.weekday() < 5:  # Monday to Friday
-            business_days += 1
-        current_date += timedelta(days=1)
-    
-    return business_days
 
 
 # ===== CLEAN ARCHITECTURE =====
@@ -103,7 +86,4 @@ __all__ = [
     
     # Security
     'generate_access_code',
-    
-    # Date/time utilities  
-    'calculate_business_days',
 ]

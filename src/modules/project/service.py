@@ -4,7 +4,9 @@ ProjectService: Handles all business logic for project operations.
 
 from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
-from src.models import Project, Task, Client, User, WorkType
+from .models import Project, Task, WorkType
+from ..client.models import Client
+from src.models.auth import User
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
 from src.shared.interfaces import IProjectService

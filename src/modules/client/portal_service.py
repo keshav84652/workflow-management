@@ -11,9 +11,10 @@ import uuid
 import mimetypes
 
 from src.shared.database.db_import import db
-from src.models import (
-    ClientUser, Client, DocumentChecklist, ChecklistItem, ClientDocument
-)
+from src.models.auth import User, Firm, ActivityLog
+from ..auth.models import ClientUser
+from .models import Client
+from ..document.models import DocumentChecklist, ChecklistItem, ClientDocument
 
 
 class PortalService:
@@ -110,7 +111,7 @@ class PortalService:
             }
     
 
-    def validate_file_upload(filename: str, file_size: int = None) -> Dict[str, Any]:
+    def validate_file_upload(self, filename: str, file_size: int = None) -> Dict[str, Any]:
         """
         Validate file upload requirements
         
@@ -196,7 +197,7 @@ class PortalService:
             }
     
 
-    def upload_client_document(file, item_id: int, client_id: int) -> Dict[str, Any]:
+    def upload_client_document(self, file, item_id: int, client_id: int) -> Dict[str, Any]:
         """
         Handle client document upload
         
@@ -210,14 +211,14 @@ class PortalService:
         """
         try:
             # Verify checklist item access
-            verification = PortalService.verify_checklist_item_access(item_id, client_id)
+            verification = self.verify_checklist_item_access(item_id, client_id)
             if not verification['success']:
                 return verification
             
             item = verification['item']
             
             # Validate file
-            validation = PortalService.validate_file_upload(file.filename, len(file.read()))
+            validation = self.validate_file_upload(file.filename, len(file.read()))
             file.seek(0)  # Reset file pointer after reading for size check
             
             if not validation['success']:
@@ -316,7 +317,7 @@ class PortalService:
                 }
             
             # Verify checklist item access
-            verification = PortalService.verify_checklist_item_access(item_id, client_id)
+            verification = self.verify_checklist_item_access(item_id, client_id)
             if not verification['success']:
                 return verification
             
@@ -466,7 +467,7 @@ class PortalService:
             }
     
 
-    def validate_session_data(session_data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_session_data(self, session_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Validate client session data
         

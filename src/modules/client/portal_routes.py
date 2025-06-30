@@ -21,7 +21,8 @@ def client_authenticate():
     """Authenticate client user"""
     access_code = request.form.get('access_code', '').strip()
     
-    result = PortalService.authenticate_client(access_code)
+    portal_service = PortalService()
+    result = portal_service.authenticate_client(access_code)
     
     if result['success']:
         session['client_user_id'] = result['client_user_id']
@@ -42,7 +43,8 @@ def client_dashboard():
     client_id = session['client_id']
     
     # Get dashboard data using service
-    dashboard_data = PortalService.get_client_dashboard_data(client_id)
+    portal_service = PortalService()
+    dashboard_data = portal_service.get_client_dashboard_data(client_id)
     
     if not dashboard_data['success']:
         flash(dashboard_data['message'], 'error')
@@ -81,7 +83,8 @@ def client_upload_document(item_id):
         return jsonify({'success': False, 'message': 'No file selected'}), 400
     
     # Use service to handle upload
-    result = PortalService.upload_client_document(file, item_id, client_id)
+    portal_service = PortalService()
+    result = portal_service.upload_client_document(file, item_id, client_id)
     
     if result['success']:
         return jsonify({
@@ -108,7 +111,8 @@ def client_update_status(item_id):
     new_status = request.form.get('status')
     
     # Use service to handle status update
-    result = PortalService.update_item_status(item_id, client_id, new_status)
+    portal_service = PortalService()
+    result = portal_service.update_item_status(item_id, client_id, new_status)
     
     if result['success']:
         flash(result['message'], 'success')

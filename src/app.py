@@ -73,11 +73,9 @@ def create_app(config_name='default'):
     
     # Initialize dependency injection container
     from src.shared.di_container import setup_service_registry
-    from src.shared.bootstrap import register_services
     
-    # Set up both DI systems for compatibility
+    # Set up DI system
     setup_service_registry()  # New DI container
-    register_services()       # Legacy service registry
     
     # All blueprints now registered through modules
 
@@ -133,8 +131,8 @@ def create_app(config_name='default'):
 
     from src.shared.utils.consolidated import generate_access_code
     # ActivityLoggingService now available through src.shared.services
-    # Services accessed through bootstrap to avoid coupling
-    from src.shared.bootstrap import get_task_service, get_client_service
+    # Services accessed through DI container to avoid coupling
+    from src.shared.di_container import get_service
 
     # Business logic functions moved to appropriate services:
     # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis
@@ -147,8 +145,7 @@ def create_app(config_name='default'):
 
     with app.app_context():
         # Initialize service registry for dependency injection
-        from src.shared.bootstrap import register_services
-        register_services()
+        setup_service_registry()
         
         print("AI Services status determined by configuration:")
         print("   Azure Document Intelligence:", "Available" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "Not configured")

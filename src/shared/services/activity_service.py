@@ -10,7 +10,7 @@ SERVICE PATTERN:
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from src.shared.database.db_import import db
-from src.models import ActivityLog, User, Project, Task
+from src.models.auth import User, ActivityLog
 from src.shared.base import BaseService, transactional
 
 

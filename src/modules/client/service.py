@@ -4,7 +4,7 @@ ClientService: Handles all business logic for clients, including search and retr
 
 from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
-from src.models import Client
+from .models import Client
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
 from .interface import IClientService
