@@ -226,6 +226,7 @@ class TaskService(BaseService, ITaskService):
     @transactional
     def update_task_from_form(self, task_id, form_data, firm_id, user_id):
         """Update task from form data"""
+        try:
             task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
@@ -258,10 +259,13 @@ class TaskService(BaseService, ITaskService):
             )
             
             return {'success': True, 'message': 'Task updated successfully'}
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     @transactional
     def delete_task(self, task_id, firm_id, user_id):
         """Delete a task with access check"""
+        try:
             task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
@@ -291,10 +295,13 @@ class TaskService(BaseService, ITaskService):
             publish_event(event)
             
             return {'success': True, 'message': 'Task deleted successfully'}
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     @transactional
     def add_task_comment(self, task_id, firm_id, comment_text, user_id):
         """Add comment to task"""
+        try:
             if not comment_text.strip():
                 return {'success': False, 'message': 'Comment cannot be empty'}
             
@@ -319,10 +326,13 @@ class TaskService(BaseService, ITaskService):
                     'created_at': comment.created_at.strftime('%m/%d/%Y %I:%M %p')
                 }
             }
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     @transactional
     def bulk_update_tasks(self, task_ids, updates, firm_id, user_id):
         """Bulk update multiple tasks"""
+        try:
             from .task_repository import TaskRepository
             task_repo = TaskRepository()
             result = task_repo.bulk_update(task_ids, updates, firm_id)
@@ -338,6 +348,8 @@ class TaskService(BaseService, ITaskService):
                 )
             
             return result
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     @transactional
     def bulk_delete_tasks(self, task_ids, firm_id, user_id):
@@ -395,6 +407,8 @@ class TaskService(BaseService, ITaskService):
             publish_event(event)
             
             return {'success': True, 'message': 'Task status updated successfully'}
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     def would_create_circular_dependency(self, task_id, dependency_id):
         """

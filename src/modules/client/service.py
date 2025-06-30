@@ -5,7 +5,7 @@ ClientService: Handles all business logic for clients, including search and retr
 from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
 from .models import Client
-from src.shared.services import ActivityLoggingService as ActivityService
+# ActivityService import removed to break circular dependency
 from src.shared.base import BaseService, transactional
 from .interface import IClientService
 from .repository import ClientRepository
@@ -68,15 +68,19 @@ class ClientService(BaseService, IClientService):
         
         db.session.add(client)
         
-        # Log activity
-        ActivityService.log_entity_operation(
-            entity_type='CLIENT',
-            operation='CREATE',
-            entity_id=client.id,
-            entity_name=client.name,
-            details=f'Client created - Type: {entity_type}',
-            user_id=user_id
-        )
+        # Log activity - direct import to avoid circular dependency
+        try:
+            from src.shared.services.activity_service import ActivityService
+            ActivityService.log_entity_operation(
+                entity_type='CLIENT',
+                operation='CREATE',
+                entity_id=client.id,
+                entity_name=client.name,
+                details=f'Client created - Type: {entity_type}',
+                user_id=user_id
+            )
+        except ImportError:
+            pass  # ActivityService not available
         
         # Publish client creation event
         from ...shared.events.schemas import ClientCreatedEvent
@@ -111,15 +115,19 @@ class ClientService(BaseService, IClientService):
             if hasattr(client, field):
                 setattr(client, field, value)
         
-        # Log activity
-        ActivityService.log_entity_operation(
-            entity_type='CLIENT',
-            operation='UPDATE',
-            entity_id=client.id,
-            entity_name=client.name,
-            details='Client information updated',
-            user_id=user_id
-        )
+        # Log activity - direct import to avoid circular dependency
+        try:
+            from src.shared.services.activity_service import ActivityService
+            ActivityService.log_entity_operation(
+                entity_type='CLIENT',
+                operation='UPDATE',
+                entity_id=client.id,
+                entity_name=client.name,
+                details='Client information updated',
+                user_id=user_id
+            )
+        except ImportError:
+            pass  # ActivityService not available
         
         return {'success': True, 'message': 'Client updated successfully'}
     

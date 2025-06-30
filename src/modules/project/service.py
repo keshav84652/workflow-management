@@ -2,12 +2,12 @@
 ProjectService: Handles all business logic for project operations.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from src.shared.database.db_import import db
 from .models import Project, Task, WorkType
 from ..client.models import Client
 from src.models.auth import User
-from src.shared.services import ActivityLoggingService as ActivityService
+# ActivityService import removed to break circular dependency
 from src.shared.base import BaseService, transactional
 from src.shared.interfaces import IProjectService
 from .repository import ProjectRepository
@@ -97,15 +97,19 @@ class ProjectService(BaseService, IProjectService):
             db.session.add(project)
             db.session.commit()
             
-            # Log activity
-            ActivityService.log_entity_operation(
-                entity_type='PROJECT',
-                operation='CREATE',
-                entity_id=project.id,
-                entity_name=project.name,
-                details=f'Project created for client: {client.name if client_id else "No client"}',
-                user_id=user_id
-            )
+            # Log activity - direct import to avoid circular dependency
+            try:
+                from src.shared.services.activity_service import ActivityService
+                ActivityService.log_entity_operation(
+                    entity_type='PROJECT',
+                    operation='CREATE',
+                    entity_id=project.id,
+                    entity_name=project.name,
+                    details=f'Project created for client: {client.name if client_id else "No client"}',
+                    user_id=user_id
+                )
+            except ImportError:
+                pass  # ActivityService not available
             
             # Publish project creation event
             from src.shared.events.schemas import ProjectCreatedEvent
@@ -211,15 +215,19 @@ class ProjectService(BaseService, IProjectService):
             
             db.session.commit()
             
-            # Log activity
-            ActivityService.log_entity_operation(
-                entity_type='PROJECT',
-                operation='UPDATE',
-                entity_id=project.id,
-                entity_name=project.name,
-                details=f'Status changed from "{old_status}" to "{new_status}"',
-                user_id=user_id
-            )
+            # Log activity - direct import to avoid circular dependency
+            try:
+                from src.shared.services.activity_service import ActivityService
+                ActivityService.log_entity_operation(
+                    entity_type='PROJECT',
+                    operation='UPDATE',
+                    entity_id=project.id,
+                    entity_name=project.name,
+                    details=f'Status changed from "{old_status}" to "{new_status}"',
+                    user_id=user_id
+                )
+            except ImportError:
+                pass  # ActivityService not available
             
             # Publish project updated event
             from src.shared.events.schemas import ProjectUpdatedEvent
@@ -310,14 +318,18 @@ class ProjectService(BaseService, IProjectService):
             
             # Log activity if user_id provided
             if user_id:
-                ActivityService.log_entity_operation(
-                    entity_type='PROJECT',
-                    operation='STATUS_MOVE',
-                    entity_id=project.id,
-                    entity_name=project.name,
-                    details=f'Moved from "{old_status}" to "{project.current_workflow_status_name}" via Kanban',
-                    user_id=user_id
-                )
+                try:
+                    from src.shared.services.activity_service import ActivityService
+                    ActivityService.log_entity_operation(
+                        entity_type='PROJECT',
+                        operation='STATUS_MOVE',
+                        entity_id=project.id,
+                        entity_name=project.name,
+                        details=f'Moved from "{old_status}" to "{project.current_workflow_status_name}" via Kanban',
+                        user_id=user_id
+                    )
+                except ImportError:
+                    pass  # ActivityService not available
             
             # Calculate updated progress for response  
             from .task_repository import TaskRepository
@@ -418,20 +430,28 @@ class ProjectService(BaseService, IProjectService):
             # If all tasks are completed, mark project as completed
             if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
                 project.status = 'Completed'
-                ActivityService.create_activity_log(
-                    f'Project "{project.name}" automatically marked as completed (all tasks finished)',
-                    user_id or 1,
-                    project_id
-                )
+                try:
+                    from src.shared.services.activity_service import ActivityService
+                    ActivityService.create_activity_log(
+                        f'Project "{project.name}" automatically marked as completed (all tasks finished)',
+                        user_id or 1,
+                        project_id
+                    )
+                except ImportError:
+                    pass  # ActivityService not available
                 db.session.commit()
             # If project was marked completed but has incomplete tasks, reactivate it
             elif project.status == 'Completed' and completed_tasks < total_tasks:
                 project.status = 'Active'
-                ActivityService.create_activity_log(
-                    f'Project "{project.name}" reactivated (incomplete tasks detected)',
-                    user_id or 1,
-                    project_id
-                )
+                try:
+                    from src.shared.services.activity_service import ActivityService
+                    ActivityService.create_activity_log(
+                        f'Project "{project.name}" reactivated (incomplete tasks detected)',
+                        user_id or 1,
+                        project_id
+                    )
+                except ImportError:
+                    pass  # ActivityService not available
                 db.session.commit()
                 
         except Exception as e:

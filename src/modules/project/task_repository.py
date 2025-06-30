@@ -8,7 +8,7 @@ from datetime import datetime
 from sqlalchemy import or_, and_
 
 from src.shared.database.db_import import db
-from src.models import Task, Project
+from .models import Task, Project
 from src.shared.repositories import CachedRepository, PaginationResult
 
 
