@@ -5,7 +5,7 @@ Subtask management blueprint
 from flask import Blueprint, request, session, jsonify
 
 from src.shared.database.db_import import db
-from src.models import Task
+from .models import Task
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 

@@ -72,6 +72,8 @@ class DocumentService(BaseService):
                 'success': True,
                 'message': status_messages.get(new_status, 'Status updated')
             }
+        except Exception as e:
+            return {'success': False, 'message': str(e)}
     
     @transactional
     def generate_share_token(self, checklist_id, firm_id):

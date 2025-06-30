@@ -10,7 +10,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from flask import session, request
 from src.shared.database.db_import import db
-from src.models import Firm, User, DemoAccessRequest
+from src.models.auth import Firm, User
+from .models import DemoAccessRequest
 from .firm_repository import FirmRepository
 from .repository import UserRepository
 

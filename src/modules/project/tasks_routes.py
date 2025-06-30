@@ -6,7 +6,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 
 from src.shared.database.db_import import db
-from src.models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
+from .models import Task, Project, Template, WorkType, TaskStatus, TaskComment
+from ..client.models import Client
+from src.models.auth import User, ActivityLog
 from .task_service import TaskService
 from src.shared.services.user_service import SharedUserService
 from .service import ProjectService
