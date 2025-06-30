@@ -5,7 +5,9 @@ Export routes for data export functionality
 from flask import Blueprint, jsonify
 
 from src.shared.utils.consolidated import get_session_firm_id
-from .service import ExportService
+from .interface import IExportService
+from src.shared.di_container import get_service
+from .service import ExportService  # Fallback import
 
 export_bp = Blueprint('export', __name__, url_prefix='/export')
 
@@ -15,7 +17,12 @@ def export_projects(format):
     """Export projects in specified format"""
     try:
         firm_id = get_session_firm_id()
-        export_service = ExportService()
+        
+        # Get service from DI container or fallback to direct instantiation
+        try:
+            export_service = get_service(IExportService)
+        except (ValueError, ImportError):
+            export_service = ExportService()
         
         if format.lower() == 'csv':
             result = export_service.export_projects_csv(firm_id)
@@ -39,7 +46,12 @@ def export_clients(format):
     """Export clients in specified format"""
     try:
         firm_id = get_session_firm_id()
-        export_service = ExportService()
+        
+        # Get service from DI container or fallback to direct instantiation
+        try:
+            export_service = get_service(IExportService)
+        except (ValueError, ImportError):
+            export_service = ExportService()
         
         if format.lower() == 'csv':
             result = export_service.export_clients_csv(firm_id)
@@ -63,7 +75,12 @@ def export_tasks(format):
     """Export tasks in specified format"""
     try:
         firm_id = get_session_firm_id()
-        export_service = ExportService()
+        
+        # Get service from DI container or fallback to direct instantiation
+        try:
+            export_service = get_service(IExportService)
+        except (ValueError, ImportError):
+            export_service = ExportService()
         
         if format.lower() == 'csv':
             result = export_service.export_tasks_csv(firm_id)

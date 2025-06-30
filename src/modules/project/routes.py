@@ -69,9 +69,9 @@ def create_project():
     template_service = TemplateService()
     templates = template_service.get_templates_by_firm(firm_id)
     
-    # Get clients from client module
-    from src.modules.client.service import ClientService
-    client_service = ClientService()
+    # Get clients from client module using interface
+    from src.shared.bootstrap import get_client_service
+    client_service = get_client_service()
     clients = client_service.get_active_clients_by_firm(firm_id)
     
     return render_template('projects/create_project.html', 

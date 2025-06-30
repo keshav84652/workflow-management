@@ -119,6 +119,8 @@ def setup_service_registry():
     from src.modules.project.interface import IProjectService, ITaskService
     from src.modules.project.service import ProjectService
     from src.modules.project.task_service import TaskService
+    from src.modules.export.interface import IExportService
+    from src.modules.export.service import ExportService
     
     # Register all service implementations
     register_service(IClientService, ClientService)
@@ -126,3 +128,4 @@ def setup_service_registry():
     register_service(IFirmService, FirmService)
     register_service(IProjectService, ProjectService)
     register_service(ITaskService, TaskService)
+    register_service(IExportService, ExportService)

@@ -107,3 +107,8 @@ class ServiceRegistry:
     def get_data_aggregator(cls) -> Optional[IDataAggregatorService]:
         """Get data aggregator service implementation"""
         return cls.get('data_aggregator')
+    
+    @classmethod
+    def get_export_service(cls):
+        """Get export service implementation"""
+        return cls.get('export_service')

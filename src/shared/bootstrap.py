@@ -13,11 +13,13 @@ def register_services():
     from src.modules.project.service import ProjectService
     from src.modules.project.task_service import TaskService
     from src.modules.client.service import ClientService
+    from src.modules.export.service import ExportService
     
     # Register service implementations
     ServiceRegistry.register('project_service', ProjectService())
     ServiceRegistry.register('task_service', TaskService())
     ServiceRegistry.register('client_service', ClientService())
+    ServiceRegistry.register('export_service', ExportService())
 
 
 def get_project_service():
@@ -47,6 +49,16 @@ def get_client_service():
         # Fallback if not registered
         from src.modules.client.service import ClientService
         return ClientService()
+    return service
+
+
+def get_export_service():
+    """Get export service instance"""
+    service = ServiceRegistry.get('export_service')
+    if not service:
+        # Fallback if not registered
+        from src.modules.export.service import ExportService
+        return ExportService()
     return service
 
 

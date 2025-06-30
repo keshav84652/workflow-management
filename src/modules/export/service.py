@@ -10,21 +10,29 @@ from datetime import datetime
 from flask import make_response, jsonify
 
 from src.shared.base import BaseService
+from src.shared.interfaces.service_interfaces import IProjectService, ITaskService, IClientService
+from .interface import IExportService
 
 
-class ExportService(BaseService):
+class ExportService(BaseService, IExportService):
     """Service for handling data exports"""
     
-    def __init__(self):
+    def __init__(self, 
+                 project_service: IProjectService = None, 
+                 task_service: ITaskService = None, 
+                 client_service: IClientService = None):
         super().__init__()
+        
+        # Use dependency injection if provided, otherwise use service registry
+        from src.shared.bootstrap import get_project_service, get_task_service, get_client_service
+        self.project_service = project_service or get_project_service()
+        self.task_service = task_service or get_task_service()
+        self.client_service = client_service or get_client_service()
     
     def export_projects_csv(self, firm_id: int) -> Any:
         """Export projects as CSV"""
         try:
-            from src.modules.project.service import ProjectService
-            
-            project_service = ProjectService()
-            result = project_service.get_projects_by_firm(firm_id)
+            result = self.project_service.get_projects_by_firm(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -47,10 +55,7 @@ class ExportService(BaseService):
     def export_projects_json(self, firm_id: int) -> Any:
         """Export projects as JSON"""
         try:
-            from src.modules.project.service import ProjectService
-            
-            project_service = ProjectService()
-            result = project_service.get_projects_by_firm(firm_id)
+            result = self.project_service.get_projects_by_firm(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -72,10 +77,7 @@ class ExportService(BaseService):
     def export_clients_csv(self, firm_id: int) -> Any:
         """Export clients as CSV"""
         try:
-            from src.modules.client.service import ClientService
-            
-            client_service = ClientService()
-            result = client_service.get_clients_for_api(firm_id)
+            result = self.client_service.get_clients_for_api(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -98,10 +100,7 @@ class ExportService(BaseService):
     def export_clients_json(self, firm_id: int) -> Any:
         """Export clients as JSON"""
         try:
-            from src.modules.client.service import ClientService
-            
-            client_service = ClientService()
-            result = client_service.get_clients_for_api(firm_id)
+            result = self.client_service.get_clients_for_api(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -123,10 +122,7 @@ class ExportService(BaseService):
     def export_tasks_csv(self, firm_id: int) -> Any:
         """Export tasks as CSV"""
         try:
-            from src.modules.project.task_service import TaskService
-            
-            task_service = TaskService()
-            result = task_service.get_tasks_by_firm(firm_id)
+            result = self.task_service.get_tasks_by_firm(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -149,10 +145,7 @@ class ExportService(BaseService):
     def export_tasks_json(self, firm_id: int) -> Any:
         """Export tasks as JSON"""
         try:
-            from src.modules.project.task_service import TaskService
-            
-            task_service = TaskService()
-            result = task_service.get_tasks_by_firm(firm_id)
+            result = self.task_service.get_tasks_by_firm(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}

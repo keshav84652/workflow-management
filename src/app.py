@@ -71,6 +71,14 @@ def create_app(config_name='default'):
     register_project(app)
     register_dashboard(app)
     
+    # Initialize dependency injection container
+    from src.shared.di_container import setup_service_registry
+    from src.shared.bootstrap import register_services
+    
+    # Set up both DI systems for compatibility
+    setup_service_registry()  # New DI container
+    register_services()       # Legacy service registry
+    
     # All blueprints now registered through modules
 
     # Add error handlers
@@ -125,8 +133,8 @@ def create_app(config_name='default'):
 
     from src.shared.utils.consolidated import generate_access_code
     # ActivityLoggingService now available through src.shared.services
-    from src.modules.project.task_service import TaskService
-    from src.modules.client.service import ClientService
+    # Services accessed through bootstrap to avoid coupling
+    from src.shared.bootstrap import get_task_service, get_client_service
 
     # Business logic functions moved to appropriate services:
     # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis

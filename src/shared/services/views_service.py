@@ -28,12 +28,11 @@ class ViewsService(BaseService):
         Returns:
             Dict with kanban view data structure
         """
-        # Import here to avoid circular imports
-        from src.modules.project.task_service import TaskService
-        from src.modules.project.service import ProjectService
+        # Use service registry to avoid circular imports and coupling
+        from src.shared.bootstrap import get_task_service, get_project_service
         
-        task_service = TaskService()
-        project_service = ProjectService()
+        task_service = get_task_service()
+        project_service = get_project_service()
         
         # Get tasks grouped by status
         tasks_result = task_service.get_tasks_by_firm(firm_id)
@@ -159,10 +158,10 @@ class ViewsService(BaseService):
         Returns:
             Dict with list view data structure
         """
-        # Import here to avoid circular imports
-        from src.modules.project.task_service import TaskService
+        # Use service registry to avoid circular imports and coupling
+        from src.shared.bootstrap import get_task_service
         
-        task_service = TaskService()
+        task_service = get_task_service()
         
         # Apply filters if provided
         tasks_result = task_service.get_tasks_by_firm(firm_id, filters=filters)

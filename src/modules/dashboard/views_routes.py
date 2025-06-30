@@ -21,9 +21,9 @@ def calendar_view():
     year = int(request.args.get('year', date.today().year))
     month = int(request.args.get('month', date.today().month))
     
-    # Get calendar data through task service
-    from src.modules.project.task_service import TaskService
-    task_service = TaskService()
+    # Get calendar data through task service using interface
+    from src.shared.bootstrap import get_task_service
+    task_service = get_task_service()
     
     calendar_result = task_service.get_tasks_for_calendar(firm_id, year, month)
     tasks_by_date = calendar_result.get('tasks_by_date', {}) if calendar_result.get('success') else {}
@@ -63,15 +63,13 @@ def search():
     if search_type != 'all':
         filters['search_type'] = search_type
     
-    # Coordinate search across modules at route level (acceptable pattern)
+    # Coordinate search across modules at route level using interfaces
     if query:
-        from src.modules.project.task_service import TaskService
-        from src.modules.project.service import ProjectService
-        from src.modules.client.service import ClientService
+        from src.shared.bootstrap import get_task_service, get_project_service, get_client_service
         
-        task_service = TaskService()
-        project_service = ProjectService()
-        client_service = ClientService()
+        task_service = get_task_service()
+        project_service = get_project_service()
+        client_service = get_client_service()
         
         # Search each module's data
         tasks_result = task_service.search_tasks(firm_id, query, limit=20)
