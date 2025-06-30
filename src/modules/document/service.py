@@ -8,7 +8,7 @@ from datetime import datetime
 import secrets
 
 from src.shared.database.db_import import db
-from src.models import DocumentChecklist, ChecklistItem, ClientDocument, IncomeWorksheet
+from .models import DocumentChecklist, ChecklistItem, ClientDocument, IncomeWorksheet
 from src.shared.base import BaseService, transactional
 from src.shared.di_container import get_service
 from src.modules.client.interface import IClientService
@@ -323,3 +323,6 @@ class DocumentService(BaseService):
                 checklist.ai_analysis_completed = True
                 checklist.ai_analysis_results = json.dumps(checklist_summary)
                 checklist.ai_analysis_timestamp = datetime.utcnow()
+                
+        except Exception as e:
+            print(f"Error in checklist AI analysis: {e}")

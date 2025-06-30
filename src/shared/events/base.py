@@ -11,23 +11,24 @@ import uuid
 import json
 
 
-@dataclass
 class BaseEvent(ABC):
     """
     Base class for all domain events
     
     All events in the system should inherit from this class.
     """
-    # Context information (put optional fields with defaults last)
-    firm_id: Optional[int] = None
-    user_id: Optional[int] = None
     
-    # Event metadata (all have defaults)
-    event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    event_type: str = field(init=False)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    version: str = "1.0"
-    source_system: str = "workflow-management"
+    def __init__(self, firm_id: Optional[int] = None, user_id: Optional[int] = None, **kwargs):
+        # Event metadata
+        self.event_id: str = str(uuid.uuid4())
+        self.event_type: str = self.__class__.__name__
+        self.timestamp: datetime = datetime.utcnow()
+        self.version: str = "1.0"
+        self.source_system: str = "workflow-management"
+        
+        # Context information
+        self.firm_id: Optional[int] = firm_id
+        self.user_id: Optional[int] = user_id
     
     # Event payload (to be defined by subclasses)
     @abstractmethod

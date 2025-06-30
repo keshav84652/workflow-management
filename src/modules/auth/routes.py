@@ -7,6 +7,7 @@ from datetime import datetime
 from src.shared.database.db_import import db
 from .service import AuthService
 from .session_service import SessionService
+from src.shared.service_factory import ServiceFactory
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -38,7 +39,7 @@ def authenticate():
     email = request.form.get('email', '').strip()
     
     # Use AuthService for authentication
-    auth_service = AuthService()
+    auth_service = ServiceFactory.create_auth_service()
     result = auth_service.authenticate_firm(access_code, email)
     
     if result['success']:
@@ -57,7 +58,7 @@ def select_user():
     
     firm_id = session['firm_id']
     # Use AuthService to get users
-    auth_service = AuthService()
+    auth_service = ServiceFactory.create_auth_service()
     users = auth_service.get_users_for_firm(firm_id)
     return render_template('auth/select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
@@ -71,7 +72,7 @@ def set_user():
     firm_id = session['firm_id']
     
     # Use AuthService to set user in session
-    auth_service = AuthService()
+    auth_service = ServiceFactory.create_auth_service()
     result = auth_service.set_user_in_session(int(user_id), firm_id)
     
     if result['success']:

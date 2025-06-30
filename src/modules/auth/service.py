@@ -14,14 +14,19 @@ from src.models.auth import Firm, User
 from .models import DemoAccessRequest
 from .firm_repository import FirmRepository
 from .repository import UserRepository
+from src.shared.exceptions import ValidationError, NotFoundError, PermissionDeniedError, ConflictError, ExternalServiceError
+from src.shared.base import BaseService, transactional
+from src.shared.interfaces.service_interfaces import IAuthService
 
 
-class AuthService:
+class AuthService(BaseService, IAuthService):
     """Service class for authentication-related business operations"""
 
-    def __init__(self):
-        self.firm_repository = FirmRepository()
-        self.user_repository = UserRepository()
+    def __init__(self, firm_repository: FirmRepository, user_repository: UserRepository):
+        super().__init__()
+        # Proper dependency injection - repositories are required
+        self.firm_repository = firm_repository
+        self.user_repository = user_repository
     
 
     def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
@@ -220,5 +225,147 @@ class AuthService:
             }
     
 
+    def get_users_by_firm(self, firm_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all users for a firm as DTOs with task counts
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            List of user dictionaries with task count and formatted dates
+        """
+        try:
+            users = self.user_repository.get_by_firm(firm_id)
+            user_dtos = []
+            
+            for user in users:
+                # Get task count for this user - use direct query to avoid circular imports
+                from src.shared.database.db_import import db
+                task_count = db.session.execute(
+                    db.text("SELECT COUNT(*) FROM task WHERE assignee_id = :user_id"),
+                    {'user_id': user.id}
+                ).scalar() or 0
+                
+                user_dto = {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email,
+                    'role': user.role,
+                    'firm_id': user.firm_id,
+                    'is_active': user.is_active,
+                    'created_at': user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else None,
+                    'created_at_formatted': user.created_at.strftime('%m/%d/%Y') if user.created_at else 'N/A',
+                    'task_count': task_count,
+                    # Add tasks property for template compatibility
+                    'tasks': [{'id': i} for i in range(task_count)]  # Mock list for length calculation
+                }
+                user_dtos.append(user_dto)
+            
+            return user_dtos
+        except Exception as e:
+            raise ExternalServiceError(f"Failed to fetch users for firm {firm_id}: {str(e)}")
+    
+    def get_user_by_id_dto(self, user_id: int, firm_id: int = None) -> Dict[str, Any]:
+        """
+        Get user by ID as DTO with optional firm validation
+        
+        Args:
+            user_id: User ID
+            firm_id: Optional firm ID for validation
+            
+        Returns:
+            User dictionary
+            
+        Raises:
+            NotFoundError: If user not found
+            PermissionDeniedError: If user doesn't belong to firm
+        """
+        if firm_id is not None:
+            user = self.user_repository.get_by_id_and_firm(user_id, firm_id)
+            if not user:
+                raise NotFoundError(f"User {user_id} not found or doesn't belong to firm {firm_id}")
+        else:
+            user = self.user_repository.get_by_id(user_id)
+            if not user:
+                raise NotFoundError(f"User {user_id} not found")
+        
+        return {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'role': user.role,
+            'firm_id': user.firm_id,
+            'is_active': user.is_active,
+            'created_at': user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else None
+        }
+    
+    @transactional
+    def create_user(self, name: str, email: str, role: str, firm_id: int, password: str = None) -> Dict[str, Any]:
+        """
+        Create a new user
+        
+        Args:
+            name: User's full name
+            email: User's email address
+            role: User's role in the firm
+            firm_id: ID of the firm the user belongs to
+            password: Optional password (for future auth implementation)
+            
+        Returns:
+            Dict with created user data
+            
+        Raises:
+            ValidationError: If input validation fails
+            ConflictError: If user with email already exists
+        """
+        # Validate input
+        if not name or not name.strip():
+            raise ValidationError("User name is required")
+        if not email or not email.strip():
+            raise ValidationError("Email is required")
+        if not role or not role.strip():
+            raise ValidationError("Role is required")
+        
+        name = name.strip()
+        email = email.strip().lower()
+        role = role.strip()
+        
+        # Check if firm exists
+        firm = self.firm_repository.get_by_id(firm_id)
+        if not firm:
+            raise NotFoundError(f"Firm {firm_id} not found")
+        
+        # Check if user with email already exists in this firm
+        existing_user = self.user_repository.get_by_email_and_firm(email, firm_id)
+        if existing_user:
+            raise ConflictError(f"User with email {email} already exists in this firm")
+        
+        try:
+            user = User(
+                name=name,
+                email=email,
+                role=role,
+                firm_id=firm_id,
+                is_active=True
+            )
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            return {
+                'id': user.id,
+                'name': user.name,
+                'email': user.email,
+                'role': user.role,
+                'firm_id': user.firm_id,
+                'is_active': user.is_active,
+                'created_at': user.created_at.strftime('%Y-%m-%d %H:%M') if user.created_at else None
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            raise ExternalServiceError(f"Failed to create user: {str(e)}")
+    
     # Session management methods moved to SessionService for better separation of concerns
     # Use SessionService.is_authenticated(), SessionService.logout(), etc.

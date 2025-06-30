@@ -27,12 +27,21 @@ class DashboardAggregatorService(BaseService):
     
     def __init__(self):
         super().__init__()
-        # Use dependency injection to get service instances
-        # DI Container setup is now mandatory - no fallback logic
-        self.client_service = get_service(IClientService)
-        self.project_service = get_service(IProjectService)
-        self.task_service = get_service(ITaskService)
-        self.auth_service = get_service(IAuthService)
+        # Use direct instantiation instead of broken DI container
+        from src.modules.client.service import ClientService
+        from src.modules.client.repository import ClientRepository
+        from src.modules.project.service import ProjectService
+        from src.modules.project.repository import ProjectRepository
+        from src.modules.project.task_service import TaskService
+        from src.modules.project.task_repository import TaskRepository
+        from src.modules.auth.service import AuthService
+        from src.modules.auth.firm_repository import FirmRepository
+        from src.modules.auth.repository import UserRepository
+        
+        self.client_service = ClientService(ClientRepository())
+        self.project_service = ProjectService(ProjectRepository())
+        self.task_service = TaskService(TaskRepository())
+        self.auth_service = AuthService(FirmRepository(), UserRepository())
     
     def get_dashboard_data(self, firm_id: int, user_id: int) -> Dict[str, Any]:
         """

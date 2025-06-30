@@ -22,6 +22,11 @@ def main():
     aggregator = DashboardAggregatorService()
     dashboard_data = aggregator.get_dashboard_data(firm_id, user_id)
     
+    # Debug: Print what we're passing to the template
+    print(f"DEBUG: active_tasks_count = {dashboard_data['tasks']['active']}")
+    print(f"DEBUG: active_projects_count = {dashboard_data['projects']['active']}")
+    print(f"DEBUG: overdue_tasks_count = {dashboard_data['tasks']['overdue']}")
+    
     # Pass the structured data to the template
     return render_template('admin/dashboard_modern.html', 
                          projects=dashboard_data['projects_list'], 

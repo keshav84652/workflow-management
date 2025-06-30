@@ -3,7 +3,7 @@ ContactService: Handles all business logic for contacts, including creation, upd
 """
 
 from src.shared.database.db_import import db
-from src.models import Contact, ClientContact, Client
+from .models import Contact, ClientContact, Client
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
 from .repository import ClientRepository

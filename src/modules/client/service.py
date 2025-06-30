@@ -26,10 +26,28 @@ class ClientService(BaseService, IClientService):
         This replaces direct database access in blueprints
         """
         if not query:
-            return []
+            return {'success': True, 'clients': []}
         
-        # Use repository search method
-        return self.client_repository.search_by_name(firm_id, query, limit)
+        try:
+            # Use repository search method
+            clients = self.client_repository.search_by_name(firm_id, query, limit)
+            return {
+                'success': True,
+                'clients': [{
+                    'id': client.id,
+                    'name': client.name,
+                    'email': client.email,
+                    'phone': client.phone,
+                    'entity_type': client.entity_type,
+                    'is_active': client.is_active
+                } for client in clients]
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'clients': []
+            }
 
     def get_clients_by_firm(self, firm_id):
         """Get all clients for a specific firm (raw objects)"""
@@ -37,7 +55,18 @@ class ClientService(BaseService, IClientService):
     
     def get_active_clients_by_firm(self, firm_id):
         """Get all active clients for a specific firm"""
-        return self.client_repository.get_by_firm(firm_id, include_inactive=False)
+        clients = self.client_repository.get_by_firm(firm_id, include_inactive=False)
+        return [{
+            'id': client.id,
+            'name': client.name,
+            'email': client.email,
+            'phone': client.phone,
+            'address': client.address,
+            'entity_type': client.entity_type,
+            'is_active': client.is_active,
+            'firm_id': client.firm_id,
+            'created_at': client.created_at.strftime('%Y-%m-%d %H:%M') if client.created_at else None
+        } for client in clients]
     
     def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
@@ -71,16 +100,17 @@ class ClientService(BaseService, IClientService):
         } for client in clients]
     
     @transactional
-    def create_client(self, name, email=None, phone=None, entity_type=None, firm_id=None, user_id=None):
+    def create_client(self, client_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
         """Create a new client"""
-        if not name or not name.strip():
+        name = client_data.get('name', '').strip()
+        if not name:
             return {'success': False, 'message': 'Client name is required'}
         
         client = Client(
-            name=name.strip(),
-            email=email.strip() if email else None,
-            phone=phone.strip() if phone else None,
-            entity_type=entity_type,
+            name=name,
+            email=client_data.get('email', '').strip() if client_data.get('email') else None,
+            phone=client_data.get('phone', '').strip() if client_data.get('phone') else None,
+            entity_type=client_data.get('entity_type'),
             firm_id=firm_id,
             is_active=True
         )
@@ -115,7 +145,15 @@ class ClientService(BaseService, IClientService):
         return {
             'success': True,
             'message': 'Client created successfully',
-            'client_id': client.id
+            'client': {
+                'id': client.id,
+                'name': client.name,
+                'email': client.email,
+                'phone': client.phone,
+                'entity_type': client.entity_type,
+                'is_active': client.is_active,
+                'firm_id': client.firm_id
+            }
         }
     
     def get_client_by_id(self, client_id, firm_id):
@@ -123,7 +161,7 @@ class ClientService(BaseService, IClientService):
         return self.get_client_by_id_and_firm(client_id, firm_id)  # Use the DTO method
     
     @transactional
-    def update_client(self, client_id, updates, firm_id, user_id):
+    def update_client(self, client_id: int, client_data: Dict[str, Any], firm_id: int, user_id: int) -> Dict[str, Any]:
         """Update client information"""
         # Get raw model for updates, not DTO
         client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
@@ -131,7 +169,7 @@ class ClientService(BaseService, IClientService):
             return {'success': False, 'message': 'Client not found or access denied'}
         
         # Update fields
-        for field, value in updates.items():
+        for field, value in client_data.items():
             if hasattr(client, field):
                 setattr(client, field, value)
         
@@ -210,3 +248,18 @@ class ClientService(BaseService, IClientService):
     def _get_client_model_by_id_and_firm(self, client_id, firm_id):
         """Get raw client model for internal operations (updates/deletes)"""
         return self.client_repository.get_by_id_and_firm(client_id, firm_id)
+    
+    # Legacy wrapper methods for backward compatibility
+    def create_client_legacy(self, name, email=None, phone=None, entity_type=None, firm_id=None, user_id=None):
+        """Legacy wrapper for create_client with individual parameters"""
+        client_data = {
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'entity_type': entity_type
+        }
+        return self.create_client(client_data, firm_id, user_id)
+    
+    def update_client_legacy(self, client_id, updates, firm_id, user_id):
+        """Legacy wrapper for update_client with updates dict"""
+        return self.update_client(client_id, updates, firm_id, user_id)

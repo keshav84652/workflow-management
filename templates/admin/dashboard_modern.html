@@ -151,7 +151,7 @@
                                     </p>
                                     <p class="text-sm text-gray-500 truncate">
                                         {% if task.project %}{{ task.project.client_name }}{% else %}Independent Task{% endif %}
-                                        {% if task.due_date %} • Due {{ task.due_date.strftime('%m/%d') }}{% endif %}
+                                        {% if task.due_date %} • Due {{ task.due_date }}{% endif %}
                                     </p>
                                 </div>
                                 <div class="flex-shrink-0">

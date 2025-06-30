@@ -4,8 +4,8 @@ ContactRepository: Data access layer for contact operations
 
 from typing import List, Optional
 from src.shared.database.db_import import db
-from src.models import Contact, ClientContact, Client
-from src.shared.base import BaseRepository
+from .models import Contact, ClientContact, Client
+from src.shared.repositories.base import BaseRepository
 
 
 class ContactRepository(BaseRepository):

@@ -9,21 +9,42 @@ from ..client.models import Client
 from src.models.auth import User
 # ActivityService import removed to break circular dependency
 from src.shared.base import BaseService, transactional
-from src.shared.interfaces import IProjectService
+from .interface import IProjectService
+from src.shared.exceptions import ValidationError, NotFoundError, ExternalServiceError
 from .repository import ProjectRepository
 
 
-class ProjectService(BaseService, IProjectService):
-    def __init__(self, project_repository=None):
+class ProjectService(BaseService):
+    def __init__(self, project_repository: ProjectRepository):
         super().__init__()
-        # Use dependency injection - accept repository as constructor parameter
-        if project_repository is None:
-            # Fallback for legacy instantiation - will be removed once DI is fully implemented
-            project_repository = ProjectRepository()
+        # Proper dependency injection - repository is required
         self.project_repository = project_repository
     def get_projects_for_firm(self, firm_id, include_inactive=False):
-        """Get all projects for a firm"""
-        return self.project_repository.get_by_firm(firm_id, include_inactive)
+        """Get all projects for a firm as DTOs to prevent N+1 queries"""
+        projects = self.project_repository.get_by_firm(firm_id, include_inactive)
+        
+        # Convert to DTOs to prevent N+1 queries in templates
+        project_dtos = []
+        for project in projects:
+            project_dto = {
+                'id': project.id,
+                'name': project.name,
+                'status': project.status,
+                'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+                'due_date': project.due_date.strftime('%Y-%m-%d') if project.due_date else None,
+                'client_id': project.client_id,
+                'client_name': project.client.name if project.client else 'No Client',
+                'work_type_id': project.work_type_id,
+                'work_type_name': project.work_type.name if project.work_type else None,
+                'firm_id': project.firm_id,
+                'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else None,
+                'is_completed': project.status == 'Completed',
+                'current_status_id': project.current_status_id,
+                'progress_percentage': project.progress_percentage if hasattr(project, 'progress_percentage') else 0
+            }
+            project_dtos.append(project_dto)
+        
+        return project_dtos
     
     def get_project_by_id_and_firm(self, project_id, firm_id):
         """Get project by ID with firm access check"""
@@ -35,17 +56,15 @@ class ProjectService(BaseService, IProjectService):
         return {
             'id': project.id,
             'name': project.name,
-            'description': project.description,
             'status': project.status,
             'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
-            'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+            'due_date': project.due_date.strftime('%Y-%m-%d') if project.due_date else None,
             'client_id': project.client_id,
             'client_name': project.client.name if project.client else 'No Client',
             'work_type_id': project.work_type_id,
             'work_type_name': project.work_type.name if project.work_type else None,
             'firm_id': project.firm_id,
             'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else None,
-            'updated_at': project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else None,
             'is_completed': project.status == 'Completed',
             'current_status_id': project.current_status_id,
             'current_workflow_status_name': project.current_workflow_status_name if hasattr(project, 'current_workflow_status_name') else None
@@ -76,68 +95,86 @@ class ProjectService(BaseService, IProjectService):
         }
     
     @transactional
-    def create_project(self, name, description=None, client_id=None, work_type_id=None, firm_id=None, user_id=None):
-        """Create a new project"""
-        try:
-            if not name or not name.strip():
-                return {'success': False, 'message': 'Project name is required'}
+    def create_project(self, name, description=None, client_id=None, work_type_id=None, firm_id=None, user_id=None) -> Dict[str, Any]:
+        """Create a new project
+        
+        Args:
+            name: Project name
+            description: Optional project description 
+            client_id: Optional client ID
+            work_type_id: Optional work type ID
+            firm_id: Firm ID
+            user_id: User ID for activity logging
             
-            # Verify client belongs to firm
-            if client_id:
-                client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
-                if not client:
-                    return {'success': False, 'message': 'Client not found or access denied'}
+        Returns:
+            Dict with created project data
             
-            # Verify work type belongs to firm
-            if work_type_id:
-                work_type = WorkType.query.filter_by(id=work_type_id, firm_id=firm_id).first()
-                if not work_type:
-                    return {'success': False, 'message': 'Work type not found or access denied'}
-            
-            project = Project(
-                name=name.strip(),
-                client_id=client_id,
+        Raises:
+            ValidationError: If input validation fails
+            NotFoundError: If client or work type not found
+        """
+        # Validate input
+        if not name or not name.strip():
+            raise ValidationError("Project name is required")
+        
+        # Verify client belongs to firm
+        if client_id:
+            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+            if not client:
+                raise NotFoundError(f"Client {client_id} not found or doesn't belong to firm {firm_id}")
+        
+        # Verify work type belongs to firm
+        if work_type_id:
+            work_type = WorkType.query.filter_by(id=work_type_id, firm_id=firm_id).first()
+            if not work_type:
+                raise NotFoundError(f"Work type {work_type_id} not found or doesn't belong to firm {firm_id}")
+        
+        # Create project
+        project = Project(
+            name=name.strip(),
+            client_id=client_id,
+            work_type_id=work_type_id,
+            firm_id=firm_id,
+            status='Active'
+        )
+        
+        # Set initial workflow status if work type exists
+        if work_type_id:
+            # Find the default status for this work type
+            from .models import TaskStatus
+            default_status = TaskStatus.query.filter_by(
                 work_type_id=work_type_id,
-                firm_id=firm_id,
-                status='Active'
+                is_default=True
+            ).first()
+            if default_status:
+                project.current_status_id = default_status.id
+            else:
+                # Fallback to first status if no default
+                first_status = TaskStatus.query.filter_by(
+                    work_type_id=work_type_id
+                ).order_by(TaskStatus.position.asc()).first()
+                if first_status:
+                    project.current_status_id = first_status.id
+        
+        db.session.add(project)
+        
+        # Log activity - direct import to avoid circular dependency
+        try:
+            from src.shared.services.activity_service import ActivityService
+            activity_service = ActivityService()
+            activity_service.log_entity_operation(
+                entity_type='PROJECT',
+                operation='CREATE',
+                entity_id=project.id,
+                entity_name=project.name,
+                details=f'Project created for client: {client.name if client_id and Client.query.get(client_id) else "No client"}',
+                user_id=user_id
             )
-            
-            # Set initial workflow status if work type exists
-            if work_type_id:
-                # Find the default status for this work type
-                from src.models import TaskStatus
-                default_status = TaskStatus.query.filter_by(
-                    work_type_id=work_type_id,
-                    is_default=True
-                ).first()
-                if default_status:
-                    project.current_status_id = default_status.id
-                else:
-                    # Fallback to first status if no default
-                    first_status = TaskStatus.query.filter_by(
-                        work_type_id=work_type_id
-                    ).order_by(TaskStatus.position.asc()).first()
-                    if first_status:
-                        project.current_status_id = first_status.id
-            
-            db.session.add(project)
-            db.session.commit()
-            
-            # Log activity - direct import to avoid circular dependency
-            try:
-                from src.shared.services.activity_service import ActivityService
-                ActivityService.log_entity_operation(
-                    entity_type='PROJECT',
-                    operation='CREATE',
-                    entity_id=project.id,
-                    entity_name=project.name,
-                    details=f'Project created for client: {client.name if client_id else "No client"}',
-                    user_id=user_id
-                )
-            except ImportError:
-                pass  # ActivityService not available
-            
-            # Publish project creation event
+        except (ImportError, Exception):
+            pass  # ActivityService not available or failed
+        
+        # Publish project creation event
+        try:
             from src.shared.events.schemas import ProjectCreatedEvent
             from src.shared.events.publisher import publish_event
             event = ProjectCreatedEvent(
@@ -148,22 +185,20 @@ class ProjectService(BaseService, IProjectService):
                 status=project.status
             )
             publish_event(event)
-            
-            return {
-                'success': True,
-                'message': 'Project created successfully',
-                'project_id': project.id,
-                'project': {
-                    'id': project.id,
-                    'name': project.name,
-                    'status': project.status,
-                    'client_id': project.client_id,
-                    'work_type_id': project.work_type_id
-                }
-            }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        except Exception:
+            pass  # Event publishing is optional
+        
+        # Return DTO with created project data (not the old success/failure dictionary)
+        return {
+            'id': project.id,
+            'name': project.name,
+            'status': project.status,
+            'client_id': project.client_id,
+            'work_type_id': project.work_type_id,
+            'firm_id': project.firm_id,
+            'current_status_id': project.current_status_id,
+            'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else None
+        }
     
     @transactional
     def create_project_from_template(self, template_id, client_name, project_name, start_date, due_date=None, priority='Medium', task_dependency_mode=False, firm_id=None, user_id=None):
@@ -173,7 +208,6 @@ class ProjectService(BaseService, IProjectService):
             # In the future, this could be enhanced to use template-specific logic
             return self.create_project(
                 name=project_name,
-                description=f"Project created from template with client: {client_name}",
                 client_id=None,  # Would need client lookup logic
                 work_type_id=None,  # Would need template work type lookup
                 firm_id=firm_id,
@@ -194,8 +228,6 @@ class ProjectService(BaseService, IProjectService):
             # Update allowed fields
             if 'name' in update_data:
                 project.name = update_data['name']
-            if 'description' in update_data:
-                project.description = update_data['description']
             if 'client_id' in update_data:
                 project.client_id = update_data['client_id']
             if 'work_type_id' in update_data:
@@ -288,7 +320,6 @@ class ProjectService(BaseService, IProjectService):
             project_dto = {
                 'id': project.id,
                 'name': project.name,
-                'description': project.description,
                 'status': project.status,
                 'client_id': project.client_id,
                 'client_name': project.client.name if project.client else 'No Client',
@@ -321,26 +352,39 @@ class ProjectService(BaseService, IProjectService):
             # Handle special completed column
             if status_id == 'completed':
                 project.status = 'Completed'
-                # Mark all project tasks as completed
-                for task in project.tasks:
-                    if task.status != 'Completed':
-                        task.status = 'Completed'
                 
                 # Find terminal status for this work type
                 if project.work_type_id:
-                    from src.models import TaskStatus
+                    from .models import TaskStatus
                     terminal_status = TaskStatus.query.filter_by(
                         work_type_id=project.work_type_id,
                         is_terminal=True
                     ).first()
                     if terminal_status:
                         project.current_status_id = terminal_status.id
+                
+                # Publish event for task completion (replaces direct task modification)
+                try:
+                    from src.shared.events.schemas import ProjectCompletedEvent
+                    from src.shared.events.publisher import publish_event
+                    
+                    completion_event = ProjectCompletedEvent(
+                        project_id=project.id,
+                        project_name=project.name,
+                        firm_id=firm_id,
+                        work_type_id=project.work_type_id,
+                        user_id=user_id
+                    )
+                    publish_event(completion_event)
+                except Exception as event_error:
+                    print(f"Failed to publish project completed event: {event_error}")
+                
                 message = 'Project completed'
             else:
                 # status_id should be a TaskStatus ID
                 try:
                     status_id = int(status_id)
-                    from src.models import TaskStatus
+                    from .models import TaskStatus
                     task_status = TaskStatus.query.filter_by(
                         id=status_id,
                         work_type_id=project.work_type_id
@@ -350,13 +394,30 @@ class ProjectService(BaseService, IProjectService):
                         return {'success': False, 'message': 'Invalid status for this project type'}
                     
                     old_status_id = project.current_status_id
+                    old_status = TaskStatus.query.get(old_status_id) if old_status_id else None
+                    
                     project.current_status_id = status_id
                     project.status = 'Active'  # Keep as active unless completed
                     
-                    # Update project tasks to reflect workflow progression
-                    self._update_project_tasks_for_workflow_change(
-                        project, old_status_id, status_id
-                    )
+                    # Publish event for task status updates (replaces direct cross-domain manipulation)
+                    try:
+                        from src.shared.events.schemas import ProjectWorkflowAdvancedEvent
+                        from src.shared.events.publisher import publish_event
+                        
+                        workflow_event = ProjectWorkflowAdvancedEvent(
+                            project_id=project.id,
+                            project_name=project.name,
+                            firm_id=firm_id,
+                            old_status_id=old_status_id,
+                            new_status_id=status_id,
+                            old_status_name=old_status.name if old_status else None,
+                            new_status_name=task_status.name,
+                            work_type_id=project.work_type_id,
+                            user_id=user_id
+                        )
+                        publish_event(workflow_event)
+                    except Exception as event_error:
+                        print(f"Failed to publish workflow advanced event: {event_error}")
                     
                     message = f'Project moved to {task_status.name}'
                     
@@ -399,64 +460,100 @@ class ProjectService(BaseService, IProjectService):
             db.session.rollback()
             return {'success': False, 'message': str(e)}
     
-    def _update_project_tasks_for_workflow_change(self, project, old_status_id, new_status_id):
+    def get_kanban_view_data(self, firm_id: int) -> Dict[str, Any]:
         """
-        Update project tasks to reflect workflow progression when project status changes via kanban
-        This ensures progress_percentage stays in sync with workflow status
+        Get data formatted for Kanban view
         
-        Logic:
-        - Column 1: Task 1 = "In Progress", rest = "Not Started" (0% complete)
-        - Column 2: Task 1 = "Completed", Task 2 = "In Progress", rest = "Not Started" (20% if 5 tasks)
-        - etc.
+        Args:
+            firm_id: Firm ID to get data for
+            
+        Returns:
+            Dict with kanban view data structure
+            
+        Raises:
+            ExternalServiceError: If data retrieval fails
         """
         try:
-            from src.models import TaskStatus
+            from .task_service import TaskService
+            from src.shared.exceptions import ExternalServiceError
             
-            # Get the workflow statuses for this work type in order
-            if not project.work_type_id:
-                return  # No workflow to update
+            task_service = TaskService()
             
-            workflow_statuses = TaskStatus.query.filter_by(
-                work_type_id=project.work_type_id
-            ).order_by(TaskStatus.position.asc()).all()
+            # Get all projects for kanban display (as DTOs)
+            projects = self.get_active_projects(firm_id)
             
-            if not workflow_statuses:
-                return
+            # Get all tasks grouped by project and status
+            all_tasks = task_service.get_tasks_for_kanban(firm_id)
             
-            # Find the position of the new status (0-based index)
-            new_position = None
-            for i, status in enumerate(workflow_statuses):
-                if status.id == new_status_id:
-                    new_position = i
-                    break
+            # Organize projects by their current workflow status
+            from .models import TaskStatus, WorkType
             
-            if new_position is None:
-                return  # Invalid status ID
+            # Get all work types for this firm to build columns
+            work_types = WorkType.query.filter_by(firm_id=firm_id).all()
+            kanban_columns = {}
             
-            # Get all tasks in the project, ordered by creation or workflow order
-            project_tasks = list(project.tasks)
-            if not project_tasks:
-                return  # No tasks to update
+            for work_type in work_types:
+                statuses = TaskStatus.query.filter_by(
+                    work_type_id=work_type.id
+                ).order_by(TaskStatus.position.asc()).all()
                 
-            # Sort tasks to match workflow order (by id, created_at, or title)
-            project_tasks.sort(key=lambda t: t.id)
+                for status in statuses:
+                    column_key = f"status_{status.id}"
+                    kanban_columns[column_key] = {
+                        'id': status.id,
+                        'title': status.name,
+                        'work_type': work_type.name,
+                        'projects': [],
+                        'color': status.color or 'blue',
+                        'position': status.position
+                    }
             
-            # Update task statuses based on workflow position
-            for i, task in enumerate(project_tasks):
-                if i < new_position:
-                    # Tasks before current position should be "Completed"
-                    task.status = 'Completed'
-                elif i == new_position:
-                    # Current position task should be "In Progress"
-                    task.status = 'In Progress'
+            # Add completed column
+            kanban_columns['completed'] = {
+                'id': 'completed',
+                'title': 'Completed',
+                'work_type': 'All',
+                'projects': [],
+                'color': 'green',
+                'position': 999
+            }
+            
+            # Categorize projects by their current status
+            for project in projects:
+                if project['is_completed']:
+                    kanban_columns['completed']['projects'].append(project)
+                elif project.get('current_status_id'):
+                    column_key = f"status_{project['current_status_id']}"
+                    if column_key in kanban_columns:
+                        kanban_columns[column_key]['projects'].append(project)
                 else:
-                    # Tasks after current position should be "Not Started"
-                    task.status = 'Not Started'
-                        
+                    # Project without status - put in first available column
+                    if kanban_columns:
+                        first_column = min(kanban_columns.keys(), 
+                                          key=lambda k: kanban_columns[k]['position'])
+                        kanban_columns[first_column]['projects'].append(project)
+            
+            # Sort columns by position
+            sorted_columns = dict(sorted(
+                kanban_columns.items(),
+                key=lambda x: x[1]['position']
+            ))
+            
+            return {
+                'success': True,
+                'columns': sorted_columns,
+                'total_projects': len(projects),
+                'view_type': 'kanban'
+            }
+            
         except Exception as e:
-            # Don't fail the main operation if task updates fail
-            import logging
-            logging.warning(f"Failed to update project tasks for workflow change: {e}")
+            raise ExternalServiceError(f"Failed to get kanban view data: {str(e)}")
+    
+    # REMOVED: _update_project_tasks_for_workflow_change
+    # This method violated domain boundaries by directly manipulating Task models.
+    # It has been replaced by the event-driven ProjectWorkflowTaskUpdateHandler
+    # which responds to ProjectWorkflowAdvancedEvent to update task statuses.
+    # This maintains proper domain separation while achieving the same functionality.
     
     @transactional
     def check_and_update_project_completion(self, project_id, user_id=None):
@@ -511,11 +608,11 @@ class ProjectService(BaseService, IProjectService):
     def get_project_statistics(self, firm_id: int) -> dict:
         """Get project statistics for dashboard"""
         try:
-            from src.models import Project
+            from .models import Project
             
             total = Project.query.filter_by(firm_id=firm_id).count()
-            active = Project.query.filter_by(firm_id=firm_id, is_completed=False).count()
-            completed = Project.query.filter_by(firm_id=firm_id, is_completed=True).count()
+            active = Project.query.filter_by(firm_id=firm_id, status='Active').count()
+            completed = Project.query.filter_by(firm_id=firm_id, status='Completed').count()
             
             return {
                 'success': True,
@@ -535,7 +632,7 @@ class ProjectService(BaseService, IProjectService):
     def get_projects_by_firm(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get all projects for a firm"""
         try:
-            from src.models import Project, Client
+            from .models import Project, Client
             
             query = db.session.query(Project).outerjoin(Client).filter(
                 Project.firm_id == firm_id
@@ -546,14 +643,13 @@ class ProjectService(BaseService, IProjectService):
                 project_dict = {
                     'id': project.id,
                     'name': project.name,
-                    'description': project.description,
-                    'status': 'Completed' if project.is_completed else 'Active',
+                    'status': project.status,
                     'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
-                    'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+                    'due_date': project.due_date.strftime('%Y-%m-%d') if project.due_date else None,
                     'client_id': project.client_id,
                     'client_name': project.client.name if project.client else 'No Client',
                     'created_at': project.created_at.strftime('%Y-%m-%d %H:%M'),
-                    'is_completed': project.is_completed
+                    'is_completed': project.status == 'Completed'
                 }
                 projects.append(project_dict)
             
@@ -571,7 +667,7 @@ class ProjectService(BaseService, IProjectService):
     def get_recent_projects(self, firm_id: int, limit: int = 5) -> dict:
         """Get recent projects for dashboard"""
         try:
-            from src.models import Project, Client
+            from .models import Project, Client
             from datetime import datetime, timedelta
             
             # Get projects created in the last 60 days
@@ -587,7 +683,7 @@ class ProjectService(BaseService, IProjectService):
                 project_dict = {
                     'id': project.id,
                     'name': project.name,
-                    'status': 'Completed' if project.is_completed else 'Active',
+                    'status': project.status,
                     'client_name': project.client.name if project.client else 'No Client',
                     'created_at': project.created_at.strftime('%Y-%m-%d %H:%M')
                 }
@@ -610,7 +706,7 @@ class ProjectService(BaseService, IProjectService):
     
     def get_activity_logs_for_project(self, project_id: int, limit: int = 10) -> List['ActivityLog']:
         """Get recent activity logs for a project"""
-        from src.models import ActivityLog
+        from src.models.auth import ActivityLog
         return ActivityLog.query.filter_by(project_id=project_id).order_by(
             ActivityLog.timestamp.desc()
         ).limit(limit).all()
@@ -618,4 +714,29 @@ class ProjectService(BaseService, IProjectService):
     def get_project_tasks_for_dependency(self, project_id: int) -> List[Task]:
         """Get tasks for dependency calculations"""
         return Task.query.filter_by(project_id=project_id).order_by(Task.title).all()
+    
+    def search_projects(self, firm_id: int, query: str, limit: int = 20):
+        """Search projects by name and description"""
+        try:
+            projects = self.project_repository.search_projects(firm_id, query, limit)
+            return {
+                'success': True,
+                'projects': [self._project_to_dict(project) for project in projects]
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'projects': []
+            }
+    
+    def _project_to_dict(self, project):
+        """Convert project model to dictionary"""
+        return {
+            'id': project.id,
+            'name': project.name,
+            'status': project.status,
+            'client_name': project.client.name if project.client else None,
+            'created_at': project.created_at.strftime('%Y-%m-%d') if project.created_at else None
+        }
     

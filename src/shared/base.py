@@ -231,14 +231,18 @@ def transactional(func):
     """
     Decorator to wrap service methods with transaction handling.
     
+    Business exceptions (ValidationError, NotFoundError, etc.) are allowed to bubble up
+    to the presentation layer for proper HTTP status code handling.
+    
+    Only infrastructure exceptions (database errors, connection issues) are caught
+    and converted to generic error responses.
+    
     Usage:
         @transactional
         def my_service_method(self, ...):
-            # Your database operations here
+            # Your business logic here
+            # Raise ValidationError, NotFoundError, etc. as needed
             return result
-    
-    Returns:
-        Dict with 'success', 'result'/'error', and 'message' keys
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -253,20 +257,24 @@ def transactional(func):
                     db.session.rollback()
                 return result
             
-            # Otherwise, wrap the result and commit
+            # Otherwise, commit and return result as-is (for exception-based services)
             db.session.commit()
-            return {
-                'success': True,
-                'result': result,
-                'message': 'Operation completed successfully'
-            }
+            return result
+            
         except Exception as e:
+            # Import here to avoid circular imports
+            from src.shared.exceptions import WorkflowPilotException
+            
             db.session.rollback()
-            return {
-                'success': False,
-                'error': str(e),
-                'message': f'Operation failed: {str(e)}'
-            }
+            
+            # Let business exceptions bubble up to the presentation layer
+            if isinstance(e, WorkflowPilotException):
+                raise
+            
+            # Convert infrastructure exceptions to InternalServerError
+            from src.shared.exceptions import InternalServerError
+            raise InternalServerError(f"Database operation failed: {str(e)}")
+    
     return wrapper
 
 

@@ -5,7 +5,8 @@ Provides reusable template filters for formatting data in templates.
 
 from datetime import datetime
 from typing import Optional
-from flask import Flask
+from flask import Flask, current_app, url_for
+from werkzeug.routing import BuildError
 
 
 def format_currency(amount: Optional[float]) -> str:
@@ -67,6 +68,15 @@ def truncate_text(text: str, length: int = 50, suffix: str = "...") -> str:
     return text[:length].rstrip() + suffix
 
 
+def endpoint_exists(endpoint: str) -> bool:
+    """Check if a Flask endpoint exists"""
+    try:
+        url_for(endpoint)
+        return True
+    except BuildError:
+        return False
+
+
 def register_template_filters(app: Flask) -> None:
     """Register all template filters with Flask app"""
     app.jinja_env.filters['currency'] = format_currency
@@ -76,6 +86,9 @@ def register_template_filters(app: Flask) -> None:
     app.jinja_env.filters['percentage'] = format_percentage
     app.jinja_env.filters['pluralize'] = pluralize
     app.jinja_env.filters['truncate'] = truncate_text
+    
+    # Add global function for templates
+    app.jinja_env.globals['endpoint_exists'] = endpoint_exists
 
 
 __all__ = [

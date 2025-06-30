@@ -7,7 +7,9 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from src.shared.database.db_import import db
-from src.models import Template, Task, ActivityLog, TaskComment, TemplateTask, Project
+from src.modules.project.models import Template, Task, TemplateTask, Project
+from src.models.auth import ActivityLog
+from src.modules.project.models import TaskComment
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
 

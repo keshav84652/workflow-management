@@ -35,6 +35,30 @@ class ITaskService(ABC):
         pass
 
 
+class IAuthService(ABC):
+    """Interface for authentication and user management operations"""
+    
+    @abstractmethod
+    def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
+        """Authenticate a firm using access code"""
+        pass
+    
+    @abstractmethod
+    def get_users_by_firm(self, firm_id: int) -> List[Dict[str, Any]]:
+        """Get all users for a firm as DTOs"""
+        pass
+    
+    @abstractmethod
+    def get_user_by_id_dto(self, user_id: int, firm_id: int = None) -> Dict[str, Any]:
+        """Get user by ID as DTO with optional firm validation"""
+        pass
+    
+    @abstractmethod
+    def create_user(self, name: str, email: str, role: str, firm_id: int, password: str = None) -> Dict[str, Any]:
+        """Create a new user"""
+        pass
+
+
 class IClientService(ABC):
     """Interface for client-related operations"""
     

@@ -205,3 +205,20 @@ class ProjectRepository(CachedRepository[Project]):
         # Note: Transaction commit is handled by service layer
         
         return project
+    
+    def search_projects(self, firm_id: int, query_text: str, limit: int = 20):
+        """Search projects by name and description"""
+        search_pattern = f'%{query_text}%'
+        
+        query = db.session.query(Project).filter(
+            Project.firm_id == firm_id,
+            or_(
+                Project.name.ilike(search_pattern),
+                Project.description.ilike(search_pattern)
+            )
+        ).order_by(Project.created_at.desc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()

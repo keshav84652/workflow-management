@@ -270,6 +270,65 @@ class ProjectUpdatedEvent(BaseEvent):
 
 
 @register_event
+class ProjectCompletedEvent(BaseEvent):
+    """Event fired when a project is marked as completed
+    
+    This event is used to communicate project completion to other domains
+    without creating direct dependencies. For example, when a project is
+    completed, all related tasks should also be marked as completed.
+    """
+    
+    def __init__(self, project_id: int, project_name: str, firm_id: int, 
+                 work_type_id: Optional[int] = None, user_id: Optional[int] = None):
+        super().__init__(firm_id=firm_id, user_id=user_id)
+        self.project_id = project_id
+        self.project_name = project_name
+        self.work_type_id = work_type_id
+    
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'project_id': self.project_id,
+            'project_name': self.project_name,
+            'firm_id': self.firm_id,
+            'work_type_id': self.work_type_id,
+            'user_id': self.user_id
+        }
+
+
+@register_event
+@dataclass
+class ProjectWorkflowAdvancedEvent(BaseEvent):
+    """Event fired when a project advances in its workflow status
+    
+    This event is used to communicate workflow changes to other domains
+    without creating direct dependencies. For example, when a project
+    advances to a new workflow status, task statuses may need to be updated.
+    """
+    project_id: int
+    project_name: str
+    firm_id: int
+    old_status_id: Optional[int] = None
+    new_status_id: Optional[int] = None
+    old_status_name: Optional[str] = None
+    new_status_name: Optional[str] = None
+    work_type_id: Optional[int] = None
+    user_id: Optional[int] = None
+    
+    def get_payload(self) -> Dict[str, Any]:
+        return {
+            'project_id': self.project_id,
+            'project_name': self.project_name,
+            'firm_id': self.firm_id,
+            'old_status_id': self.old_status_id,
+            'new_status_id': self.new_status_id,
+            'old_status_name': self.old_status_name,
+            'new_status_name': self.new_status_name,
+            'work_type_id': self.work_type_id,
+            'user_id': self.user_id
+        }
+
+
+@register_event
 @dataclass
 class ErrorEvent(BaseEvent):
     """Generic error event for system errors"""

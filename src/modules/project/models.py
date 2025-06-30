@@ -96,10 +96,14 @@ class TemplateTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    # ARCHITECTURAL IMPROVEMENT: Consolidated ordering field
-    # Single 'position' field replaces legacy 'order' and 'workflow_order' fields
-    # for simplified template task ordering.
-    position = db.Column(db.Integer, default=0)  # Position/order in template (replaces both order and workflow_order)
+    # Legacy ordering fields - keeping both for backwards compatibility
+    order = db.Column(db.Integer, default=0)  # Legacy field - still used in database
+    workflow_order = db.Column(db.Integer, default=0)  # Legacy field - still used in database
+    
+    @property
+    def position(self):
+        """Unified position property that uses the order field"""
+        return self.order
     estimated_hours = db.Column(db.Float)
     default_priority = db.Column(db.String(10), default='Medium')  # High, Medium, Low
     days_from_start = db.Column(db.Integer)  # Days from project start for auto due date

@@ -14,17 +14,23 @@ class SessionService:
     
     @staticmethod
     def is_authenticated() -> bool:
-        """Check if user is authenticated in current session"""
+        """Check if user is fully authenticated (both firm and user selected)"""
+        return (
+            'firm_id' in session and 
+            'firm_name' in session and 
+            'user_id' in session and
+            session.get('firm_id') is not None and
+            session.get('user_id') is not None
+        )
+    
+    @staticmethod
+    def is_firm_authenticated() -> bool:
+        """Check if firm is authenticated (but user may not be selected yet)"""
         return (
             'firm_id' in session and 
             'firm_name' in session and 
             session.get('firm_id') is not None
         )
-    
-    @staticmethod
-    def is_firm_authenticated() -> bool:
-        """Check if firm is authenticated (alias for is_authenticated)"""
-        return SessionService.is_authenticated()
     
     @staticmethod
     def logout() -> None:
@@ -41,13 +47,14 @@ class SessionService:
             'user_name': session.get('user_name'),
             'user_email': session.get('user_email'),
             'access_level': session.get('access_level', 'user'),
-            'is_authenticated': SessionService.is_authenticated()
+            'is_authenticated': SessionService.is_authenticated(),
+            'is_firm_authenticated': SessionService.is_firm_authenticated()
         }
     
     @staticmethod
     def require_authentication() -> Optional[str]:
         """Require authentication for protected routes"""
-        if not SessionService.is_authenticated():
+        if not SessionService.is_firm_authenticated():
             # Return redirect URL for unauthenticated users
             return url_for('main.login')
         return None
@@ -66,7 +73,7 @@ class SessionService:
     @staticmethod
     def set_user_in_session(user_id: int, firm_id: int, user_data: Dict[str, Any]) -> Dict[str, Any]:
         """Set user context in existing firm session"""
-        if not SessionService.is_authenticated():
+        if not SessionService.is_firm_authenticated():
             return {
                 'success': False,
                 'message': 'No authenticated firm session found'

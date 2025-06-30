@@ -115,16 +115,13 @@ class TestModuleIndependence(unittest.TestCase):
             self.fail(f"Circular import detected: {e}")
     
     def test_shared_services_independence(self):
-        """Test that shared services can operate independently"""
-        from src.shared.services.user_service import SharedUserService
-        from src.shared.services.views_service import ViewsService
+        """Test that remaining shared services can operate independently"""
+        from src.shared.services.activity_service import ActivityService
         
         # Should be able to instantiate
-        user_service = SharedUserService()
-        views_service = ViewsService()
+        activity_service = ActivityService()
         
-        self.assertIsNotNone(user_service)
-        self.assertIsNotNone(views_service)
+        self.assertIsNotNone(activity_service)
 
 
 class TestArchitecturalBoundaries(unittest.TestCase):

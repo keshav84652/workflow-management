@@ -14,9 +14,18 @@ from src.models.auth import User, ActivityLog
 from src.shared.base import BaseService, transactional
 
 
-class ActivityService:
+class ActivityService(BaseService):
     """Service for logging and retrieving user activities with proper DI support"""
     
+    def __init__(self, user_repository=None):
+        super().__init__()
+        # Dependency injection with fallback for legacy instantiation
+        if user_repository is None:
+            from src.modules.auth.repository import UserRepository
+            user_repository = UserRepository()
+        self.user_repository = user_repository
+    
+    @transactional
     def log_activity(self,
         action: str,
         user_id: int,

@@ -80,6 +80,13 @@ class ServiceContainer:
             elif class_name == 'TaskService':
                 from src.modules.project.task_repository import TaskRepository
                 return implementation_class(task_repository=TaskRepository())
+            elif class_name == 'AuthService':
+                from src.modules.auth.firm_repository import FirmRepository
+                from src.modules.auth.repository import UserRepository
+                return implementation_class(
+                    firm_repository=FirmRepository(),
+                    user_repository=UserRepository()
+                )
             elif class_name == 'ClientService':
                 from src.modules.client.repository import ClientRepository
                 return implementation_class(client_repository=ClientRepository())

@@ -3,7 +3,6 @@ Shared Services Package
 """
 
 from .activity_service import ActivityService, ActivityLoggingService
-from .views_service import ViewsService
-from .user_service import SharedUserService
+# Removed obsolete services: views_service, user_service
 
-__all__ = ['ActivityService', 'ActivityLoggingService', 'ViewsService', 'SharedUserService']
+__all__ = ['ActivityService', 'ActivityLoggingService']

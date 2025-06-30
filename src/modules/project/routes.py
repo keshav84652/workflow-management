@@ -8,9 +8,8 @@ from datetime import datetime
 # All data access through services - no direct model imports
 from .service import ProjectService
 from .task_service import TaskService
-# Removed cross-module imports - using aggregated data from ProjectService
-from src.shared.services.user_service import SharedUserService
-# Removed ProjectHelperService - methods moved to appropriate domain services
+from .repository import ProjectRepository
+from .task_repository import TaskRepository
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -20,7 +19,7 @@ projects_bp = Blueprint('projects', __name__, url_prefix='/projects')
 @projects_bp.route('/')
 def list_projects():
     firm_id = get_session_firm_id()
-    project_service = ProjectService()
+    project_service = ProjectService(ProjectRepository())
     projects = project_service.get_projects_for_firm(firm_id)
     return render_template('projects/projects.html', projects=projects)
 
@@ -28,38 +27,36 @@ def list_projects():
 @projects_bp.route('/create', methods=['GET', 'POST'])
 def create_project():
     if request.method == 'POST':
-        template_id = request.form.get('template_id')
-        client_name = request.form.get('client_name')
-        project_name = request.form.get('project_name')
-        start_date = datetime.strptime(request.form.get('start_date'), '%Y-%m-%d').date()
-        due_date = request.form.get('due_date')
-        if due_date:
-            due_date = datetime.strptime(due_date, '%Y-%m-%d').date()
-        priority = request.form.get('priority', 'Medium')
-        task_dependency_mode = request.form.get('task_dependency_mode') == 'true'
-        
-        # Use service layer for project creation
-        project_service = ProjectService()
-        result = project_service.create_project_from_template(
-            template_id=template_id,
-            client_name=client_name,
-            project_name=project_name,
-            start_date=start_date,
-            due_date=due_date,
-            priority=priority,
-            task_dependency_mode=task_dependency_mode
-        )
-        
-        if result['success']:
-            success_msg = result['message']
-            if result.get('new_client'):
-                success_msg += f' New client was added. Please complete their information in the Clients section.'
+        try:
+            # Get form data
+            project_name = request.form.get('project_name')
+            client_id = request.form.get('client_id')  # Updated to use client_id instead of client_name
+            work_type_id = request.form.get('work_type_id')
+            description = request.form.get('description')
             
-            flash(success_msg, 'success')
-            return redirect(url_for('projects.view_project', id=result['project_id']))
-        else:
-            flash(result['message'], 'error')
-            return redirect(url_for('projects.create_project'))
+            firm_id = get_session_firm_id()
+            user_id = get_session_user_id()
+            
+            # Use new exception-based service method
+            project_service = ProjectService(ProjectRepository())
+            project_data = project_service.create_project(
+                name=project_name,
+                description=description,
+                client_id=int(client_id) if client_id else None,
+                work_type_id=int(work_type_id) if work_type_id else None,
+                firm_id=firm_id,
+                user_id=user_id
+            )
+            
+            # Success - project_data contains the created project DTO
+            flash(f'Project "{project_data["name"]}" created successfully!', 'success')
+            return redirect(url_for('projects.view_project', id=project_data['id']))
+            
+        except Exception as e:
+            # The global error handler will catch ValidationError, NotFoundError, etc.
+            # and handle them appropriately (flash message + redirect)
+            # For now, let it bubble up to be handled by the global error handler
+            raise
     
     firm_id = get_session_firm_id()
     
@@ -85,7 +82,7 @@ def view_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to get project
-    project_service = ProjectService()
+    project_service = ProjectService(ProjectRepository())
     project = project_service.get_project_by_id(id, firm_id)
     if not project:
         flash('Project not found or access denied', 'error')
@@ -103,7 +100,7 @@ def edit_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to get project
-    project_service = ProjectService()
+    project_service = ProjectService(ProjectRepository())
     project = project_service.get_project_by_id(id, firm_id)
     if not project:
         flash('Project not found or access denied', 'error')
@@ -148,8 +145,8 @@ def edit_project(id):
             return redirect(url_for('projects.edit_project', id=id))
     
     # GET request - show form
-    user_service = SharedUserService()
-    users = user_service.get_users_by_firm(firm_id)
+    auth_service = get_service(IAuthService)
+    users = auth_service.get_users_by_firm(firm_id)
     return render_template('projects/edit_project.html', project=project, users=users)
 
 @projects_bp.route('/<int:id>/delete', methods=['POST'])
@@ -157,7 +154,7 @@ def delete_project(id):
     firm_id = get_session_firm_id()
     
     # Use service layer to delete project
-    project_service = ProjectService()
+    project_service = ProjectService(ProjectRepository())
     result = project_service.delete_project(id, firm_id)
     
     if result['success']:
@@ -189,7 +186,7 @@ def move_project_status(id):
     data = request.get_json()
     status_id = data.get('status_id')
     
-    project_service = ProjectService()
+    project_service = ProjectService(ProjectRepository())
     result = project_service.move_project_status(id, status_id, firm_id, user_id)
     
     if result['success']:

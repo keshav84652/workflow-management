@@ -166,6 +166,86 @@ class TaskRepository(CachedRepository[Task]):
             )
         ).order_by(Task.due_date.asc()).all()
     
+    def get_tasks_with_dependency_filtering(self, firm_id: int, filters: Optional[Dict[str, Any]] = None, 
+                                          limit: Optional[int] = None) -> List[Task]:
+        """
+        Get tasks with dependency information for a firm - OPTIMIZED for database-level filtering
+        
+        This replaces the performance-critical in-memory filtering in TaskService.
+        For interdependent projects, only returns the first active task per project.
+        
+        Args:
+            firm_id: Firm ID to get tasks for
+            filters: Optional filters to apply
+            limit: Optional limit on results
+            
+        Returns:
+            List of Task objects with dependency filtering applied at database level
+        """
+        from sqlalchemy import case, func
+        from sqlalchemy.orm import aliased
+        
+        # Create the base query with Project join
+        query = self._build_filtered_query(firm_id, filters)
+        
+        # Use a window function to rank tasks within each project
+        # For interdependent projects, we only want the first non-completed task
+        task_rank = func.row_number().over(
+            partition_by=case(
+                (Project.task_dependency_mode == True, Task.project_id),
+                else_=Task.id  # For non-interdependent, each task gets its own partition
+            ),
+            order_by=[
+                case((Task.status == 'Completed', 1), else_=0),  # Incomplete tasks first
+                Task.created_at.asc()  # Then by creation order
+            ]
+        ).label('task_rank')
+        
+        # Create subquery with ranking
+        ranked_subquery = db.session.query(
+            Task,
+            Project.task_dependency_mode,
+            task_rank
+        ).outerjoin(Project).filter(
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            )
+        )
+        
+        # Apply additional filters if provided
+        if filters:
+            if not filters.get('show_completed', False):
+                ranked_subquery = ranked_subquery.filter(Task.status != 'Completed')
+            
+            if filters.get('status_filters'):
+                ranked_subquery = ranked_subquery.filter(Task.status.in_(filters['status_filters']))
+            
+            if filters.get('priority_filters'):
+                ranked_subquery = ranked_subquery.filter(Task.priority.in_(filters['priority_filters']))
+        
+        ranked_subquery = ranked_subquery.subquery()
+        
+        # Create aliases for the subquery
+        TaskAlias = aliased(Task, ranked_subquery.c)
+        
+        # Final query that only selects rank=1 tasks for interdependent projects
+        # or all tasks for non-interdependent projects
+        final_query = db.session.query(TaskAlias).filter(
+            or_(
+                ranked_subquery.c.task_dependency_mode == False,  # All tasks from non-interdependent projects
+                ranked_subquery.c.task_rank == 1  # Only first task from interdependent projects
+            )
+        ).order_by(
+            TaskAlias.due_date.asc().nullslast(),
+            TaskAlias.priority.asc()
+        )
+        
+        if limit:
+            final_query = final_query.limit(limit)
+        
+        return final_query.all()
+    
     def get_task_statistics(self, firm_id: int) -> Dict[str, int]:
         """Get task statistics"""
         total = self.count(firm_id=firm_id)
@@ -367,6 +447,26 @@ class TaskRepository(CachedRepository[Task]):
             ),
             Task.due_date.between(start_date, end_date)
         ).order_by(Task.due_date.asc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
+    
+    def search_tasks(self, firm_id: int, query_text: str, limit: int = 20) -> List[Task]:
+        """Search tasks by title and description"""
+        search_pattern = f'%{query_text}%'
+        
+        query = db.session.query(Task).outerjoin(Project).filter(
+            or_(
+                and_(Task.project_id.isnot(None), Project.firm_id == firm_id),
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
+            or_(
+                Task.title.ilike(search_pattern),
+                Task.description.ilike(search_pattern)
+            )
+        ).order_by(Task.created_at.desc())
         
         if limit:
             query = query.limit(limit)

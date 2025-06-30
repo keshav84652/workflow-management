@@ -12,7 +12,7 @@ from datetime import datetime
 
 from src.shared.database.db_import import db
 from src.models import ClientDocument, DocumentChecklist, Client, ChecklistItem
-from src.shared.base import BaseRepository
+from src.shared.repositories.base import BaseRepository
 
 logger = logging.getLogger(__name__)
 

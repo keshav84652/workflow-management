@@ -57,6 +57,13 @@ class UserRepository(CachedRepository[User]):
             User.firm_id == firm_id
         ).first()
     
+    def get_by_email_and_firm(self, email: str, firm_id: int) -> Optional[User]:
+        """Get user by email ensuring it belongs to the firm"""
+        return User.query.filter(
+            User.email == email,
+            User.firm_id == firm_id
+        ).first()
+    
     def get_users_by_firm(self, firm_id: int, include_inactive: bool = False) -> List[User]:
         """Alias for get_by_firm to maintain compatibility"""
         return self.get_by_firm(firm_id, include_inactive)

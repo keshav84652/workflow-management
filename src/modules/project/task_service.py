@@ -11,13 +11,10 @@ from src.shared.base import BaseService, transactional
 from src.shared.interfaces import ITaskService
 from .task_repository import TaskRepository
 
-class TaskService(BaseService, ITaskService):
-    def __init__(self, task_repository=None):
+class TaskService(BaseService):
+    def __init__(self, task_repository: 'TaskRepository'):
         super().__init__()
-        # Use dependency injection - accept repository as constructor parameter
-        if task_repository is None:
-            # Fallback for legacy instantiation - will be removed once DI is fully implemented
-            task_repository = TaskRepository()
+        # Proper dependency injection - repository is required
         self.task_repository = task_repository
         
     @transactional
@@ -159,38 +156,21 @@ class TaskService(BaseService, ITaskService):
     def get_tasks_with_dependency_info(self, firm_id, filters=None):
         """
         Get tasks with dependency information for a firm
-        CRITICAL: This applies interdependency filtering for sequential projects
+        OPTIMIZED: Uses database-level filtering to avoid loading all tasks into memory
         """
         from .task_repository import TaskRepository
         task_repo = TaskRepository()
-        all_tasks = task_repo.get_filtered_tasks(firm_id, filters)
         
-        # Apply interdependency filtering - only show first active task per sequential project
-        filtered_tasks = self._filter_tasks_by_dependency_mode(all_tasks)
+        # Use the new optimized method that filters at the database level
+        filtered_tasks = task_repo.get_tasks_with_dependency_filtering(firm_id, filters)
         
         # Return in the format expected by blueprint
         return [{'task': task} for task in filtered_tasks]
     
-    def _filter_tasks_by_dependency_mode(self, tasks):
-        """
-        Filter tasks based on project dependency mode
-        For interdependent projects, only show the first active task
-        COPIED FROM DashboardService to ensure consistency
-        """
-        filtered_tasks = []
-        seen_projects = set()
-        
-        for task in tasks:
-            if task.project and task.project.task_dependency_mode:
-                # For interdependent projects, only count the first active task per project
-                if task.project_id not in seen_projects and not task.is_completed:
-                    filtered_tasks.append(task)
-                    seen_projects.add(task.project_id)
-            else:
-                # For independent tasks or non-interdependent projects, count all tasks
-                filtered_tasks.append(task)
-        
-        return filtered_tasks
+    # REMOVED: _filter_tasks_by_dependency_mode
+    # This method was a performance bottleneck that loaded all tasks into memory
+    # and then filtered them in Python. It has been replaced by database-level
+    # filtering in TaskRepository.get_tasks_with_dependency_filtering()
     
     def get_task_by_id_with_access_check(self, task_id, firm_id):
         """Get task by ID with firm access verification"""
@@ -333,7 +313,7 @@ class TaskService(BaseService, ITaskService):
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
-            from src.models import TaskComment
+            from .models import TaskComment
             comment = TaskComment(
                 comment=comment_text,
                 task_id=task_id,
@@ -492,7 +472,7 @@ class TaskService(BaseService, ITaskService):
         """Get task statistics for dashboard"""
         try:
             # Import models here to avoid circular imports
-            from src.models import Task, Project
+            from .models import Task, Project
             from datetime import date
             
             # Base query for firm tasks
@@ -541,7 +521,7 @@ class TaskService(BaseService, ITaskService):
     def get_work_type_distribution(self, firm_id: int) -> dict:
         """Get work type distribution for dashboard"""
         try:
-            from src.models import Task, Project, WorkType
+            from .models import Task, Project, WorkType
             
             # Get work type distribution
             query = db.session.query(
@@ -572,7 +552,7 @@ class TaskService(BaseService, ITaskService):
     def get_recent_tasks(self, firm_id: int, limit: int = 10) -> dict:
         """Get recent tasks for dashboard"""
         try:
-            from src.models import Task, Project, User
+            from .models import Task, Project, User
             from datetime import datetime, timedelta
             
             # Get tasks created in the last 30 days
@@ -647,7 +627,7 @@ class TaskService(BaseService, ITaskService):
 
     def get_activity_logs_for_task(self, task_id: int, limit: int = 10) -> List['ActivityLog']:
         """Get recent activity logs for a task"""
-        from src.models import ActivityLog
+        from src.models.auth import ActivityLog
         return ActivityLog.query.filter_by(task_id=task_id).order_by(
             ActivityLog.timestamp.desc()
         ).limit(limit).all()
@@ -735,3 +715,168 @@ class TaskService(BaseService, ITaskService):
         return TaskComment.query.filter_by(task_id=task_id).order_by(
             TaskComment.created_at.desc()
         ).all()
+    
+    def get_tasks_for_calendar(self, firm_id, year, month):
+        """Get tasks grouped by date for calendar view"""
+        try:
+            from datetime import datetime
+            from calendar import monthrange
+            
+            # Get first and last day of the month
+            _, last_day = monthrange(year, month)
+            start_date = datetime(year, month, 1)
+            end_date = datetime(year, month, last_day, 23, 59, 59)
+            
+            # Get tasks with due dates in this month
+            tasks = self.task_repository.get_tasks_by_date_range(firm_id, start_date, end_date)
+            
+            # Group tasks by date
+            tasks_by_date = {}
+            for task in tasks:
+                if task.due_date:
+                    date_str = task.due_date.strftime('%Y-%m-%d')
+                    if date_str not in tasks_by_date:
+                        tasks_by_date[date_str] = []
+                    tasks_by_date[date_str].append(task)
+            
+            return {
+                'success': True,
+                'tasks_by_date': tasks_by_date
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'tasks_by_date': {}
+            }
+    
+    def search_tasks(self, firm_id, query, limit=20):
+        """Search tasks by title and description"""
+        try:
+            tasks = self.task_repository.search_tasks(firm_id, query, limit)
+            return {
+                'success': True,
+                'tasks': [self._task_to_dict(task) for task in tasks]
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'tasks': []
+            }
+    
+    def _task_to_dict(self, task):
+        """Convert task model to dictionary"""
+        return {
+            'id': task.id,
+            'title': task.title,
+            'description': task.description,
+            'status': task.status,
+            'priority': task.priority,
+            'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
+            'project_name': task.project.name if task.project else None,
+            'assignee_name': task.assignee.name if task.assignee else None
+        }
+    
+    def get_task_statistics(self, firm_id):
+        """Get task statistics for dashboard"""
+        try:
+            from .models import Task
+            from sqlalchemy import or_, and_
+            from datetime import date
+            
+            # Get all tasks for the firm
+            query = Task.query.filter(
+                or_(
+                    Task.firm_id == firm_id,
+                    and_(Task.project_id.isnot(None), 
+                         Task.project.has(firm_id=firm_id))
+                )
+            )
+            
+            total = query.count()
+            active = query.filter(Task.status != 'Completed').count()
+            completed = query.filter(Task.status == 'Completed').count()
+            overdue = query.filter(
+                and_(
+                    Task.due_date < date.today(),
+                    Task.status != 'Completed'
+                )
+            ).count()
+            
+            today = date.today()
+            due_soon = query.filter(
+                and_(
+                    Task.due_date.between(today, today),
+                    Task.status != 'Completed'
+                )
+            ).count()
+            
+            return {
+                'success': True,
+                'statistics': {
+                    'total': total,
+                    'active': active,
+                    'completed': completed,
+                    'overdue': overdue,
+                    'due_soon': due_soon
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'statistics': {}
+            }
+    
+    def get_recent_tasks(self, firm_id, limit=10):
+        """Get recent tasks for dashboard"""
+        try:
+            from .models import Task
+            from sqlalchemy import or_, and_
+            
+            tasks = Task.query.filter(
+                or_(
+                    Task.firm_id == firm_id,
+                    and_(Task.project_id.isnot(None),
+                         Task.project.has(firm_id=firm_id))
+                )
+            ).order_by(Task.created_at.desc()).limit(limit).all()
+            
+            return {
+                'success': True,
+                'tasks': [self._task_to_dict(task) for task in tasks]
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'tasks': []
+            }
+    
+    def get_tasks_for_dashboard(self, firm_id, user_id):
+        """Get filtered tasks for dashboard display"""
+        try:
+            from .models import Task
+            from sqlalchemy import or_, and_
+            
+            # Get tasks assigned to the user or firm-wide tasks
+            tasks = Task.query.filter(
+                or_(
+                    and_(Task.assignee_id == user_id, Task.firm_id == firm_id),
+                    and_(Task.assignee_id.is_(None), Task.firm_id == firm_id),
+                    and_(Task.project_id.isnot(None),
+                         Task.project.has(firm_id=firm_id))
+                )
+            ).filter(Task.status != 'Completed').order_by(Task.due_date.asc()).limit(20).all()
+            
+            return {
+                'success': True,
+                'tasks': [self._task_to_dict(task) for task in tasks]
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'tasks': []
+            }
