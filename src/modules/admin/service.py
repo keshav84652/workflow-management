@@ -24,14 +24,18 @@ from sqlalchemy import func
 class AdminService(BaseService, IAdminService):
     """Service class for administrative business operations"""
     
-    def __init__(self):
+    def __init__(self, admin_repository=None):
         super().__init__()
-        # Use dependency injection to get service instances
-        # DI Container setup is now mandatory - no fallback logic
+        # Use dependency injection - accept repository as constructor parameter
+        if admin_repository is None:
+            # Fallback for legacy instantiation - will be removed once DI is fully implemented
+            admin_repository = AdminRepository()
+        self.admin_repository = admin_repository
+        
+        # Keep other dependencies as DI container calls since they're working correctly
         self.firm_service = get_service(IFirmService)
         self.auth_service = get_service(IAuthService)
         
-        self.admin_repository = AdminRepository()
         self.template_repository = TemplateRepository()
         self.template_service = TemplateService()
     
@@ -280,7 +284,8 @@ class AdminService(BaseService, IAdminService):
                 db.session.add(status)
             
             # Log activity
-            ActivityService.log_entity_operation(
+            activity_service = ActivityService()
+            activity_service.log_entity_operation(
                 entity_type='WORK_TYPE',
                 operation='CREATE',
                 entity_id=work_type.id,
@@ -337,7 +342,8 @@ class AdminService(BaseService, IAdminService):
             work_type.description = description.strip() if description else ''
             
             # Log activity
-            ActivityService.log_entity_operation(
+            activity_service = ActivityService()
+            activity_service.log_entity_operation(
                 entity_type='WORK_TYPE',
                 operation='UPDATE',
                 entity_id=work_type.id,

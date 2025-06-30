@@ -12,9 +12,13 @@ from src.shared.interfaces import ITaskService
 from .task_repository import TaskRepository
 
 class TaskService(BaseService, ITaskService):
-    def __init__(self):
+    def __init__(self, task_repository=None):
         super().__init__()
-        self.task_repository = TaskRepository()
+        # Use dependency injection - accept repository as constructor parameter
+        if task_repository is None:
+            # Fallback for legacy instantiation - will be removed once DI is fully implemented
+            task_repository = TaskRepository()
+        self.task_repository = task_repository
         
     @transactional
     def create_task(self, title, description, firm_id, user_id, project_id=None, assignee_id=None,

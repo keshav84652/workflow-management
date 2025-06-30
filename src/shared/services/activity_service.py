@@ -15,10 +15,9 @@ from src.shared.base import BaseService, transactional
 
 
 class ActivityService:
-    """Static service for logging and retrieving user activities"""
+    """Service for logging and retrieving user activities with proper DI support"""
     
-    @staticmethod
-    def log_activity(
+    def log_activity(self,
         action: str,
         user_id: int,
         firm_id: int,
@@ -73,8 +72,7 @@ class ActivityService:
                 'message': f'Failed to log activity: {str(e)}'
             }
     
-    @staticmethod
-    def get_recent_activities(
+    def get_recent_activities(self,
         firm_id: int,
         limit: int = 50,
         user_id: Optional[int] = None,
@@ -123,8 +121,7 @@ class ActivityService:
         
         return result
     
-    @staticmethod
-    def log_entity_operation(
+    def log_entity_operation(self,
         entity_type: str,
         operation: str,
         entity_id: int,

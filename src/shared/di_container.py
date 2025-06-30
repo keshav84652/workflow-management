@@ -51,11 +51,44 @@ class ServiceContainer:
         # Check if it's registered as singleton and already instantiated
         if interface in self._singletons:
             if self._singletons[interface] is None:
-                self._singletons[interface] = self._interfaces[interface]()
+                self._singletons[interface] = self._create_instance(interface)
             return self._singletons[interface]
         
         # Create new instance each time
-        return self._interfaces[interface]()
+        return self._create_instance(interface)
+    
+    def _create_instance(self, interface: Type[T]) -> T:
+        """
+        Create an instance of a service with proper dependency injection
+        
+        Args:
+            interface: The interface to create an instance for
+            
+        Returns:
+            Instance with dependencies injected
+        """
+        implementation_class = self._interfaces[interface]
+        
+        # Special handling for services that need repository injection
+        if hasattr(implementation_class, '__name__'):
+            class_name = implementation_class.__name__
+            
+            # Inject repositories for services that need them
+            if class_name == 'ProjectService':
+                from src.modules.project.repository import ProjectRepository
+                return implementation_class(project_repository=ProjectRepository())
+            elif class_name == 'TaskService':
+                from src.modules.project.task_repository import TaskRepository
+                return implementation_class(task_repository=TaskRepository())
+            elif class_name == 'ClientService':
+                from src.modules.client.repository import ClientRepository
+                return implementation_class(client_repository=ClientRepository())
+            elif class_name == 'AdminService':
+                from src.modules.admin.repository import AdminRepository
+                return implementation_class(admin_repository=AdminRepository())
+        
+        # Default: create instance without special injection
+        return implementation_class()
     
     def is_registered(self, interface: Type) -> bool:
         """

@@ -12,9 +12,13 @@ from .repository import ClientRepository
 
 
 class ClientService(BaseService, IClientService):
-    def __init__(self):
+    def __init__(self, client_repository=None):
         super().__init__()
-        self.client_repository = ClientRepository()
+        # Use dependency injection - accept repository as constructor parameter
+        if client_repository is None:
+            # Fallback for legacy instantiation - will be removed once DI is fully implemented
+            client_repository = ClientRepository()
+        self.client_repository = client_repository
     
     def search_clients(self, firm_id, query, limit=20):
         """

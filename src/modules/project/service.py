@@ -14,9 +14,13 @@ from .repository import ProjectRepository
 
 
 class ProjectService(BaseService, IProjectService):
-    def __init__(self):
+    def __init__(self, project_repository=None):
         super().__init__()
-        self.project_repository = ProjectRepository()
+        # Use dependency injection - accept repository as constructor parameter
+        if project_repository is None:
+            # Fallback for legacy instantiation - will be removed once DI is fully implemented
+            project_repository = ProjectRepository()
+        self.project_repository = project_repository
     def get_projects_for_firm(self, firm_id, include_inactive=False):
         """Get all projects for a firm"""
         return self.project_repository.get_by_firm(firm_id, include_inactive)
