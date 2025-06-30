@@ -41,7 +41,22 @@ class ClientService(BaseService, IClientService):
     
     def get_client_by_id_and_firm(self, client_id, firm_id):
         """Get client by ID with firm access check"""
-        return self.client_repository.get_by_id_and_firm(client_id, firm_id)
+        client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
+        if not client:
+            return None
+        
+        # Return DTO instead of raw model to prevent N+1 queries in templates
+        return {
+            'id': client.id,
+            'name': client.name,
+            'email': client.email,
+            'phone': client.phone,
+            'address': client.address,
+            'entity_type': client.entity_type,
+            'is_active': client.is_active,
+            'firm_id': client.firm_id,
+            'created_at': client.created_at.strftime('%Y-%m-%d %H:%M') if client.created_at else None
+        }
         
     def get_clients_for_firm(self, firm_id):
         """Get all clients for a firm (formatted for API)"""
@@ -105,12 +120,13 @@ class ClientService(BaseService, IClientService):
     
     def get_client_by_id(self, client_id, firm_id):
         """Get client by ID with firm access check"""
-        return self.client_repository.get_by_id_and_firm(client_id, firm_id)
+        return self.get_client_by_id_and_firm(client_id, firm_id)  # Use the DTO method
     
     @transactional
     def update_client(self, client_id, updates, firm_id, user_id):
         """Update client information"""
-        client = self.get_client_by_id(client_id, firm_id)
+        # Get raw model for updates, not DTO
+        client = self.client_repository.get_by_id_and_firm(client_id, firm_id)
         if not client:
             return {'success': False, 'message': 'Client not found or access denied'}
         
@@ -190,3 +206,7 @@ class ClientService(BaseService, IClientService):
                 'clients': [],
                 'message': str(e)
             }
+    
+    def _get_client_model_by_id_and_firm(self, client_id, firm_id):
+        """Get raw client model for internal operations (updates/deletes)"""
+        return self.client_repository.get_by_id_and_firm(client_id, firm_id)

@@ -27,7 +27,29 @@ class ProjectService(BaseService, IProjectService):
     
     def get_project_by_id_and_firm(self, project_id, firm_id):
         """Get project by ID with firm access check"""
-        return self.project_repository.get_by_id_and_firm(project_id, firm_id)
+        project = self.project_repository.get_by_id_and_firm(project_id, firm_id)
+        if not project:
+            return None
+        
+        # Return DTO instead of raw model to prevent N+1 queries in templates
+        return {
+            'id': project.id,
+            'name': project.name,
+            'description': project.description,
+            'status': project.status,
+            'start_date': project.start_date.strftime('%Y-%m-%d') if project.start_date else None,
+            'end_date': project.end_date.strftime('%Y-%m-%d') if project.end_date else None,
+            'client_id': project.client_id,
+            'client_name': project.client.name if project.client else 'No Client',
+            'work_type_id': project.work_type_id,
+            'work_type_name': project.work_type.name if project.work_type else None,
+            'firm_id': project.firm_id,
+            'created_at': project.created_at.strftime('%Y-%m-%d %H:%M') if project.created_at else None,
+            'updated_at': project.updated_at.strftime('%Y-%m-%d %H:%M') if project.updated_at else None,
+            'is_completed': project.status == 'Completed',
+            'current_status_id': project.current_status_id,
+            'current_workflow_status_name': project.current_workflow_status_name if hasattr(project, 'current_workflow_status_name') else None
+        }
     
     def get_project_progress(self, project_id, firm_id):
         """Get project progress with access check"""
@@ -164,7 +186,8 @@ class ProjectService(BaseService, IProjectService):
     def update_project(self, project_id, firm_id, **update_data):
         """Update a project with new data"""
         try:
-            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            # Get the raw model for updating (not DTO)
+            project = self.project_repository.get_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
@@ -188,7 +211,8 @@ class ProjectService(BaseService, IProjectService):
     def delete_project(self, project_id, firm_id):
         """Delete a project"""
         try:
-            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            # Get the raw model for deletion (not DTO)
+            project = self.project_repository.get_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
@@ -210,7 +234,8 @@ class ProjectService(BaseService, IProjectService):
     def update_project_status(self, project_id, new_status, firm_id, user_id):
         """Update project status"""
         try:
-            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            # Get raw model for updates, not DTO
+            project = self.project_repository.get_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
@@ -255,7 +280,26 @@ class ProjectService(BaseService, IProjectService):
     
     def get_active_projects(self, firm_id):
         """Get active projects for a firm"""
-        return self.project_repository.get_by_firm(firm_id, include_inactive=False)
+        projects = self.project_repository.get_by_firm(firm_id, include_inactive=False)
+        
+        # Return DTOs to prevent N+1 queries in templates
+        project_dtos = []
+        for project in projects:
+            project_dto = {
+                'id': project.id,
+                'name': project.name,
+                'description': project.description,
+                'status': project.status,
+                'client_id': project.client_id,
+                'client_name': project.client.name if project.client else 'No Client',
+                'work_type_id': project.work_type_id,
+                'work_type_name': project.work_type.name if project.work_type else None,
+                'created_at': project.created_at.strftime('%Y-%m-%d') if project.created_at else None,
+                'is_completed': project.status == 'Completed'
+            }
+            project_dtos.append(project_dto)
+        
+        return project_dtos
     
     def get_project_by_id(self, project_id, firm_id):
         """Get project by ID for firm"""
@@ -267,7 +311,8 @@ class ProjectService(BaseService, IProjectService):
     def move_project_status(self, project_id, status_id, firm_id, user_id=None):
         """Move project to different status for Kanban board"""
         try:
-            project = self.get_project_by_id_and_firm(project_id, firm_id)
+            # Get raw model for updates, not DTO
+            project = self.project_repository.get_by_id_and_firm(project_id, firm_id)
             if not project:
                 return {'success': False, 'message': 'Project not found or access denied'}
             
