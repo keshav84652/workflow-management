@@ -23,11 +23,18 @@ class ExportService(BaseService, IExportService):
                  client_service: IClientService = None):
         super().__init__()
         
-        # Use dependency injection if provided, otherwise use service registry
-        from src.shared.bootstrap import get_project_service, get_task_service, get_client_service
-        self.project_service = project_service or get_project_service()
-        self.task_service = task_service or get_task_service()
-        self.client_service = client_service or get_client_service()
+        # Use dependency injection if provided, otherwise use DI container
+        if project_service is None or task_service is None or client_service is None:
+            from src.shared.di_container import get_service
+            from src.modules.project.interface import IProjectService, ITaskService
+            from src.modules.client.interface import IClientService
+            self.project_service = project_service or get_service(IProjectService)
+            self.task_service = task_service or get_service(ITaskService)
+            self.client_service = client_service or get_service(IClientService)
+        else:
+            self.project_service = project_service
+            self.task_service = task_service
+            self.client_service = client_service
     
     def export_projects_csv(self, firm_id: int) -> Any:
         """Export projects as CSV"""

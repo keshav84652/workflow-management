@@ -121,6 +121,13 @@ def setup_service_registry():
     from src.modules.project.task_service import TaskService
     from src.modules.export.interface import IExportService
     from src.modules.export.service import ExportService
+    from src.modules.admin.interface import IAdminService, ITemplateService, IUserService
+    from src.modules.admin.service import AdminService
+    from src.modules.admin.template_service import TemplateService
+    from src.modules.admin.user_service import UserService
+    from src.modules.document.interface import IDocumentService, IAIService
+    from src.modules.document.service import DocumentService
+    from src.modules.document.analysis_service import AIAnalysisService
     
     # Register all service implementations
     register_service(IClientService, ClientService)
@@ -129,3 +136,8 @@ def setup_service_registry():
     register_service(IProjectService, ProjectService)
     register_service(ITaskService, TaskService)
     register_service(IExportService, ExportService)
+    register_service(IAdminService, AdminService)
+    register_service(ITemplateService, TemplateService)
+    register_service(IUserService, UserService)
+    register_service(IDocumentService, DocumentService)
+    register_service(IAIService, AIAnalysisService)

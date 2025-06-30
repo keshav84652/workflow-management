@@ -28,24 +28,11 @@ class DashboardAggregatorService(BaseService):
     def __init__(self):
         super().__init__()
         # Use dependency injection to get service instances
-        # This removes direct coupling to concrete implementations
-        try:
-            self.client_service = get_service(IClientService)
-            self.project_service = get_service(IProjectService)
-            self.task_service = get_service(ITaskService)
-            self.auth_service = get_service(IAuthService)
-        except ValueError as e:
-            # Fallback to direct instantiation if DI not set up
-            logger.warning(f"DI container not initialized, falling back to direct instantiation: {e}")
-            from src.modules.client.service import ClientService
-            from src.modules.project.service import ProjectService
-            from src.modules.project.task_service import TaskService
-            from src.modules.auth.service import AuthService
-            
-            self.client_service = ClientService()
-            self.project_service = ProjectService()
-            self.task_service = TaskService()
-            self.auth_service = AuthService()
+        # DI Container setup is now mandatory - no fallback logic
+        self.client_service = get_service(IClientService)
+        self.project_service = get_service(IProjectService)
+        self.task_service = get_service(ITaskService)
+        self.auth_service = get_service(IAuthService)
     
     def get_dashboard_data(self, firm_id: int, user_id: int) -> Dict[str, Any]:
         """

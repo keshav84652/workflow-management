@@ -70,8 +70,9 @@ def create_project():
     templates = template_service.get_templates_by_firm(firm_id)
     
     # Get clients from client module using interface
-    from src.shared.bootstrap import get_client_service
-    client_service = get_client_service()
+    from src.shared.di_container import get_service
+    from src.modules.client.interface import IClientService
+    client_service = get_service(IClientService)
     clients = client_service.get_active_clients_by_firm(firm_id)
     
     return render_template('projects/create_project.html', 

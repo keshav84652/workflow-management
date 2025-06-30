@@ -17,24 +17,19 @@ from .template_repository import TemplateRepository
 from .repository import AdminRepository
 from src.shared.base import BaseService, transactional
 from .template_service import TemplateService
+from .interface import IAdminService
 from sqlalchemy import func
 
 
-class AdminService(BaseService):
+class AdminService(BaseService, IAdminService):
     """Service class for administrative business operations"""
     
     def __init__(self):
         super().__init__()
         # Use dependency injection to get service instances
-        try:
-            self.firm_service = get_service(IFirmService)
-            self.auth_service = get_service(IAuthService)
-        except ValueError:
-            # Fallback to direct instantiation if DI not set up
-            from src.modules.auth.firm_service import FirmService
-            from src.modules.auth.service import AuthService
-            self.firm_service = FirmService()
-            self.auth_service = AuthService()
+        # DI Container setup is now mandatory - no fallback logic
+        self.firm_service = get_service(IFirmService)
+        self.auth_service = get_service(IAuthService)
         
         self.admin_repository = AdminRepository()
         self.template_repository = TemplateRepository()
