@@ -609,31 +609,16 @@ class TaskService(BaseService, ITaskService):
             }
     
     def get_tasks_by_firm(self, firm_id: int, filters: dict = None) -> dict:
-        """Get all tasks for a firm with optional filtering"""
+        """Get all tasks for a firm with optional filtering - OPTIMIZED for performance"""
         try:
-            from src.models import Task, Project, User
+            # Use optimized repository method instead of manual query building
+            limit = filters.get('limit') if filters else None
+            tasks = self.task_repository.get_filtered_tasks(firm_id, filters, limit)
             
-            # Base query
-            query = db.session.query(Task).join(Project).outerjoin(User).filter(
-                Project.firm_id == firm_id
-            )
-            
-            # Apply filters
-            if filters:
-                if 'status' in filters:
-                    query = query.filter(Task.status == filters['status'])
-                if 'assignee_id' in filters:
-                    query = query.filter(Task.assignee_id == filters['assignee_id'])
-                if 'project_id' in filters:
-                    query = query.filter(Task.project_id == filters['project_id'])
-                if 'priority' in filters:
-                    query = query.filter(Task.priority == filters['priority'])
-                if 'limit' in filters:
-                    query = query.limit(filters['limit'])
-            
-            tasks = []
-            for task in query.all():
-                task_dict = {
+            # Convert to DTOs to prevent N+1 queries in templates
+            task_dtos = []
+            for task in tasks:
+                task_dto = {
                     'id': task.id,
                     'title': task.title,
                     'description': task.description,
@@ -644,14 +629,14 @@ class TaskService(BaseService, ITaskService):
                     'project_name': task.project.name if task.project else '',
                     'assignee_id': task.assignee_id,
                     'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
-                    'created_at': task.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'created_at': task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else None,
                     'estimated_hours': task.estimated_hours
                 }
-                tasks.append(task_dict)
+                task_dtos.append(task_dto)
             
             return {
                 'success': True,
-                'tasks': tasks
+                'tasks': task_dtos
             }
         except Exception as e:
             return {

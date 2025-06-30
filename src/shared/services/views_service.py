@@ -87,7 +87,7 @@ class ViewsService(BaseService):
     
     def get_calendar_view_data(self, firm_id: int, month: Optional[int] = None, year: Optional[int] = None) -> Dict[str, Any]:
         """
-        Get data formatted for calendar view
+        Get data formatted for calendar view - OPTIMIZED to filter at database level
         
         Args:
             firm_id: Firm ID to get data for
@@ -97,47 +97,38 @@ class ViewsService(BaseService):
         Returns:
             Dict with calendar view data structure
         """
-        # Use service registry to reduce coupling
-        from src.shared.bootstrap import get_task_service
-        
         if not month or not year:
             now = datetime.now()
             month = month or now.month
             year = year or now.year
         
-        task_service = get_task_service()
+        # Calculate date range for the requested month
+        from datetime import date
+        from calendar import monthrange
         
-        # Get tasks with due dates for the specified month/year
-        tasks_result = task_service.get_tasks_by_firm(firm_id)
-        if not tasks_result['success']:
-            return {
-                'success': False,
-                'message': tasks_result['message'],
-                'events': []
-            }
+        start_date = date(year, month, 1)
+        _, last_day = monthrange(year, month)
+        end_date = date(year, month, last_day)
         
-        tasks = tasks_result['tasks']
+        # Use optimized repository method to filter at database level
+        from src.modules.project.task_repository import TaskRepository
+        task_repo = TaskRepository()
+        tasks = task_repo.get_tasks_by_date_range(firm_id, start_date, end_date)
         
-        # Format tasks as calendar events
+        # Format tasks as calendar events (much smaller dataset now!)
         calendar_events = []
         for task in tasks:
-            if task.get('due_date'):
-                try:
-                    due_date = datetime.strptime(task['due_date'], '%Y-%m-%d') if isinstance(task['due_date'], str) else task['due_date']
-                    if due_date.month == month and due_date.year == year:
-                        event = {
-                            'id': task['id'],
-                            'title': task['title'],
-                            'date': due_date.strftime('%Y-%m-%d'),
-                            'type': 'task',
-                            'status': task.get('status', 'Not Started'),
-                            'project_name': task.get('project_name', ''),
-                            'assignee': task.get('assignee_name', 'Unassigned')
-                        }
-                        calendar_events.append(event)
-                except (ValueError, TypeError):
-                    # Skip tasks with invalid date formats
-                    continue
+            if task.due_date:
+                event = {
+                    'id': task.id,
+                    'title': task.title,
+                    'date': task.due_date.strftime('%Y-%m-%d'),
+                    'type': 'task',
+                    'status': task.status,
+                    'project_name': task.project.name if task.project else '',
+                    'assignee': task.assignee.name if task.assignee else 'Unassigned'
+                }
+                calendar_events.append(event)
         
         return {
             'success': True,
@@ -149,7 +140,7 @@ class ViewsService(BaseService):
     
     def get_list_view_data(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        Get data formatted for list view
+        Get data formatted for list view - OPTIMIZED to filter and sort at database level
         
         Args:
             firm_id: Firm ID to get data for
@@ -158,45 +149,37 @@ class ViewsService(BaseService):
         Returns:
             Dict with list view data structure
         """
-        # Use service registry to avoid circular imports and coupling
-        from src.shared.bootstrap import get_task_service
+        # Use optimized repository method to filter AND sort at database level
+        from src.modules.project.task_repository import TaskRepository
+        task_repo = TaskRepository()
         
-        task_service = get_task_service()
+        # Get filtered and sorted tasks directly from database
+        limit = filters.get('limit') if filters else None
+        tasks = task_repo.get_filtered_tasks(firm_id, filters, limit)
         
-        # Apply filters if provided
-        tasks_result = task_service.get_tasks_by_firm(firm_id, filters=filters)
-        if not tasks_result['success']:
-            return {
-                'success': False,
-                'message': tasks_result['message'],
-                'tasks': []
+        # Convert to DTOs to prevent N+1 queries
+        task_dtos = []
+        for task in tasks:
+            task_dto = {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'status': task.status,
+                'priority': task.priority,
+                'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
+                'project_id': task.project_id,
+                'project_name': task.project.name if task.project else '',
+                'assignee_id': task.assignee_id,
+                'assignee_name': task.assignee.name if task.assignee else 'Unassigned',
+                'created_at': task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else None,
+                'estimated_hours': task.estimated_hours
             }
-        
-        tasks = tasks_result['tasks']
-        
-        # Sort tasks by priority and due date
-        def sort_key(task):
-            # Priority sorting (High=3, Medium=2, Low=1)
-            priority_order = {'High': 3, 'Medium': 2, 'Low': 1}
-            priority = priority_order.get(task.get('priority', 'Low'), 1)
-            
-            # Due date sorting (earlier dates first, None dates last)
-            due_date = task.get('due_date')
-            if due_date:
-                try:
-                    due_date_obj = datetime.strptime(due_date, '%Y-%m-%d') if isinstance(due_date, str) else due_date
-                    return (-priority, due_date_obj)
-                except (ValueError, TypeError):
-                    return (-priority, datetime.max)
-            else:
-                return (-priority, datetime.max)
-        
-        sorted_tasks = sorted(tasks, key=sort_key)
+            task_dtos.append(task_dto)
         
         return {
             'success': True,
-            'tasks': sorted_tasks,
-            'total_count': len(sorted_tasks),
+            'tasks': task_dtos,
+            'total_count': len(task_dtos),
             'view_type': 'list'
         }
     

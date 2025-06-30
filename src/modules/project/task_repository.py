@@ -357,3 +357,18 @@ class TaskRepository(CachedRepository[Task]):
                 and_(Task.project_id.is_(None), Task.firm_id == firm_id)
             )
         ).first()
+    
+    def get_tasks_by_date_range(self, firm_id: int, start_date, end_date, limit: Optional[int] = None) -> List[Task]:
+        """Get tasks with due dates within a specific date range - optimized for calendar view"""
+        query = Task.query.outerjoin(Project).filter(
+            or_(
+                Project.firm_id == firm_id,
+                and_(Task.project_id.is_(None), Task.firm_id == firm_id)
+            ),
+            Task.due_date.between(start_date, end_date)
+        ).order_by(Task.due_date.asc())
+        
+        if limit:
+            query = query.limit(limit)
+        
+        return query.all()
