@@ -5,7 +5,7 @@ UserService: Handles all business logic for user operations.
 from src.shared.database.db_import import db
 from src.models import User, Firm
 from src.shared.services import ActivityLoggingService as ActivityService
-from src.shared.base import BaseService
+from src.shared.base import BaseService, transactional
 from src.modules.auth.repository import UserRepository
 from src.modules.auth.firm_repository import FirmRepository
 
@@ -28,9 +28,9 @@ class UserService(BaseService):
             return user
         return None
     
+    @transactional
     def create_user(self, name, role, firm_id, created_by_user_id):
         """Create a new user"""
-        try:
             if not name or not name.strip():
                 return {'success': False, 'message': 'Name is required'}
             
@@ -68,17 +68,14 @@ class UserService(BaseService):
                     'firm_id': user.firm_id
                 }
             }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
     def get_users_by_firm(self, firm_id):
         """Get all users for a firm"""
         return self.user_repository.get_users_by_firm(firm_id)
     
+    @transactional
     def update_user(self, user_id, name, role, firm_id, updated_by_user_id):
         """Update user information"""
-        try:
             user = self.get_user_by_id_and_firm(user_id, firm_id)
             if not user:
                 return {'success': False, 'message': 'User not found or access denied'}
@@ -88,8 +85,6 @@ class UserService(BaseService):
             
             user.name = name.strip()
             user.role = role
-            
-            db.session.commit()
             
             # Log activity
             ActivityService.log_entity_operation(
@@ -111,6 +106,3 @@ class UserService(BaseService):
                     'firm_id': user.firm_id
                 }
             }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}

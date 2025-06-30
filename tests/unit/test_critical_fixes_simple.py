@@ -18,7 +18,7 @@ import sys
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from services.ai_service import AIService
+from src.modules.document.ai_service import AIService
 from config import TestingConfig
 from flask import Flask
 
@@ -215,7 +215,7 @@ class SimpleCriticalFixesTests(unittest.TestCase):
     
     def test_session_helper_functions(self):
         """Test that session helper functions work correctly"""
-        from utils.consolidated import get_session_firm_id, get_session_user_id
+        from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
         
         with self.app.test_request_context():
             # Test with mock session data

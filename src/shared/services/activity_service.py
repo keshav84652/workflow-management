@@ -1,6 +1,10 @@
 """
 Activity Logging Service for CPA WorkflowPilot
 Handles all activity logging across the application.
+
+SERVICE PATTERN:
+- Instance methods for business operations requiring repositories/transactions
+- Static methods for convenience/compatibility with existing calling patterns
 """
 
 from typing import Optional, Dict, Any, List
@@ -10,15 +14,11 @@ from src.models import ActivityLog, User, Project, Task
 from src.shared.base import BaseService, transactional
 
 
-class ActivityService(BaseService):
-    """Service for logging and retrieving user activities"""
+class ActivityService:
+    """Static service for logging and retrieving user activities"""
     
-    def __init__(self):
-        super().__init__()
-    
-    @transactional
+    @staticmethod
     def log_activity(
-        self,
         action: str,
         user_id: int,
         firm_id: int,
@@ -73,8 +73,8 @@ class ActivityService(BaseService):
                 'message': f'Failed to log activity: {str(e)}'
             }
     
+    @staticmethod
     def get_recent_activities(
-        self,
         firm_id: int,
         limit: int = 50,
         user_id: Optional[int] = None,
@@ -133,8 +133,8 @@ class ActivityService(BaseService):
         user_id: int
     ) -> None:
         """
-        Static method to log entity operations
-        This is a simplified logging method for backward compatibility
+        Log entity operations
+        Instance method for proper service architecture
         
         Args:
             entity_type: Type of entity (e.g., 'USER', 'PROJECT', 'TASK')
@@ -162,7 +162,11 @@ class ActivityService(BaseService):
                 activity_log.task_id = entity_id
             
             db.session.add(activity_log)
-            db.session.commit()
+            try:
+                db.session.commit()
+            except Exception as commit_error:
+                db.session.rollback()
+                raise commit_error
             
         except Exception as e:
             # Log the error but don't fail the main operation
@@ -170,7 +174,8 @@ class ActivityService(BaseService):
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to log entity operation: {e}")
     
-    def get_user_activity_summary(self, user_id: int, firm_id: int) -> Dict[str, Any]:
+    @staticmethod
+    def get_user_activity_summary(user_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Get activity summary for a specific user
         
@@ -202,7 +207,43 @@ class ActivityService(BaseService):
                 ActivityLog.timestamp.desc()
             ).first()
         }
+    
+    @staticmethod
+    def create_activity_log(action: str, user_id: int, project_id: Optional[int] = None, 
+                          task_id: Optional[int] = None, details: Optional[str] = None) -> None:
+        """
+        Static method to create activity log - matches existing calling pattern
+        
+        Args:
+            action: Description of the action performed
+            user_id: ID of the user performing the action
+            project_id: Optional project ID if action relates to a project
+            task_id: Optional task ID if action relates to a task
+            details: Optional additional details about the action
+        """
+        try:
+            # Get firm_id from user
+            user = User.query.get(user_id)
+            if not user:
+                return  # Silently fail if user not found
+            
+            # Create activity log using instance method
+            activity_service = ActivityService()
+            activity_service.log_activity(
+                action=action,
+                user_id=user_id,
+                firm_id=user.firm_id,
+                project_id=project_id,
+                task_id=task_id,
+                details=details
+            )
+            
+        except Exception as e:
+            # Log error but don't fail the main operation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to create activity log: {e}")
 
 
-# Create singleton instance for global access
+# Alias for backward compatibility
 ActivityLoggingService = ActivityService

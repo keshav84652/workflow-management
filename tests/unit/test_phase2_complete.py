@@ -19,11 +19,11 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date, timedelta
 
 from src.models import Task, Project, Client, User, Firm, ActivityLog
-from services.task_service import TaskService
-from services.project_service import ProjectService
-from services.document_service import DocumentService
-from events.schemas import TaskCreatedEvent, TaskUpdatedEvent, TaskStatusChangedEvent
-from repositories.task_repository import TaskRepository
+from src.modules.project.task_service import TaskService
+from src.modules.project.service import ProjectService
+from src.modules.document.service import DocumentService
+from src.shared.events.schemas import TaskCreatedEvent, TaskUpdatedEvent, TaskStatusChangedEvent
+from src.modules.project.task_repository import TaskRepository
 
 
 class TestPhase2CompleteIntegration:
@@ -34,17 +34,17 @@ class TestPhase2CompleteIntegration:
         performance_tracker.start('system_health_check')
         
         # Test database connectivity
-        from utils.health_checks import check_database_health
+        from src.shared.utils.health_checks import check_database_health
         db_health = check_database_health()
         assert db_health['status'] == 'healthy'
         
         # Test Redis connectivity (mocked)
-        from utils.health_checks import check_redis_health
+        from src.shared.utils.health_checks import check_redis_health
         redis_health = check_redis_health()
         assert redis_health['status'] == 'healthy'
         
         # Test service layer health
-        from services.task_service import TaskService
+        from src.modules.project.task_service import TaskService
         assert TaskService is not None
         
         performance_tracker.stop()
@@ -204,7 +204,7 @@ class TestPhase2CompleteIntegration:
             mock_redis.get.side_effect = Exception("Redis connection failed")
             
             # Test that operations still work without Redis
-            from utils.error_handling import GracefulDegradation
+            from src.shared.utils.simple_error_handling import GracefulDegradation
             
             def fallback_function():
                 return "fallback_result"
@@ -226,7 +226,7 @@ class TestPhase2CompleteIntegration:
         """Test circuit breaker pattern for external service calls."""
         performance_tracker.start('circuit_breaker_test')
         
-        from utils.error_handling import CircuitBreaker, CircuitState
+        from src.shared.utils.simple_error_handling import CircuitBreaker, CircuitState
         
         # Create circuit breaker with low threshold for testing
         cb = CircuitBreaker(failure_threshold=2, recovery_timeout=1)

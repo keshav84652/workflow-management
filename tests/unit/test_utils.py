@@ -8,10 +8,10 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 import time
 
-from utils.error_handling import CircuitBreaker, CircuitState, GracefulDegradation
-from utils.health_checks import check_database_health, check_redis_health, check_system_health
-from utils.session_helpers import get_session_firm_id, get_session_user_id
-from utils.consolidated import format_currency, format_date, calculate_business_days
+from src.shared.utils.simple_error_handling import CircuitBreaker, CircuitState, GracefulDegradation
+from src.shared.utils.health_checks import check_database_health, check_redis_health, check_system_health
+from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
+from src.shared.utils.consolidated import format_currency, format_date, calculate_business_days
 
 
 class TestCircuitBreaker:

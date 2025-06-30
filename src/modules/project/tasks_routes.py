@@ -7,10 +7,10 @@ from datetime import datetime, date, timedelta
 
 from src.shared.database.db_import import db
 from src.models import Task, Project, User, Client, Template, ActivityLog, TaskComment, WorkType, TaskStatus
-from src.modules.project.task_service import TaskService
+from .task_service import TaskService
 from src.shared.services.user_service import SharedUserService
-from src.modules.project.service import ProjectService
-from .helper_service import ProjectHelperService
+from .service import ProjectService
+# Removed ProjectHelperService - methods moved to appropriate domain services
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -146,8 +146,8 @@ def edit_task(id):
     # Get other tasks in the same project for dependency selection
     project_tasks = []
     if task.project_id:
-        helper_service = ProjectHelperService()
-        project_tasks = helper_service.get_project_tasks_for_dependency(task.project_id)
+        project_service = ProjectService()
+        project_tasks = project_service.get_project_tasks_for_dependency(task.project_id)
     
     return render_template('tasks/edit_task.html', task=task, users=users, project_tasks=project_tasks)
 
@@ -163,14 +163,10 @@ def view_task(id):
         flash('Task not found or access denied', 'error')
         return redirect(url_for('tasks.list_tasks'))
     
-    # Create helper service instance for data retrieval
-    helper_service = ProjectHelperService()
-    
-    # Get task activity logs
-    activity_logs = helper_service.get_activity_logs_for_task(id, limit=10)
-    
-    # Get task comments
-    comments = helper_service.get_task_comments(id)
+    # Get task activity logs and comments using proper domain service
+    task_service = TaskService()
+    activity_logs = task_service.get_activity_logs_for_task(id, limit=10)
+    comments = task_service.get_task_comments(id)
     
     return render_template('tasks/view_task.html', task=task, activity_logs=activity_logs, comments=comments)
 
@@ -216,11 +212,9 @@ def log_time(id):
         if hours <= 0:
             return jsonify({'success': False, 'message': 'Hours must be greater than 0'})
         
-        # TODO: Move to service layer - create TaskService.log_time_to_task method
-        # For now, delegate to service layer
-        # from services.time_tracking_service import TimeTrackingService
-        time_service = TimeTrackingService()
-        result = time_service.log_time_to_task(task.id, hours, get_session_user_id())
+        # Use TaskService for time logging
+        task_service = TaskService()
+        result = task_service.log_time_to_task(task.id, hours, get_session_user_id())
         
         if not result['success']:
             return jsonify({'success': False, 'message': result['message']})
@@ -232,8 +226,6 @@ def log_time(id):
         })
         
     except Exception as e:
-        # TODO: Move to service layer
-        # db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
 
 

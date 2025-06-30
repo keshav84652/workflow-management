@@ -100,9 +100,9 @@ class TemplateTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    # TODO: ARCHITECTURAL IMPROVEMENT - Consolidated ordering field
-    # Previously had both 'order' and 'workflow_order' fields which was confusing.
-    # Now using single 'position' field for all ordering needs.
+    # ARCHITECTURAL IMPROVEMENT: Consolidated ordering field
+    # Single 'position' field replaces legacy 'order' and 'workflow_order' fields
+    # for simplified template task ordering.
     position = db.Column(db.Integer, default=0)  # Position/order in template (replaces both order and workflow_order)
     estimated_hours = db.Column(db.Float)
     default_priority = db.Column(db.String(10), default='Medium')  # High, Medium, Low

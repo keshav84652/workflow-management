@@ -6,12 +6,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 from datetime import datetime, date, timedelta
 
 from src.models import Task, Project, User, WorkType, Template, TemplateTask, Client, TaskStatus
-from .aggregator_service import DashboardAggregatorService
-from src.modules.client.service import ClientService
 from src.shared.services.user_service import SharedUserService
-from src.modules.project.service import ProjectService
 from src.shared.services import ViewsService
-# from services.worktype_service import WorkTypeService
 from src.shared.utils.consolidated import get_session_firm_id
 
 views_bp = Blueprint('views', __name__)
@@ -25,13 +21,16 @@ def calendar_view():
     year = int(request.args.get('year', date.today().year))
     month = int(request.args.get('month', date.today().month))
     
-    # Use DashboardAggregatorService for business logic
-    dashboard_service = DashboardAggregatorService()
-    calendar_data = dashboard_service.get_calendar_data(firm_id, year, month)
+    # Get calendar data through task service
+    from src.modules.project.task_service import TaskService
+    task_service = TaskService()
+    
+    calendar_result = task_service.get_tasks_for_calendar(firm_id, year, month)
+    tasks_by_date = calendar_result.get('tasks_by_date', {}) if calendar_result.get('success') else {}
     
     # Prepare task data for JSON serialization
     serialized_calendar_data = {}
-    for date_str, tasks in calendar_data['tasks_by_date'].items():
+    for date_str, tasks in tasks_by_date.items():
         serialized_calendar_data[date_str] = []
         for task in tasks:
             task_data = {
@@ -40,18 +39,18 @@ def calendar_view():
                 'description': task.description,
                 'status': task.status,
                 'priority': task.priority,
-                'is_overdue': task.is_overdue,
-                'is_due_soon': task.is_due_soon,
-                'project_name': task.project.client_name if task.project else None,
+                'is_overdue': getattr(task, 'is_overdue', False),
+                'is_due_soon': getattr(task, 'is_due_soon', False),
+                'project_name': task.project.name if task.project else None,
                 'assignee_name': task.assignee.name if task.assignee else None
             }
             serialized_calendar_data[date_str].append(task_data)
     
     return render_template('admin/calendar.html', 
                          calendar_data=serialized_calendar_data,
-                         current_date=calendar_data['current_date'],
-                         year=calendar_data['year'],
-                         month=calendar_data['month'])
+                         current_date=date(year, month, 1),
+                         year=year,
+                         month=month)
 
 @views_bp.route('/search')
 def search():
@@ -64,19 +63,41 @@ def search():
     if search_type != 'all':
         filters['search_type'] = search_type
     
-    # Use DashboardAggregatorService for business logic
-    dashboard_service = DashboardAggregatorService()
-    results = dashboard_service.search_tasks_and_projects(firm_id, query, filters)
-    
-    # Add search type and clients if needed
-    results['search_type'] = search_type
-    
-    # Use ClientService instead of direct database access - ARCHITECTURAL FIX
-    if search_type in ['all', 'clients'] and query:
+    # Coordinate search across modules at route level (acceptable pattern)
+    if query:
+        from src.modules.project.task_service import TaskService
+        from src.modules.project.service import ProjectService
+        from src.modules.client.service import ClientService
+        
+        task_service = TaskService()
+        project_service = ProjectService()
         client_service = ClientService()
-        results['clients'] = client_service.search_clients(firm_id, query, limit=20)
+        
+        # Search each module's data
+        tasks_result = task_service.search_tasks(firm_id, query, limit=20)
+        projects_result = project_service.search_projects(firm_id, query, limit=20)
+        clients_result = client_service.search_clients(firm_id, query, limit=20)
+        
+        # Aggregate results
+        tasks = tasks_result.get('tasks', []) if tasks_result.get('success') else []
+        projects = projects_result.get('projects', []) if projects_result.get('success') else []
+        clients = clients_result.get('clients', []) if clients_result.get('success') else []
+        
+        results = {
+            'tasks': tasks,
+            'projects': projects,
+            'clients': clients,
+            'total_results': len(tasks) + len(projects) + len(clients),
+            'search_type': search_type
+        }
     else:
-        results['clients'] = []
+        results = {
+            'tasks': [],
+            'projects': [],
+            'clients': [],
+            'total_results': 0,
+            'search_type': search_type
+        }
     
     return render_template('admin/search.html', **results)
 
@@ -179,5 +200,5 @@ def kanban_view():
                          kanban_columns=kanban_columns,
                          current_work_type=current_work_type,
                          work_types=work_types,
-                         users=[],  # TODO: Add users if needed
+                         users=[],  # Users populated by client-side if needed for filtering
                          today=date.today())

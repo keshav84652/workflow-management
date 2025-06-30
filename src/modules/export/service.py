@@ -75,7 +75,7 @@ class ExportService(BaseService):
             from src.modules.client.service import ClientService
             
             client_service = ClientService()
-            result = client_service.get_clients_by_firm(firm_id)
+            result = client_service.get_clients_for_api(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}
@@ -101,7 +101,7 @@ class ExportService(BaseService):
             from src.modules.client.service import ClientService
             
             client_service = ClientService()
-            result = client_service.get_clients_by_firm(firm_id)
+            result = client_service.get_clients_for_api(firm_id)
             
             if not result['success']:
                 return {'success': False, 'error': result['message']}

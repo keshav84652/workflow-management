@@ -3,9 +3,12 @@ Shared User Service for CPA WorkflowPilot
 Provides user-related functionality that can be used across modules without creating circular dependencies.
 """
 
+import logging
 from typing import List, Dict, Any
 from src.shared.base import BaseService
 from src.modules.auth.repository import UserRepository
+
+logger = logging.getLogger(__name__)
 
 
 class SharedUserService(BaseService):
@@ -33,7 +36,8 @@ class SharedUserService(BaseService):
                 'role': user.role,
                 'firm_id': user.firm_id
             } for user in users]
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting users for firm {firm_id}: {e}")
             return []
     
     def get_user_by_id(self, user_id: int, firm_id: int = None) -> Dict[str, Any]:
@@ -56,6 +60,6 @@ class SharedUserService(BaseService):
                     'role': user.role,
                     'firm_id': user.firm_id
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Error getting user {user_id} for firm {firm_id}: {e}")
         return None

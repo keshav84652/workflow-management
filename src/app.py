@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from datetime import datetime, date, timedelta
 import calendar
+import os
 import time
 from pathlib import Path
 from dateutil.relativedelta import relativedelta
@@ -9,10 +10,6 @@ import mimetypes
 import uuid
 
 # Import configuration and core utilities
-import sys
-import os
-# Add parent directory to path to access root-level modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from .config import get_config
 from src.shared.database.db_import import db
 from flask_migrate import Migrate
@@ -64,11 +61,7 @@ def create_app(config_name='default'):
     from .modules.project import register_module as register_project
     from .modules.dashboard import register_module as register_dashboard
     
-    # Register remaining blueprints that haven't been moved to modules yet
-    # from blueprints import (
-    #     export_bp, api_bp, attachments_bp
-    # )
-    # from blueprints.health import health_bp  # TODO: Move to modules or create these
+    # All blueprints have been moved to modules
     
     # Register modules
     register_auth(app)
@@ -78,11 +71,7 @@ def create_app(config_name='default'):
     register_project(app)
     register_dashboard(app)
     
-    # Register remaining blueprints
-    # app.register_blueprint(export_bp)
-    # app.register_blueprint(api_bp)
-    # app.register_blueprint(attachments_bp)
-    # app.register_blueprint(health_bp)  # TODO: Move to modules or create these
+    # All blueprints now registered through modules
 
     # Add error handlers
     from werkzeug.routing import BuildError
@@ -135,7 +124,7 @@ def create_app(config_name='default'):
             return redirect(url_for('auth.login'))
 
     from src.shared.utils.consolidated import generate_access_code
-    # from services.activity_logging_service import ActivityLoggingService as ActivityService  # TODO: Fix location
+    # ActivityLoggingService now available through src.shared.services
     from src.modules.project.task_service import TaskService
     from src.modules.client.service import ClientService
 
@@ -146,17 +135,22 @@ def create_app(config_name='default'):
 
     # AI Document Analysis Integration
     # AI services are now auto-detected based on available API keys in config
-    from src.modules.document.ai_service import AIService
+    from src.modules.document.analysis_service import AIAnalysisService
 
     with app.app_context():
+        # Initialize service registry for dependency injection
+        from src.shared.bootstrap import register_services
+        register_services()
+        
         print("AI Services status determined by configuration:")
         print("   Azure Document Intelligence:", "Available" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "Not configured")
         print("   Gemini API:", "Available" if app.config.get('GEMINI_API_KEY') else "Not configured")
         print("   Overall AI Services:", "Available" if config_class().AI_SERVICES_AVAILABLE else "Not configured")
         
         # Test AI service initialization
-        ai_service = AIService(app.config)
+        ai_service = AIAnalysisService(app.config)
         print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")
+        print("   Service Registry: Initialized with dependency injection")
 
     # Recurring tasks are now integrated into the Task model
     

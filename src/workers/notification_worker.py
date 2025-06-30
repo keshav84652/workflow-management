@@ -7,9 +7,9 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from celery_app import celery_app
-from events.publisher import publish_event
-from events.schemas import ErrorEvent
+from ..celery_app import celery_app
+from src.shared.events.publisher import publish_event
+from src.shared.events.schemas import ErrorEvent
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +95,7 @@ def send_task_reminder(task_id: int, user_id: int, reminder_type: str = 'due_soo
         logger.info(f"Sending task reminder for task {task_id} to user {user_id}")
         
         # Import models (lazy import)
-        from models.tasks import Task
-        from models.auth import User
+        from src.models import Task, User
         
         task = Task.query.get(task_id)
         user = User.query.get(user_id)
@@ -172,8 +171,7 @@ def send_project_update(project_id: int, update_type: str, recipients: list = No
         logger.info(f"Sending project update for project {project_id}, type: {update_type}")
         
         # Import models (lazy import)
-        from models.projects import Project
-        from models.auth import User
+        from src.models import Project, User
         
         project = Project.query.get(project_id)
         if not project:

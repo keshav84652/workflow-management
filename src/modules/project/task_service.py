@@ -2,14 +2,16 @@
 TaskService: Handles all business logic for tasks and subtasks.
 """
 
+from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
 from src.models import Task
 from sqlalchemy import or_, and_
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
-from src.modules.project.task_repository import TaskRepository
+from src.shared.interfaces import ITaskService
+from .task_repository import TaskRepository
 
-class TaskService(BaseService):
+class TaskService(BaseService, ITaskService):
     def __init__(self):
         super().__init__()
         self.task_repository = TaskRepository()
@@ -143,7 +145,7 @@ class TaskService(BaseService):
         Get tasks with dependency information for a firm
         CRITICAL: This applies interdependency filtering for sequential projects
         """
-        from src.modules.project.task_repository import TaskRepository
+        from .task_repository import TaskRepository
         task_repo = TaskRepository()
         all_tasks = task_repo.get_filtered_tasks(firm_id, filters)
         
@@ -221,9 +223,9 @@ class TaskService(BaseService):
         except Exception as e:
             return {'success': False, 'message': str(e)}
     
+    @transactional
     def update_task_from_form(self, task_id, form_data, firm_id, user_id):
         """Update task from form data"""
-        try:
             task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
@@ -246,8 +248,6 @@ class TaskService(BaseService):
             if estimated_hours:
                 task.estimated_hours = float(estimated_hours)
             
-            db.session.commit()
-            
             ActivityService.log_task_operation(
                 operation='UPDATE',
                 task_id=task.id,
@@ -258,20 +258,16 @@ class TaskService(BaseService):
             )
             
             return {'success': True, 'message': 'Task updated successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
+    @transactional
     def delete_task(self, task_id, firm_id, user_id):
         """Delete a task with access check"""
-        try:
             task = self.get_task_by_id_with_access_check(task_id, firm_id)
             if not task:
                 return {'success': False, 'message': 'Task not found or access denied'}
             
             task_title = task.title
             db.session.delete(task)
-            db.session.commit()
             
             ActivityService.log_task_operation(
                 operation='DELETE',
@@ -295,13 +291,10 @@ class TaskService(BaseService):
             publish_event(event)
             
             return {'success': True, 'message': 'Task deleted successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
+    @transactional
     def add_task_comment(self, task_id, firm_id, comment_text, user_id):
         """Add comment to task"""
-        try:
             if not comment_text.strip():
                 return {'success': False, 'message': 'Comment cannot be empty'}
             
@@ -316,7 +309,6 @@ class TaskService(BaseService):
                 user_id=user_id
             )
             db.session.add(comment)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -327,20 +319,15 @@ class TaskService(BaseService):
                     'created_at': comment.created_at.strftime('%m/%d/%Y %I:%M %p')
                 }
             }
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
+    @transactional
     def bulk_update_tasks(self, task_ids, updates, firm_id, user_id):
         """Bulk update multiple tasks"""
-        try:
-            from src.modules.project.task_repository import TaskRepository
+            from .task_repository import TaskRepository
             task_repo = TaskRepository()
             result = task_repo.bulk_update(task_ids, updates, firm_id)
             
             if result['success']:
-                db.session.commit()
-                
                 ActivityService.log_entity_operation(
                     entity_type='TASK',
                     operation='UPDATE',
@@ -351,33 +338,25 @@ class TaskService(BaseService):
                 )
             
             return result
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
+    @transactional
     def bulk_delete_tasks(self, task_ids, firm_id, user_id):
         """Bulk delete multiple tasks"""
-        try:
-            from src.modules.project.task_repository import TaskRepository
-            task_repo = TaskRepository()
-            result = task_repo.bulk_delete(task_ids, firm_id)
-            
-            if result['success']:
-                db.session.commit()
-                
-                ActivityService.log_entity_operation(
-                    entity_type='TASK',
-                    operation='DELETE',
-                    entity_id=0,  # Bulk operation
-                    entity_name=f'{result["deleted_count"]} tasks',
-                    details='Bulk deleted tasks',
-                    user_id=user_id
-                )
-            
-            return result
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
+        from .task_repository import TaskRepository
+        task_repo = TaskRepository()
+        result = task_repo.bulk_delete(task_ids, firm_id)
+        
+        if result['success']:
+            ActivityService.log_entity_operation(
+                entity_type='TASK',
+                operation='DELETE',
+                entity_id=0,  # Bulk operation
+                entity_name=f'{result["deleted_count"]} tasks',
+                details='Bulk deleted tasks',
+                user_id=user_id
+            )
+        
+        return result
     
     @transactional
     def update_task_status(self, task_id, new_status, firm_id, user_id):
@@ -389,7 +368,6 @@ class TaskService(BaseService):
             
             old_status = task.current_status
             task.status = new_status
-            db.session.commit()
             
             # Log status change activity
             ActivityService.log_task_operation(
@@ -417,9 +395,6 @@ class TaskService(BaseService):
             publish_event(event)
             
             return {'success': True, 'message': 'Task status updated successfully'}
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': str(e)}
     
     def would_create_circular_dependency(self, task_id, dependency_id):
         """
@@ -634,3 +609,85 @@ class TaskService(BaseService):
                 'tasks': [],
                 'message': str(e)
             }
+
+    def get_activity_logs_for_task(self, task_id: int, limit: int = 10) -> List['ActivityLog']:
+        """Get recent activity logs for a task"""
+        from src.models import ActivityLog
+        return ActivityLog.query.filter_by(task_id=task_id).order_by(
+            ActivityLog.timestamp.desc()
+        ).limit(limit).all()
+    
+    @transactional
+    def log_time_to_task(self, task_id: int, hours: float, user_id: int) -> Dict[str, Any]:
+        """
+        Log time to a task
+        
+        Args:
+            task_id: ID of the task to log time to
+            hours: Number of hours to log
+            user_id: ID of the user logging time
+            
+        Returns:
+            Dict containing success status and any error messages
+        """
+        try:
+            # Validate inputs
+            if not task_id or not hours or not user_id:
+                return {
+                    'success': False,
+                    'message': 'Task ID, hours, and user ID are required'
+                }
+            
+            if hours <= 0:
+                return {
+                    'success': False,
+                    'message': 'Hours must be greater than 0'
+                }
+            
+            # Get task to verify it exists
+            task = Task.query.get(task_id)
+            if not task:
+                return {
+                    'success': False,
+                    'message': 'Task not found'
+                }
+            
+            # For now, we'll log this as an activity (could be expanded to a separate TimeLog model)
+            from src.shared.services import ActivityLoggingService as ActivityService
+            activity_service = ActivityService()
+            
+            # Log the time as an activity
+            activity_result = activity_service.log_activity(
+                action=f'Time logged: {hours} hours',
+                user_id=user_id,
+                firm_id=task.firm_id,
+                project_id=task.project_id,
+                task_id=task_id,
+                details=f'User logged {hours} hours to task "{task.title}"'
+            )
+            
+            if activity_result['success']:
+                return {
+                    'success': True,
+                    'message': f'Successfully logged {hours} hours to task',
+                    'hours_logged': hours,
+                    'task_id': task_id
+                }
+            else:
+                return {
+                    'success': False,
+                    'message': f'Failed to log activity: {activity_result["message"]}'
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error logging time: {str(e)}'
+            }
+
+    def get_task_comments(self, task_id: int) -> List['TaskComment']:
+        """Get all comments for a task"""
+        from src.models import TaskComment
+        return TaskComment.query.filter_by(task_id=task_id).order_by(
+            TaskComment.created_at.desc()
+        ).all()

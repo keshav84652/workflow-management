@@ -2,14 +2,16 @@
 ProjectService: Handles all business logic for project operations.
 """
 
+from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
 from src.models import Project, Task, Client, User, WorkType
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
+from src.shared.interfaces import IProjectService
 from .repository import ProjectRepository
 
 
-class ProjectService(BaseService):
+class ProjectService(BaseService, IProjectService):
     def __init__(self):
         super().__init__()
         self.project_repository = ProjectRepository()
@@ -25,9 +27,12 @@ class ProjectService(BaseService):
         """Get project progress with access check"""
         project = self.get_project_by_id_and_firm(project_id, firm_id)
         if not project:
-            return {'error': 'Project not found or access denied'}, 403
+            return {
+                'success': False,
+                'message': 'Project not found or access denied'
+            }
         
-        from src.modules.project.task_repository import TaskRepository
+        from .task_repository import TaskRepository
         task_repo = TaskRepository()
         project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
         total_tasks = len(project_tasks)
@@ -178,7 +183,7 @@ class ProjectService(BaseService):
                 return {'success': False, 'message': 'Project not found or access denied'}
             
             # Check if project has tasks  
-            from src.modules.project.task_repository import TaskRepository
+            from .task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
             task_count = len(project_tasks)
@@ -242,9 +247,7 @@ class ProjectService(BaseService):
         """Get project by ID for firm"""
         return self.get_project_by_id_and_firm(project_id, firm_id)
     
-    def get_projects_by_firm(self, firm_id):
-        """Get all projects for firm (alias for consistency)"""
-        return self.project_repository.get_by_firm(firm_id)
+    # Removed duplicate method - using full implementation below
     
     @transactional
     def move_project_status(self, project_id, status_id, firm_id, user_id=None):
@@ -315,7 +318,7 @@ class ProjectService(BaseService):
                 )
             
             # Calculate updated progress for response  
-            from src.modules.project.task_repository import TaskRepository
+            from .task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, firm_id, include_completed=True)
             total_tasks = len(project_tasks)
@@ -404,7 +407,7 @@ class ProjectService(BaseService):
                 return
             
             # Count total tasks and completed tasks
-            from src.modules.project.task_repository import TaskRepository
+            from .task_repository import TaskRepository
             task_repo = TaskRepository()
             project_tasks = task_repo.get_project_tasks(project_id, project.firm_id, include_completed=True)
             total_tasks = len(project_tasks)
@@ -458,7 +461,7 @@ class ProjectService(BaseService):
                 'statistics': {}
             }
     
-    def get_projects_by_firm(self, firm_id: int) -> dict:
+    def get_projects_by_firm(self, firm_id: int, filters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Get all projects for a firm"""
         try:
             from src.models import Project, Client
@@ -529,3 +532,19 @@ class ProjectService(BaseService):
                 'projects': [],
                 'message': str(e)
             }
+
+    def get_tasks_by_project(self, project_id: int) -> List[Task]:
+        """Get all tasks for a specific project"""
+        return Task.query.filter_by(project_id=project_id).order_by(Task.due_date.asc()).all()
+    
+    def get_activity_logs_for_project(self, project_id: int, limit: int = 10) -> List['ActivityLog']:
+        """Get recent activity logs for a project"""
+        from src.models import ActivityLog
+        return ActivityLog.query.filter_by(project_id=project_id).order_by(
+            ActivityLog.timestamp.desc()
+        ).limit(limit).all()
+    
+    def get_project_tasks_for_dependency(self, project_id: int) -> List[Task]:
+        """Get tasks for dependency calculations"""
+        return Task.query.filter_by(project_id=project_id).order_by(Task.title).all()
+    

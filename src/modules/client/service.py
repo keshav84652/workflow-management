@@ -2,14 +2,16 @@
 ClientService: Handles all business logic for clients, including search and retrieval.
 """
 
+from typing import Dict, Any, Optional
 from src.shared.database.db_import import db
 from src.models import Client
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.base import BaseService, transactional
+from .interface import IClientService
 from .repository import ClientRepository
 
 
-class ClientService(BaseService):
+class ClientService(BaseService, IClientService):
     def __init__(self):
         super().__init__()
         self.client_repository = ClientRepository()
@@ -148,15 +150,13 @@ class ClientService(BaseService):
                 'statistics': {}
             }
     
-    def get_clients_by_firm(self, firm_id: int) -> dict:
-        """Get all clients for a firm"""
+    def get_clients_for_api(self, firm_id: int) -> dict:
+        """Get all clients for a firm formatted for API response"""
         try:
-            from src.models import Client
-            
-            query = Client.query.filter_by(firm_id=firm_id).order_by(Client.name.asc())
+            clients_raw = self.client_repository.get_by_firm(firm_id)
             
             clients = []
-            for client in query.all():
+            for client in clients_raw:
                 client_dict = {
                     'id': client.id,
                     'name': client.name,

@@ -14,7 +14,7 @@ from src.models import (
     IncomeWorksheet, User, Attachment
 )
 from src.shared.services import ActivityLoggingService as ActivityService
-from .ai_service import AIService
+from .analysis_service import AIAnalysisService
 from .service import DocumentService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -25,7 +25,7 @@ ai_bp = Blueprint('ai', __name__)
 def ai_services_status():
     """Check the status of AI services"""
     try:
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         status = ai_service.get_ai_services_status()
         status_code = 500 if 'error' in status else 200
         return jsonify(status), status_code
@@ -46,7 +46,7 @@ def analyze_document(document_id):
         firm_id = get_session_firm_id()
         
         # Initialize AI service and perform analysis
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         results = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis=True)
         
         return jsonify({
@@ -74,7 +74,7 @@ def get_document_analysis(document_id):
         force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         response_data = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis)
         
         # Transform new data structure to old format for frontend compatibility
@@ -89,7 +89,7 @@ def get_document_analysis(document_id):
                     analysis_results = {}
             
             # Use AIService to transform data structure  
-            ai_service = AIService(current_app.config)
+            ai_service = AIAnalysisService(current_app.config)
             transformed_data = ai_service.transform_analysis_to_old_format(analysis_results)
             
             # Add metadata
@@ -131,7 +131,7 @@ def analyze_checklist(checklist_id):
         force_reanalysis = request_data.get('force_reanalysis', False)
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         
         # Check if AI services are available first
         if not ai_service.is_available():
@@ -169,7 +169,7 @@ def export_checklist_analysis(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         result = ai_service.export_checklist_analysis(checklist_id, firm_id)
         
         if not result['success']:
@@ -203,7 +203,7 @@ def generate_income_worksheet(checklist_id):
         user_id = get_session_user_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         results = ai_service.generate_income_worksheet(checklist_id, firm_id, user_id)
         
         return jsonify(results)
@@ -224,7 +224,7 @@ def download_income_worksheet(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         result = ai_service.get_income_worksheet_for_download(checklist_id, firm_id)
         
         if not result['success']:
@@ -257,7 +257,7 @@ def get_saved_income_worksheet(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIAnalysisService(current_app.config)
         results = ai_service.get_saved_income_worksheet(checklist_id, firm_id)
         
         if not results['success']:

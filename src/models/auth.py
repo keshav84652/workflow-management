@@ -13,11 +13,11 @@ class Firm(db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # Temporarily disabled relationships for testing - import ordering issue
-    # users = db.relationship('User', backref='firm', lazy=True)
-    # templates = db.relationship('Template', backref='firm', lazy=True)
-    # projects = db.relationship('Project', backref='firm', lazy=True)
-    # clients = db.relationship('Client', backref='firm', lazy=True)
+    # Relationships
+    users = db.relationship('User', backref='firm', lazy=True)
+    templates = db.relationship('Template', backref='firm', lazy=True)
+    projects = db.relationship('Project', backref='firm', lazy=True)
+    clients = db.relationship('Client', backref='firm', lazy=True)
 
 
 class User(db.Model):

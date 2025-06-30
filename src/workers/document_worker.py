@@ -10,9 +10,9 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from pathlib import Path
 
-from celery_app import celery_app
-from events.publisher import publish_event
-from events.schemas import ErrorEvent
+from ..celery_app import celery_app
+from src.shared.events.publisher import publish_event
+from src.shared.events.schemas import ErrorEvent
 
 logger = logging.getLogger(__name__)
 

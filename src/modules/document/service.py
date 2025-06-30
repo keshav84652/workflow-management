@@ -8,24 +8,30 @@ from datetime import datetime
 import secrets
 
 from src.shared.database.db_import import db
-from src.models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
+from src.models import DocumentChecklist, ChecklistItem, ClientDocument, IncomeWorksheet
 from src.shared.base import BaseService, transactional
-from src.modules.client.repository import ClientRepository
+from src.shared.di_container import get_service
+from src.modules.client.interface import IClientService
+from .repository import DocumentRepository
 
 
 class DocumentService(BaseService):
     def __init__(self):
         super().__init__()
-        self.client_repository = ClientRepository()
-    @staticmethod
-    def update_checklist_item_status(token, item_id, new_status):
+        # Use dependency injection to get client service
+        try:
+            self.client_service = get_service(IClientService)
+        except ValueError:
+            # Fallback to direct instantiation if DI not set up
+            from src.modules.client.service import ClientService
+            self.client_service = ClientService()
+        self.document_repository = DocumentRepository()
+    @transactional
+    def update_checklist_item_status(self, token, item_id, new_status):
         """Update checklist item status via public token"""
         try:
             # Find checklist by token
-            checklist = DocumentChecklist.query.filter_by(
-                public_access_token=token,
-                public_access_enabled=True
-            ).first()
+            checklist = self.document_repository.get_checklist_by_token(token)
             
             if not checklist:
                 return {'success': False, 'message': 'Invalid or expired access token'}
@@ -34,16 +40,16 @@ class DocumentService(BaseService):
             if new_status not in ['already_provided', 'not_applicable', 'pending']:
                 return {'success': False, 'message': 'Invalid status selected'}
             
-            item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+            item = self.document_repository.get_checklist_item_by_id(item_id, checklist.id)
             if not item:
                 return {'success': False, 'message': 'Checklist item not found'}
             
             # If changing from uploaded status, remove the uploaded file
             if item.status == 'uploaded' and new_status != 'uploaded':
-                existing_doc = ClientDocument.query.filter_by(
-                    client_id=checklist.client_id,
-                    checklist_item_id=item_id
-                ).first()
+                existing_doc = self.document_repository.get_client_document_by_item(
+                    checklist.client_id,
+                    item_id
+                )
                 
                 if existing_doc:
                     # Remove file
@@ -56,8 +62,6 @@ class DocumentService(BaseService):
             item.status = new_status
             item.updated_at = datetime.utcnow()
             
-            db.session.commit()
-            
             status_messages = {
                 'already_provided': 'Marked as already provided',
                 'not_applicable': 'Marked as not applicable',
@@ -68,49 +72,46 @@ class DocumentService(BaseService):
                 'success': True,
                 'message': status_messages.get(new_status, 'Status updated')
             }
-            
-        except Exception as e:
-            db.session.rollback()
-            return {'success': False, 'message': f'Error updating status: {str(e)}'}
     
+    @transactional
     def generate_share_token(self, checklist_id, firm_id):
-        checklist = DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first_or_404()
+        checklist = self.document_repository.get_checklist_by_id_with_firm_access(
+            checklist_id, firm_id
+        )
+        if not checklist:
+            raise ValueError(f"Checklist {checklist_id} not found")
         if not checklist.public_access_token:
             checklist.public_access_token = secrets.token_urlsafe(32)
             checklist.public_access_enabled = True
-            db.session.commit()
         return checklist
 
-    @staticmethod  
-    def revoke_share(checklist_id, firm_id):
-        checklist = DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first_or_404()
+    @transactional
+    def revoke_share(self, checklist_id, firm_id):
+        checklist = self.document_repository.get_checklist_by_id_with_firm_access(
+            checklist_id, firm_id
+        )
+        if not checklist:
+            raise ValueError(f"Checklist {checklist_id} not found")
         checklist.public_access_enabled = False
-        db.session.commit()
         return checklist
 
-    @staticmethod
-    def regenerate_share_token(checklist_id, firm_id):
-        checklist = DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first_or_404()
+    @transactional
+    def regenerate_share_token(self, checklist_id, firm_id):
+        checklist = self.document_repository.get_checklist_by_id_with_firm_access(
+            checklist_id, firm_id
+        )
+        if not checklist:
+            raise ValueError(f"Checklist {checklist_id} not found")
         checklist.public_access_token = secrets.token_urlsafe(32)
         checklist.public_access_enabled = True
-        db.session.commit()
         return checklist
     
-    @staticmethod
-    def create_checklist(name, description=None, client_id=None, firm_id=None, user_id=None):
+    @transactional
+    def create_checklist(self, name, description=None, client_id=None, firm_id=None, user_id=None):
         """Create a new document checklist"""
         try:
             if not name or not name.strip():
-                return {'success': False, 'error': 'Checklist name is required'}
+                return {'success': False, 'message': 'Checklist name is required'}
             
             checklist = DocumentChecklist(
                 name=name.strip(),
@@ -120,7 +121,6 @@ class DocumentService(BaseService):
             )
             
             db.session.add(checklist)
-            db.session.commit()
             
             # Publish document creation event
             from src.shared.events.schemas import DocumentCreatedEvent
@@ -139,11 +139,10 @@ class DocumentService(BaseService):
                 'message': 'Checklist created successfully'
             }
         except Exception as e:
-            db.session.rollback()
             return {'success': False, 'error': str(e)}
     
-    @staticmethod
-    def add_checklist_item(checklist_id, name, description=None, firm_id=None, user_id=None):
+    @transactional
+    def add_checklist_item(self, checklist_id, name, description=None, firm_id=None, user_id=None):
         """Add item to checklist"""
         try:
             if not name or not name.strip():
@@ -157,7 +156,6 @@ class DocumentService(BaseService):
             )
             
             db.session.add(item)
-            db.session.commit()
             
             return {
                 'success': True,
@@ -165,14 +163,13 @@ class DocumentService(BaseService):
                 'message': 'Checklist item added successfully'
             }
         except Exception as e:
-            db.session.rollback()
             return {'success': False, 'error': str(e)}
     
-    @staticmethod
-    def upload_file_to_checklist_item(item_id, file_path, original_filename, firm_id=None, user_id=None):
+    @transactional
+    def upload_file_to_checklist_item(self, item_id, file_path, original_filename, firm_id=None, user_id=None):
         """Upload file to checklist item"""
         try:
-            item = ChecklistItem.query.get(item_id)
+            item = self.document_repository.get_checklist_item_by_id_only(item_id)
             if not item:
                 return {'success': False, 'error': 'Checklist item not found'}
             
@@ -187,74 +184,50 @@ class DocumentService(BaseService):
             
             db.session.add(document)
             item.status = 'uploaded'
-            db.session.commit()
             
             return {
                 'success': True,
                 'message': 'File uploaded successfully'
             }
         except Exception as e:
-            db.session.rollback()
             return {'success': False, 'error': str(e)}
     
     def get_checklists_for_firm(self, firm_id):
         """Get all checklists for a firm"""
-        return DocumentChecklist.query.join(Client).filter(
-            Client.firm_id == firm_id
-        ).order_by(DocumentChecklist.created_at.desc()).all()
+        return self.document_repository.get_checklists_for_firm(firm_id)
     
     def get_clients_for_firm(self, firm_id):
-        """Get all clients for a firm - used by document blueprints"""
-        return self.client_repository.get_by_firm(firm_id)
+        """Get all clients for a firm - delegated to client service"""
+        result = self.client_service.get_clients_for_api(firm_id)
+        return result.get('clients', []) if result.get('success') else []
     
     def get_uploaded_documents(self, firm_id):
         """Get all uploaded documents for a firm"""
-        from src.models import ClientDocument, ChecklistItem, DocumentChecklist, Client
-        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-            Client.firm_id == firm_id
-        ).order_by(ClientDocument.uploaded_at.desc()).all()
+        return self.document_repository.get_uploaded_documents_for_firm(firm_id)
     
     def get_document_for_download(self, document_id, firm_id):
         """Get document for download with firm access check"""
-        from src.models import ClientDocument, ChecklistItem, DocumentChecklist, Client
-        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-            ClientDocument.id == document_id,
-            Client.firm_id == firm_id
-        ).first()
+        return self.document_repository.get_document_for_download(document_id, firm_id)
     
     def get_client_by_id_and_firm(self, client_id, firm_id):
-        """Get client by ID with firm access check"""
-        from src.models import Client
-        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+        """Get client by ID with firm access check - delegated to client service"""
+        return self.client_service.get_client_by_id(client_id, firm_id)
     
     def get_checklists_by_client_and_firm(self, client_id, firm_id):
         """Get checklists for specific client and firm"""
-        return DocumentChecklist.query.filter_by(
-            client_id=client_id,
-            firm_id=firm_id
-        ).all()
+        return self.document_repository.get_checklists_by_client_and_firm(client_id, firm_id)
     
     def get_checklist_by_token(self, token):
         """Get checklist by public access token"""
-        return DocumentChecklist.query.filter_by(
-            public_access_token=token,
-            public_access_enabled=True
-        ).first()
+        return self.document_repository.get_checklist_by_token(token)
     
     def get_active_checklists_with_client_filter(self, firm_id):
         """Get active checklists with client join for firm"""
-        return DocumentChecklist.query.join(Client).filter(
-            Client.firm_id == firm_id,
-            DocumentChecklist.is_active == True
-        ).order_by(DocumentChecklist.created_at.desc()).all()
+        return self.document_repository.get_active_checklists_with_client_filter(firm_id)
     
-    @classmethod
-    def get_checklist_by_id(cls, checklist_id, firm_id):
+    def get_checklist_by_id(self, checklist_id, firm_id):
         """Get checklist by ID with firm access check"""
-        return DocumentChecklist.query.join(Client).filter(
-            DocumentChecklist.id == checklist_id,
-            Client.firm_id == firm_id
-        ).first()
+        return self.document_repository.get_checklist_by_id_with_firm_check(checklist_id, firm_id)
     
     def get_document_filename_by_id(self, document_id):
         """Get document filename by ID"""
@@ -301,8 +274,8 @@ class DocumentService(BaseService):
                 'message': f'Error parsing worksheet data: {str(e)}'
             }
     
-    @staticmethod
-    def perform_checklist_ai_analysis(checklist):
+    @transactional
+    def perform_checklist_ai_analysis(self, checklist):
         """Perform one-time AI analysis for a checklist and all its documents"""
         if checklist.ai_analysis_completed:
             return
@@ -344,21 +317,7 @@ class DocumentService(BaseService):
                     'status': 'completed' if analyzed_documents == total_documents else 'partial'
                 }
                 
-                try:
-                    # Save checklist analysis with proper error handling
-                    checklist.ai_analysis_completed = True
-                    checklist.ai_analysis_results = json.dumps(checklist_summary)
-                    checklist.ai_analysis_timestamp = datetime.utcnow()
-                    
-                    db.session.commit()
-                    
-                except Exception as db_error:
-                    print(f"Database error saving checklist analysis: {db_error}")
-                    db.session.rollback()
-            
-        except Exception as e:
-            print(f"Error performing checklist AI analysis: {e}")
-            try:
-                db.session.rollback()
-            except:
-                pass
+                # Save checklist analysis
+                checklist.ai_analysis_completed = True
+                checklist.ai_analysis_results = json.dumps(checklist_summary)
+                checklist.ai_analysis_timestamp = datetime.utcnow()

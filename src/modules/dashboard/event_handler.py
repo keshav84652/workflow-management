@@ -5,8 +5,8 @@ Handles events that should trigger dashboard updates.
 
 from datetime import datetime
 from typing import Dict, Any
-from events.base import EventHandler, BaseEvent
-from events.schemas import (
+from src.shared.events.base import EventHandler, BaseEvent
+from src.shared.events.schemas import (
     TaskCreatedEvent, TaskUpdatedEvent, TaskStatusChangedEvent,
     TaskDeletedEvent, TaskAssignedEvent
 )

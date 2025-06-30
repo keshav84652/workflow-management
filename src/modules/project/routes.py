@@ -5,14 +5,12 @@ Project management blueprint
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, jsonify
 from datetime import datetime
 
-from src.shared.database.db_import import db
-from src.models import Project, Template, Task, Client, TaskStatus, TemplateTask, WorkType, User, ActivityLog, TaskComment, Attachment
-from src.modules.project.service import ProjectService
-from src.modules.project.task_service import TaskService
-from src.modules.client.service import ClientService
-from src.modules.admin.template_service import TemplateService
+# All data access through services - no direct model imports
+from .service import ProjectService
+from .task_service import TaskService
+# Removed cross-module imports - using aggregated data from ProjectService
 from src.shared.services.user_service import SharedUserService
-from .helper_service import ProjectHelperService
+# Removed ProjectHelperService - methods moved to appropriate domain services
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 
@@ -65,12 +63,20 @@ def create_project():
     
     firm_id = get_session_firm_id()
     
+    # Coordinate between modules at the route level (acceptable pattern)
+    # Get templates from admin module
+    from src.modules.admin.template_service import TemplateService
     template_service = TemplateService()
     templates = template_service.get_templates_by_firm(firm_id)
     
+    # Get clients from client module
+    from src.modules.client.service import ClientService
     client_service = ClientService()
     clients = client_service.get_active_clients_by_firm(firm_id)
-    return render_template('projects/create_project.html', templates=templates, clients=clients)
+    
+    return render_template('projects/create_project.html', 
+                         templates=templates, 
+                         clients=clients)
 
 
 @projects_bp.route('/<int:id>')
@@ -84,10 +90,9 @@ def view_project(id):
         flash('Project not found or access denied', 'error')
         return redirect(url_for('projects.list_projects'))
     
-    # Create helper service instance to get tasks and activity logs
-    helper_service = ProjectHelperService()
-    tasks = helper_service.get_tasks_by_project(id)
-    activity_logs = helper_service.get_activity_logs_for_project(id, limit=10)
+    # Get tasks and activity logs using proper domain services
+    tasks = project_service.get_tasks_by_project(id)
+    activity_logs = project_service.get_activity_logs_for_project(id, limit=10)
     
     return render_template('projects/view_project.html', project=project, tasks=tasks, activity_logs=activity_logs)
 
@@ -171,10 +176,10 @@ def delete_project(id):
 @projects_bp.route('/<int:id>/move-status', methods=['POST'])
 def move_project_status(id):
     """Move project to different status for Kanban board"""
-    from src.modules.auth.service import AuthService
+    from src.modules.auth.session_service import SessionService
     
     # Check authentication
-    auth_redirect = AuthService.require_authentication()
+    auth_redirect = SessionService.require_authentication()
     if auth_redirect:
         return jsonify({'success': False, 'message': 'Authentication required'}), 401
     

@@ -6,8 +6,6 @@ from flask import Blueprint, render_template, request, redirect, url_for, sessio
 import os
 from datetime import datetime
 
-from src.shared.database.db_import import db
-from src.models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
 from src.shared.utils.consolidated import generate_access_code
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -20,7 +18,7 @@ def login():
 
 @admin_bp.route('/authenticate', methods=['POST'])
 def authenticate():
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     
     password = request.form.get('password')
     admin_service = AdminService()
@@ -36,7 +34,7 @@ def authenticate():
 
 @admin_bp.route('/dashboard')
 def dashboard():
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     
     admin_service = AdminService()
     if not admin_service.is_admin_authenticated():
@@ -52,7 +50,7 @@ def dashboard():
 # Template Management Routes
 @admin_bp.route('/templates')
 def templates():
-    from src.modules.admin.template_service import TemplateService
+    from .template_service import TemplateService
     from src.shared.utils.consolidated import get_session_firm_id
     
     firm_id = get_session_firm_id()
@@ -64,7 +62,7 @@ def templates():
 @admin_bp.route('/templates/create', methods=['GET', 'POST'])
 def create_template():
     if request.method == 'POST':
-        from src.modules.admin.template_service import TemplateService
+        from .template_service import TemplateService
         from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
         
         firm_id = get_session_firm_id()
@@ -105,7 +103,7 @@ def create_template():
 
 @admin_bp.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 def edit_template(id):
-    from src.modules.admin.template_service import TemplateService
+    from .template_service import TemplateService
     from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
     
     firm_id = get_session_firm_id()
@@ -152,7 +150,7 @@ def edit_template(id):
 
 @admin_bp.route('/generate-code', methods=['POST'])
 def generate_access_code_route():
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     
     admin_service = AdminService()
     if not admin_service.is_admin_authenticated():
@@ -171,7 +169,7 @@ def generate_access_code_route():
 
 @admin_bp.route('/work_types', methods=['GET'])
 def admin_work_types():
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
@@ -191,7 +189,7 @@ def admin_work_types():
 
 @admin_bp.route('/work_types/create', methods=['POST'])
 def admin_create_work_type():
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
     
     if session.get('user_role') != 'Admin':
@@ -214,7 +212,7 @@ def admin_create_work_type():
 
 @admin_bp.route('/work_types/<int:work_type_id>/edit', methods=['POST'])
 def admin_edit_work_type(work_type_id):
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
     
     if session.get('user_role') != 'Admin':
@@ -237,7 +235,7 @@ def admin_edit_work_type(work_type_id):
 
 @admin_bp.route('/work_types/<int:work_type_id>/statuses/create', methods=['POST'])
 def admin_create_status(work_type_id):
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':
@@ -261,7 +259,7 @@ def admin_create_status(work_type_id):
 @admin_bp.route('/statuses/<int:status_id>/edit', methods=['POST'])
 def admin_edit_status(status_id):
     """Edit a task status"""
-    from src.modules.admin.service import AdminService
+    from .service import AdminService
     from src.shared.utils.consolidated import get_session_firm_id
     
     if session.get('user_role') != 'Admin':

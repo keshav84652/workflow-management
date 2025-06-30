@@ -11,8 +11,8 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from utils.error_handling import CircuitBreaker, CircuitState, GracefulDegradation
-from utils.health_checks import check_database_health, check_redis_health
+from src.shared.utils.simple_error_handling import CircuitBreaker, CircuitState, GracefulDegradation
+from src.shared.utils.health_checks import check_database_health, check_redis_health
 
 
 class TestPhase2DInfrastructure(unittest.TestCase):
@@ -41,7 +41,7 @@ class TestPhase2DInfrastructure(unittest.TestCase):
         )
         self.assertEqual(result, "fallback_result")
     
-    @patch('core.db.session.execute')
+    @patch('src.shared.database.db_import.db.session.execute')
     def test_database_health_check(self, mock_execute):
         """Test database health check works"""
         mock_execute.return_value.scalar.return_value = 1
@@ -49,7 +49,7 @@ class TestPhase2DInfrastructure(unittest.TestCase):
         result = check_database_health()
         self.assertEqual(result['status'], 'healthy')
     
-    @patch('core.redis_client.redis_client')
+    @patch('src.shared.database.redis_client.redis_client')
     def test_redis_health_check(self, mock_redis):
         """Test Redis health check works"""
         mock_redis.is_available.return_value = True

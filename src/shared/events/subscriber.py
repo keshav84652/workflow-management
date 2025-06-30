@@ -12,7 +12,7 @@ from datetime import datetime
 import threading
 
 from src.shared.database.redis_client import redis_client
-from events.base import BaseEvent, EventHandler, EventProcessingResult, event_registry
+from src.shared.events.base import BaseEvent, EventHandler, EventProcessingResult, event_registry
 
 logger = logging.getLogger(__name__)
 

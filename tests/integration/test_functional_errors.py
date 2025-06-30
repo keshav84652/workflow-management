@@ -105,7 +105,7 @@ class TestFunctionalErrors:
     
     def test_dashboard_service_methods_exist(self, auth_session):
         """Test that all required dashboard service methods exist and work"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         
@@ -158,7 +158,7 @@ class TestFunctionalErrors:
     
     def test_dashboard_data_structure(self, auth_session):
         """Test that dashboard returns expected data structure"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         data = service.get_dashboard_data(1)
@@ -178,7 +178,7 @@ class TestFunctionalErrors:
     
     def test_calendar_data_structure(self, auth_session):
         """Test that calendar service returns expected data structure"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         calendar_data = service.get_calendar_data(1, 2024, 12)
@@ -200,7 +200,7 @@ class TestFunctionalErrors:
     
     def test_time_tracking_data_structure(self, auth_session):
         """Test that time tracking service returns expected data structure"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         time_data = service.get_time_tracking_report(1)
@@ -222,7 +222,7 @@ class TestFunctionalErrors:
     
     def test_user_repository_compatibility(self, auth_session):
         """Test that UserRepository works without is_active field"""
-        from repositories.user_repository import UserRepository
+        from src.modules.auth.repository import UserRepository
         
         repo = UserRepository()
         
@@ -239,7 +239,7 @@ class TestFunctionalErrors:
     
     def test_service_method_error_handling(self, auth_session):
         """Test that service methods handle errors gracefully"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         
@@ -336,7 +336,7 @@ class TestErrorRecovery:
     
     def test_missing_data_references(self, auth_session):
         """Test handling of missing foreign key references"""
-        from services.dashboard_aggregator_service import DashboardAggregatorService
+        from src.modules.dashboard.aggregator_service import DashboardAggregatorService
         
         service = DashboardAggregatorService()
         

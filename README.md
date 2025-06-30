@@ -85,9 +85,9 @@ This creates a demo firm with enhanced user roles and sample data.
 
 ```bash
 # Start the modular Flask application
-python src/app.py
-# OR alternatively:
 python -m src.app
+# OR alternatively (from src directory):
+cd src && python app.py
 ```
 
 The application will be available at http://localhost:5002

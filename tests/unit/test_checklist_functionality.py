@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 
-from services.document_service import DocumentService
+from src.modules.document.service import DocumentService
 from src.models import DocumentChecklist, ChecklistItem, Client
 
 

@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from celery import Task
-from celery_app import celery_app
-from events.publisher import publish_event
-from events.schemas import (
+from ..celery_app import celery_app
+from src.shared.events.publisher import publish_event
+from src.shared.events.schemas import (
     DocumentAnalysisStartedEvent,
     DocumentAnalysisCompletedEvent,
     DocumentAnalysisFailedEvent,
@@ -75,12 +75,12 @@ def analyze_document(self, document_id: int, document_name: str, file_path: str,
         publish_event(started_event)
         
         # Import AI service (lazy import to avoid circular dependencies)
-        from services.ai_service import AIService
-        from config import get_config
+        from src.modules.document.analysis_service import AIAnalysisService
+        from src.config import get_config
         
         # Initialize AI service
         config = get_config()()
-        ai_service = AIService(config.__dict__)
+        ai_service = AIAnalysisService(config.__dict__)
         
         if not ai_service.is_available():
             raise RuntimeError("AI services not available - no API keys configured")
@@ -174,7 +174,7 @@ def analyze_checklist(checklist_id: int, firm_id: Optional[int] = None) -> Dict[
         logger.info(f"Starting checklist analysis for checklist {checklist_id}")
         
         # Import models (lazy import)
-        from models.documents import DocumentChecklist, ClientDocument
+        from src.models import DocumentChecklist, ClientDocument
         from src.shared.database.db_import import db
         
         # Get checklist and documents
@@ -244,7 +244,7 @@ def batch_analyze_documents(document_ids: list, firm_id: Optional[int] = None) -
         logger.info(f"Starting batch analysis for {len(document_ids)} documents")
         
         # Import models (lazy import)
-        from models.documents import ClientDocument
+        from src.models import ClientDocument
         
         analysis_tasks = []
         successful_queued = 0
@@ -299,7 +299,7 @@ def _update_document_analysis_results(document_id: int, document_type: str,
     """
     try:
         # Import models and database (lazy import)
-        from models.documents import ClientDocument
+        from src.models import ClientDocument
         from src.shared.database.db_import import db
         import json
         
@@ -311,8 +311,13 @@ def _update_document_analysis_results(document_id: int, document_type: str,
             document.ai_confidence_score = confidence_score
             document.ai_analysis_results = json.dumps(analysis_results)
             
-            db.session.commit()
-            logger.info(f"Updated document {document_id} with AI analysis results")
+            try:
+                db.session.commit()
+                logger.info(f"Updated document {document_id} with AI analysis results")
+            except Exception as commit_error:
+                db.session.rollback()
+                logger.error(f"Failed to commit document {document_id} analysis results: {commit_error}")
+                raise
         else:
             logger.warning(f"Document {document_id} not found for result update")
             

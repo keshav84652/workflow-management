@@ -1,5 +1,9 @@
 """
 Authentication service layer for business logic
+
+SERVICE PATTERN:
+- Instance methods for all business operations requiring repositories
+- Session management delegated to dedicated SessionService
 """
 
 from typing import Optional, Dict, Any, List
@@ -215,65 +219,5 @@ class AuthService:
             }
     
 
-    @staticmethod
-    def is_authenticated() -> bool:
-        """
-        Check if the current session is authenticated
-        
-        Returns:
-            True if both firm_id and user_id are in session, False otherwise
-        """
-        return 'firm_id' in session and 'user_id' in session
-    
-
-    @staticmethod
-    def is_firm_authenticated() -> bool:
-        """
-        Check if a firm is authenticated (but user may not be selected)
-        
-        Returns:
-            True if firm_id is in session, False otherwise
-        """
-        return 'firm_id' in session
-    
-
-    @staticmethod
-    def logout() -> None:
-        """
-        Clear the session and log out the user
-        """
-        session.clear()
-    
-
-    @staticmethod
-    def get_current_user_info() -> Dict[str, Any]:
-        """
-        Get current user information from session
-        
-        Returns:
-            Dictionary containing current user and firm information
-        """
-        return {
-            'user_id': session.get('user_id'),
-            'user_name': session.get('user_name'),
-            'user_role': session.get('user_role'),
-            'user_email': session.get('user_email'),
-            'firm_id': session.get('firm_id'),
-            'firm_name': session.get('firm_name')
-        }
-    
-
-    @staticmethod
-    def require_authentication() -> Optional[str]:
-        """
-        Check if user is authenticated, return redirect URL if not
-        
-        Returns:
-            None if authenticated, redirect URL string if not authenticated
-        """
-        if not AuthService.is_authenticated():
-            if AuthService.is_firm_authenticated():
-                return 'auth.select_user'
-            else:
-                return 'auth.login'
-        return None
+    # Session management methods moved to SessionService for better separation of concerns
+    # Use SessionService.is_authenticated(), SessionService.logout(), etc.

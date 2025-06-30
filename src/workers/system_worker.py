@@ -7,9 +7,9 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any
 
-from celery_app import celery_app
-from events.publisher import publish_event
-from events.schemas import SystemHealthCheckEvent, ErrorEvent
+from ..celery_app import celery_app
+from src.shared.events.publisher import publish_event
+from src.shared.events.schemas import SystemHealthCheckEvent, ErrorEvent
 
 logger = logging.getLogger(__name__)
 
@@ -266,9 +266,7 @@ def _check_database_health() -> Dict[str, Any]:
     """Check database connectivity and basic metrics"""
     try:
         from src.shared.database.db_import import db
-        from models.auth import Firm, User
-        from models.tasks import Task
-        from models.projects import Project
+        from src.models import Firm, User, Task, Project
         
         # Test basic query
         firm_count = Firm.query.count()
@@ -319,8 +317,8 @@ def _check_redis_health() -> Dict[str, Any]:
 def _check_event_system_health() -> Dict[str, Any]:
     """Check event system health"""
     try:
-        from events.publisher import event_publisher
-        from events.subscriber import event_subscriber
+        from src.shared.events.publisher import event_publisher
+        from src.shared.events.subscriber import event_subscriber
         
         publisher_health = event_publisher.health_check() if event_publisher else {
             'status': 'warning', 'message': 'Publisher not initialized'
@@ -390,7 +388,7 @@ def backup_database() -> Dict[str, Any]:
         file_size = backup_path.stat().st_size
         
         # Publish backup event
-        from events.schemas import BackupCreatedEvent
+        from src.shared.events.schemas import BackupCreatedEvent
         backup_event = BackupCreatedEvent(
             backup_id=backup_filename,
             backup_type='database',

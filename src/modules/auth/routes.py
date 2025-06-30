@@ -6,6 +6,7 @@ from flask import Blueprint, render_template, redirect, url_for, request, sessio
 from datetime import datetime
 from src.shared.database.db_import import db
 from .service import AuthService
+from .session_service import SessionService
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,9 +25,9 @@ def landing():
 
 @auth_bp.route('/login')
 def login():
-    if AuthService.is_authenticated():
+    if SessionService.is_authenticated():
         return redirect(url_for('dashboard.main'))
-    elif AuthService.is_firm_authenticated():
+    elif SessionService.is_firm_authenticated():
         return redirect(url_for('auth.select_user'))
     return render_template('auth/login.html')
 
@@ -51,7 +52,7 @@ def authenticate():
 
 @auth_bp.route('/select-user')
 def select_user():
-    if not AuthService.is_firm_authenticated():
+    if not SessionService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     firm_id = session['firm_id']
@@ -63,7 +64,7 @@ def select_user():
 
 @auth_bp.route('/set-user', methods=['POST'])
 def set_user():
-    if not AuthService.is_firm_authenticated():
+    if not SessionService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     user_id = request.form.get('user_id')
@@ -93,7 +94,7 @@ def switch_user():
 def logout():
     """Logout user with proper cache control and session clearing"""
     # Use AuthService for logout
-    AuthService.logout()
+    SessionService.logout()
     
     # Create response with proper cache control headers
     response = make_response(redirect(url_for('auth.home')))
@@ -113,7 +114,7 @@ def logout():
 def clear_session():
     """Clear session and redirect to landing page with proper cache control"""
     # Use AuthService for session clearing
-    AuthService.logout()
+    SessionService.logout()
     
     response = make_response(redirect(url_for('auth.home')))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

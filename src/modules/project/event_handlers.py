@@ -4,8 +4,8 @@ Handles event logic like notifications, logging, and real-time updates.
 """
 
 from abc import ABC, abstractmethod
-from events.base import EventHandler, BaseEvent
-from events.schemas import TaskCreatedEvent, TaskUpdatedEvent
+from src.shared.events.base import EventHandler, BaseEvent
+from src.shared.events.schemas import TaskCreatedEvent, TaskUpdatedEvent
 
 
 class LoggingHandler(EventHandler):

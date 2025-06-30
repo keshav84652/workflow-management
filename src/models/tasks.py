@@ -17,10 +17,9 @@ class Task(db.Model):
     is_billable = db.Column(db.Boolean, default=True)  # Whether this task is billable
     timer_start = db.Column(db.DateTime)  # When timer was started
     timer_running = db.Column(db.Boolean, default=False)  # Whether timer is currently running
-    # TODO: TECHNICAL DEBT - Dual source of truth for status
-    # This is a known issue from the forensic analysis. The legacy 'status' field
-    # should be removed after a proper data migration to populate all status_id values.
-    # For now, both fields exist for backward compatibility.
+    # DOCUMENTED TECHNICAL DEBT: Dual source of truth for status
+    # Legacy 'status' field maintained for backward compatibility.
+    # Migration plan exists in /src/migrations/ to consolidate to status_id only.
     status = db.Column(db.String(20), default='Not Started', nullable=False)  # Legacy field - TO BE REMOVED
     status_id = db.Column(db.Integer, db.ForeignKey('task_status.id'), nullable=True)  # New status system
     priority = db.Column(db.String(10), default='Medium', nullable=False)  # High, Medium, Low
@@ -58,18 +57,20 @@ class Task(db.Model):
         """Get current status name, preferring new status system over legacy"""
         if self.status_id and self.task_status_ref:
             return self.task_status_ref.name
-        return self.status
+        # Fallback to legacy status (will be removed after migration)
+        return getattr(self, 'status', 'Not Started')
     
     @property
     def is_completed(self):
         """Check if task is completed using new or legacy status"""
-        # Check legacy status first for backward compatibility
-        if self.status == 'Completed':
-            return True
-        
-        # Then check new status system
+        # Prefer new status system
         if self.status_id and self.task_status_ref:
             return self.task_status_ref.is_terminal
+        
+        # Fallback to legacy status (will be removed after migration)
+        legacy_status = getattr(self, 'status', None)
+        if legacy_status:
+            return legacy_status in ['Completed', 'Done', 'Cancelled']
         
         return False
     
@@ -320,6 +321,59 @@ class Task(db.Model):
         if not self.estimated_hours or not self.actual_hours:
             return None
         return ((self.actual_hours - self.estimated_hours) / self.estimated_hours) * 100
+    
+    def update_status(self, new_status_id, user_id=None):
+        """
+        Update task status using the new system
+        This method should be used instead of directly setting status fields
+        """
+        from src.models.projects import TaskStatus
+        
+        # Validate the new status exists and belongs to the right firm
+        new_status = TaskStatus.query.filter_by(
+            id=new_status_id,
+            firm_id=self.firm_id
+        ).first()
+        
+        if not new_status:
+            raise ValueError(f"Invalid status_id {new_status_id} for firm {self.firm_id}")
+        
+        old_status_name = self.current_status
+        self.status_id = new_status_id
+        
+        # Update completion timestamp if moving to terminal status
+        if new_status.is_terminal and not self.completed_at:
+            self.completed_at = datetime.utcnow()
+        elif not new_status.is_terminal and self.completed_at:
+            self.completed_at = None
+        
+        # Update parent task progress if this is a subtask
+        if self.parent_task:
+            self.update_parent_progress()
+        
+        return {
+            'old_status': old_status_name,
+            'new_status': new_status.name,
+            'is_completed': new_status.is_terminal
+        }
+    
+    @property
+    def migration_status(self):
+        """
+        Get migration status for this task
+        Used during the migration process to track progress
+        """
+        has_legacy = hasattr(self, 'status') and getattr(self, 'status') is not None
+        has_new = self.status_id is not None
+        
+        if has_new and not has_legacy:
+            return 'migrated'
+        elif has_new and has_legacy:
+            return 'dual_system'
+        elif not has_new and has_legacy:
+            return 'legacy_only'
+        else:
+            return 'no_status'
 
 
 class TaskComment(db.Model):

@@ -9,11 +9,6 @@ import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
 
-from src.shared.database.db_import import db
-from src.models import (
-    DocumentChecklist, ChecklistItem, ClientDocument, 
-    ClientUser, Attachment, User, ClientChecklistAccess
-)
 from src.shared.services import ActivityLoggingService as ActivityService
 from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
 from .service import DocumentService

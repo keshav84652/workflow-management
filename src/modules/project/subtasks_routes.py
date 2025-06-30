@@ -12,7 +12,7 @@ from src.shared.utils.consolidated import get_session_firm_id, get_session_user_
 subtasks_bp = Blueprint('subtasks', __name__, url_prefix='/tasks')
 
 
-from src.modules.project.task_service import TaskService
+from .task_service import TaskService
 
 @subtasks_bp.route('/<int:task_id>/subtasks/create', methods=['POST'])
 def create_subtask(task_id):

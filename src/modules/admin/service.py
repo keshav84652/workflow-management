@@ -11,11 +11,12 @@ from src.shared.database.db_import import db
 from src.models import Firm, User, WorkType, TaskStatus, Template, TemplateTask, Task, Project
 from src.shared.utils.consolidated import generate_access_code
 from src.shared.services import ActivityLoggingService as ActivityService
-from src.modules.auth.firm_repository import FirmRepository
-from src.modules.auth.repository import UserRepository
-from src.modules.admin.template_repository import TemplateRepository
+from src.shared.di_container import get_service
+from src.modules.auth.interface import IFirmService, IAuthService
+from .template_repository import TemplateRepository
+from .repository import AdminRepository
 from src.shared.base import BaseService, transactional
-from src.modules.admin.template_service import TemplateService
+from .template_service import TemplateService
 from sqlalchemy import func
 
 
@@ -24,8 +25,18 @@ class AdminService(BaseService):
     
     def __init__(self):
         super().__init__()
-        self.firm_repository = FirmRepository()
-        self.user_repository = UserRepository()
+        # Use dependency injection to get service instances
+        try:
+            self.firm_service = get_service(IFirmService)
+            self.auth_service = get_service(IAuthService)
+        except ValueError:
+            # Fallback to direct instantiation if DI not set up
+            from src.modules.auth.firm_service import FirmService
+            from src.modules.auth.service import AuthService
+            self.firm_service = FirmService()
+            self.auth_service = AuthService()
+        
+        self.admin_repository = AdminRepository()
         self.template_repository = TemplateRepository()
         self.template_service = TemplateService()
     
@@ -80,7 +91,7 @@ class AdminService(BaseService):
         Returns:
             List of all Firm objects
         """
-        return self.firm_repository.get_all()
+        return self.firm_service.get_all_firms()
     
 
     def get_firm_statistics(self) -> Dict[str, Any]:
@@ -90,27 +101,10 @@ class AdminService(BaseService):
         Returns:
             Dictionary containing various system statistics
         """
-        firms = self.firm_repository.get_all()
-        total_firms = len(firms)
-        active_firms = len([f for f in firms if f.is_active])
+        # Use repository for all statistics to avoid direct database queries
+        stats = self.admin_repository.get_system_statistics()
         
-        # Get total users across all firms
-        total_users = 0
-        for firm in firms:
-            total_users += len(self.user_repository.get_by_firm(firm.id))
-        
-        # Get total projects and tasks using direct database queries to avoid circular dependencies
-        total_projects = Project.query.count()
-        total_tasks = Task.query.count()
-        
-        return {
-            'total_firms': total_firms,
-            'active_firms': active_firms,
-            'inactive_firms': total_firms - active_firms,
-            'total_users': total_users,
-            'total_projects': total_projects,
-            'total_tasks': total_tasks
-        }
+        return stats
     
 
     @transactional
@@ -129,28 +123,21 @@ class AdminService(BaseService):
             access_code = generate_access_code()
             
             # Ensure code is unique
-            while self.firm_repository.get_by_access_code(access_code, active_only=False):
+            while self.firm_service.get_firm_by_access_code(access_code):
                 access_code = generate_access_code()
             
-            # Create new firm
-            firm = Firm(
-                name=firm_name.strip(),
-                access_code=access_code,
-                is_active=True,
-                created_at=datetime.utcnow()
-            )
+            # Create new firm through service
+            firm_data = {'name': firm_name.strip()}
+            result = self.firm_service.create_firm(firm_data)
             
-            db.session.add(firm)
-            
-            return {
-                'success': True,
-                'message': f'Access code generated successfully for {firm_name}',
-                'firm': {
-                    'id': firm.id,
-                    'name': firm.name,
-                    'access_code': firm.access_code
+            if result['success']:
+                return {
+                    'success': True,
+                    'message': f'Access code generated successfully for {firm_name}',
+                    'firm': result['firm']
                 }
-            }
+            else:
+                return result
             
         except Exception as e:
             # @transactional decorator handles rollback automatically
@@ -172,27 +159,7 @@ class AdminService(BaseService):
         Returns:
             Dict containing success status and any error messages
         """
-        try:
-            firm = self.firm_repository.get_by_id(firm_id)
-            if not firm:
-                return {
-                    'success': False,
-                    'message': 'Firm not found'
-                }
-            
-            firm.is_active = not firm.is_active
-            
-            status = 'activated' if firm.is_active else 'deactivated'
-            return {
-                'success': True,
-                'message': f'Firm "{firm.name}" {status} successfully'
-            }
-            
-        except Exception as e:
-            return {
-                'success': False,
-                'message': f'Error updating firm status: {str(e)}'
-            }
+        return self.firm_service.toggle_firm_status(firm_id)
     
     def get_work_types_for_firm(self, firm_id: int) -> Dict[str, Any]:
         """

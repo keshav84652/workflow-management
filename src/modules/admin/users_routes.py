@@ -8,8 +8,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from src.shared.database.db_import import db
 from src.models import User
 from src.shared.base import SessionService
-from src.modules.admin.service import AdminService
-from src.modules.admin.user_service import UserService
+from .service import AdminService
+from .user_service import UserService
 
 users_bp = Blueprint('users', __name__, url_prefix='/users')
 

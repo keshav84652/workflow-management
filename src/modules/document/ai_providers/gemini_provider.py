@@ -344,7 +344,7 @@ Be thorough and accurate in your extraction."""
                 try:
                     gemini_confidence = float(conf_match.group(1))
                     confidence = (confidence + gemini_confidence) / 2
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    logging.debug(f"Could not parse confidence value from Gemini response: {e}")
         
         return min(1.0, confidence)

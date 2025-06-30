@@ -1,212 +1,243 @@
 """
-Dashboard Aggregator Service for CPA WorkflowPilot
-Aggregates data from multiple services for dashboard display.
+Dashboard Aggregator Service
+
+This service follows Gemini's aggregator pattern to properly decouple the dashboard
+from other modules. It's the ONLY service that's allowed to coordinate between
+multiple modules, keeping the dashboard blueprint thin and focused.
 """
 
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
+from typing import Dict, Any, List
+import logging
+from src.shared.di_container import get_service
+from src.modules.client.interface import IClientService
+from src.modules.project.interface import IProjectService, ITaskService
+from src.modules.auth.interface import IAuthService
 from src.shared.base import BaseService
+
+logger = logging.getLogger(__name__)
 
 
 class DashboardAggregatorService(BaseService):
-    """Service that aggregates data from multiple domain services for dashboard views"""
+    """
+    Aggregator service for dashboard data coordination.
+    
+    This is the designated place for orchestrating calls to multiple module services.
+    Following Gemini's architectural principle: "Blueprints shall be thin and unintelligent."
+    """
     
     def __init__(self):
         super().__init__()
-    
-    def get_dashboard_data(self, firm_id: int, user_id: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Get complete dashboard data by aggregating from all relevant services
-        
-        Args:
-            firm_id: Firm ID to get data for
-            user_id: Optional user ID for personalized data
-            
-        Returns:
-            Dict containing all dashboard data sections
-        """
+        # Use dependency injection to get service instances
+        # This removes direct coupling to concrete implementations
         try:
-            # Import services here to avoid circular imports
-            from src.modules.project.task_service import TaskService
-            from src.modules.project.service import ProjectService
+            self.client_service = get_service(IClientService)
+            self.project_service = get_service(IProjectService)
+            self.task_service = get_service(ITaskService)
+            self.auth_service = get_service(IAuthService)
+        except ValueError as e:
+            # Fallback to direct instantiation if DI not set up
+            logger.warning(f"DI container not initialized, falling back to direct instantiation: {e}")
             from src.modules.client.service import ClientService
+            from src.modules.project.service import ProjectService
+            from src.modules.project.task_service import TaskService
             from src.modules.auth.service import AuthService
             
-            # Initialize services
-            task_service = TaskService()
-            project_service = ProjectService()
-            client_service = ClientService()
-            auth_service = AuthService()
+            self.client_service = ClientService()
+            self.project_service = ProjectService()
+            self.task_service = TaskService()
+            self.auth_service = AuthService()
+    
+    def get_dashboard_data(self, firm_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Get comprehensive dashboard data by orchestrating calls to multiple services
+        
+        Args:
+            firm_id: Firm ID for data filtering
+            user_id: User ID for personalized data
             
-            # Get data from each service
-            tasks_data = self._get_tasks_data(task_service, firm_id)
-            projects_data = self._get_projects_data(project_service, firm_id)
-            clients_data = self._get_clients_data(client_service, firm_id)
-            users_data = self._get_users_data(auth_service, firm_id)
+        Returns:
+            Complete dashboard data structure
+        """
+        try:
+            # Get data from each service's public interface
+            tasks_result = self.task_service.get_task_statistics(firm_id)
+            projects_result = self.project_service.get_project_statistics(firm_id)
+            clients_result = self.client_service.get_client_statistics(firm_id)
             
-            # Get work type statistics
-            work_type_data = self._get_work_type_data(task_service, firm_id)
+            # Get lists for display
+            recent_tasks_result = self.task_service.get_recent_tasks(firm_id, limit=10)
+            recent_projects_result = self.project_service.get_recent_projects(firm_id, limit=5)
+            filtered_tasks_result = self.task_service.get_tasks_for_dashboard(firm_id, user_id)
             
-            # Get recent items
-            recent_tasks = self._get_recent_tasks(task_service, firm_id, limit=10)
-            recent_projects = self._get_recent_projects(project_service, firm_id, limit=5)
+            # Extract data safely with fallbacks
+            tasks_data = tasks_result.get('statistics', {}) if tasks_result.get('success') else {}
+            projects_data = projects_result.get('statistics', {}) if projects_result.get('success') else {}
+            clients_data = clients_result.get('statistics', {}) if clients_result.get('success') else {}
             
-            # Get filtered task list for main display
-            filtered_tasks = self._get_filtered_tasks(task_service, firm_id, user_id)
+            recent_tasks = recent_tasks_result.get('tasks', []) if recent_tasks_result.get('success') else []
+            recent_projects = recent_projects_result.get('projects', []) if recent_projects_result.get('success') else []
+            filtered_tasks = filtered_tasks_result.get('tasks', []) if filtered_tasks_result.get('success') else []
             
-            return {
-                'tasks': tasks_data,
-                'projects': projects_data,
-                'projects_list': projects_data.get('list', []),
-                'clients': clients_data,
-                'users': users_data,
-                'work_type_data': work_type_data,
+            # Aggregate and structure the data for the dashboard template
+            dashboard_data = {
+                # Core statistics
+                'tasks': {
+                    'total': tasks_data.get('total', 0),
+                    'completed': tasks_data.get('completed', 0),
+                    'in_progress': tasks_data.get('in_progress', 0),
+                    'overdue': tasks_data.get('overdue', 0),
+                    'active': tasks_data.get('active', 0),
+                    'due_soon': tasks_data.get('due_soon', 0)
+                },
+                'projects': {
+                    'total': projects_data.get('total', 0),
+                    'active': projects_data.get('active', 0),
+                    'completed': projects_data.get('completed', 0)
+                },
+                'clients': {
+                    'total': clients_data.get('total', 0),
+                    'active': clients_data.get('active', 0)
+                },
+                
+                # Lists for display
                 'recent_tasks': recent_tasks,
                 'recent_projects': recent_projects,
-                'filtered_tasks': filtered_tasks
+                'filtered_tasks': filtered_tasks,
+                
+                # Legacy data for template compatibility
+                'projects_list': recent_projects,
+                'task_status_data': {
+                    'Not Started': tasks_data.get('total', 0) - tasks_data.get('in_progress', 0) - tasks_data.get('completed', 0),
+                    'In Progress': tasks_data.get('in_progress', 0),
+                    'Needs Review': 0,
+                    'Completed': tasks_data.get('completed', 0)
+                },
+                'work_type_data': {},
+                'priority_data': {},
+                'user_workload': {},
+                'upcoming_tasks': [],
+                'today_tasks_count': 0,
+                'users': {'count': 0}
             }
+            
+            return dashboard_data
             
         except Exception as e:
-            # Return safe defaults on error
-            return self._get_empty_dashboard_data(error=str(e))
-    
-    def _get_tasks_data(self, task_service: 'TaskService', firm_id: int) -> Dict[str, Any]:
-        """Get task statistics and counts"""
-        try:
-            result = task_service.get_task_statistics(firm_id)
-            if result['success']:
-                stats = result['statistics']
-                return {
-                    'total': stats.get('total', 0),
-                    'completed': stats.get('completed', 0),
-                    'pending': stats.get('pending', 0),
-                    'overdue': stats.get('overdue', 0),
-                    'in_progress': stats.get('in_progress', 0),
-                    'active': stats.get('active', 0),
-                    'due_soon': stats.get('due_soon', 0)
-                }
-        except Exception:
-            pass
-        
-        return {
-            'total': 0, 'completed': 0, 'pending': 0, 'overdue': 0,
-            'in_progress': 0, 'active': 0, 'due_soon': 0
-        }
-    
-    def _get_projects_data(self, project_service: 'ProjectService', firm_id: int) -> Dict[str, Any]:
-        """Get project statistics and list"""
-        try:
-            # Get project statistics
-            stats_result = project_service.get_project_statistics(firm_id)
-            
-            # Get project list
-            list_result = project_service.get_projects_by_firm(firm_id)
-            
-            if stats_result['success'] and list_result['success']:
-                stats = stats_result['statistics']
-                projects_list = list_result['projects']
-                
-                return {
-                    'active': stats.get('active', 0),
-                    'total': stats.get('total', 0),
-                    'completed': stats.get('completed', 0),
-                    'list': projects_list
-                }
-        except Exception:
-            pass
-        
-        return {'active': 0, 'total': 0, 'completed': 0, 'list': []}
-    
-    def _get_clients_data(self, client_service: 'ClientService', firm_id: int) -> Dict[str, Any]:
-        """Get client statistics"""
-        try:
-            result = client_service.get_client_statistics(firm_id)
-            if result['success']:
-                stats = result['statistics']
-                return {
-                    'total': stats.get('total', 0),
-                    'active': stats.get('active', 0)
-                }
-        except Exception:
-            pass
-        
-        return {'total': 0, 'active': 0}
-    
-    def _get_users_data(self, auth_service: 'AuthService', firm_id: int) -> Dict[str, Any]:
-        """Get user statistics"""
-        try:
-            users = auth_service.get_users_for_firm(firm_id)
+            logger.error(f"Error aggregating dashboard data for firm {firm_id}: {e}")
+            # Return safe default data structure
             return {
-                'count': len(users),
-                'list': [{'id': u.id, 'name': u.name, 'role': u.role} for u in users]
+                'tasks': {'total': 0, 'completed': 0, 'in_progress': 0, 'overdue': 0, 'active': 0, 'due_soon': 0},
+                'projects': {'total': 0, 'active': 0, 'completed': 0},
+                'clients': {'total': 0, 'active': 0},
+                'recent_tasks': [],
+                'recent_projects': [],
+                'filtered_tasks': [],
+                'projects_list': [],
+                'task_status_data': {'Not Started': 0, 'In Progress': 0, 'Needs Review': 0, 'Completed': 0},
+                'work_type_data': {},
+                'priority_data': {},
+                'user_workload': {},
+                'upcoming_tasks': [],
+                'today_tasks_count': 0,
+                'users': {'count': 0}
             }
-        except Exception:
-            pass
-        
-        return {'count': 0, 'list': []}
     
-    def _get_work_type_data(self, task_service: 'TaskService', firm_id: int) -> Dict[str, Any]:
-        """Get work type distribution"""
-        try:
-            result = task_service.get_work_type_distribution(firm_id)
-            if result['success']:
-                return result['distribution']
-        except Exception:
-            pass
+    def get_search_data(self, firm_id: int, query: str, search_type: str = 'all', limit: int = 20) -> Dict[str, Any]:
+        """
+        Coordinate search across multiple modules
         
-        return {}
-    
-    def _get_recent_tasks(self, task_service: 'TaskService', firm_id: int, limit: int = 10) -> List[Dict[str, Any]]:
-        """Get recent tasks"""
-        try:
-            result = task_service.get_recent_tasks(firm_id, limit=limit)
-            if result['success']:
-                return result['tasks']
-        except Exception:
-            pass
-        
-        return []
-    
-    def _get_recent_projects(self, project_service: 'ProjectService', firm_id: int, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get recent projects"""
-        try:
-            result = project_service.get_recent_projects(firm_id, limit=limit)
-            if result['success']:
-                return result['projects']
-        except Exception:
-            pass
-        
-        return []
-    
-    def _get_filtered_tasks(self, task_service: 'TaskService', firm_id: int, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Get filtered task list for main dashboard display"""
-        try:
-            filters = {'limit': 25}  # Limit for dashboard display
-            if user_id:
-                filters['assignee_id'] = user_id
+        Args:
+            firm_id: Firm ID for data filtering
+            query: Search query
+            search_type: Type of search ('all', 'tasks', 'projects', 'clients')
+            limit: Maximum results per module
             
-            result = task_service.get_tasks_by_firm(firm_id, filters=filters)
-            if result['success']:
-                return result['tasks']
-        except Exception:
-            pass
-        
-        return []
+        Returns:
+            Aggregated search results
+        """
+        try:
+            if not query.strip():
+                return {
+                    'tasks': [],
+                    'projects': [],
+                    'clients': [],
+                    'total_results': 0,
+                    'search_type': search_type
+                }
+            
+            # Search each module's data through their public interfaces
+            search_results = {
+                'tasks': [],
+                'projects': [],
+                'clients': [],
+                'search_type': search_type
+            }
+            
+            if search_type in ['all', 'tasks']:
+                tasks_result = self.task_service.search_tasks(firm_id, query, limit)
+                search_results['tasks'] = tasks_result.get('tasks', []) if tasks_result.get('success') else []
+            
+            if search_type in ['all', 'projects']:
+                projects_result = self.project_service.search_projects(firm_id, query, limit)
+                search_results['projects'] = projects_result.get('projects', []) if projects_result.get('success') else []
+            
+            if search_type in ['all', 'clients']:
+                clients_result = self.client_service.search_clients(firm_id, query, limit)
+                search_results['clients'] = clients_result.get('clients', []) if clients_result.get('success') else []
+            
+            search_results['total_results'] = (
+                len(search_results['tasks']) + 
+                len(search_results['projects']) + 
+                len(search_results['clients'])
+            )
+            
+            return search_results
+            
+        except Exception as e:
+            logger.error(f"Error performing search for query '{query}' in firm {firm_id}: {e}")
+            return {
+                'tasks': [],
+                'projects': [],
+                'clients': [],
+                'total_results': 0,
+                'search_type': search_type
+            }
     
-    def _get_empty_dashboard_data(self, error: Optional[str] = None) -> Dict[str, Any]:
-        """Return empty dashboard data structure"""
-        return {
-            'tasks': {
-                'total': 0, 'completed': 0, 'pending': 0, 'overdue': 0,
-                'in_progress': 0, 'active': 0, 'due_soon': 0
-            },
-            'projects': {'active': 0, 'total': 0, 'completed': 0, 'list': []},
-            'projects_list': [],
-            'clients': {'total': 0, 'active': 0},
-            'users': {'count': 0, 'list': []},
-            'work_type_data': {},
-            'recent_tasks': [],
-            'recent_projects': [],
-            'filtered_tasks': [],
-            '_error': error
-        }
+    def get_calendar_data(self, firm_id: int, year: int, month: int) -> Dict[str, Any]:
+        """
+        Get calendar data by coordinating with task service
+        
+        Args:
+            firm_id: Firm ID for data filtering
+            year: Calendar year
+            month: Calendar month
+            
+        Returns:
+            Calendar data structure
+        """
+        try:
+            calendar_result = self.task_service.get_tasks_for_calendar(firm_id, year, month)
+            
+            if calendar_result.get('success'):
+                return {
+                    'tasks_by_date': calendar_result.get('tasks_by_date', {}),
+                    'current_date': calendar_result.get('current_date'),
+                    'year': year,
+                    'month': month
+                }
+            else:
+                return {
+                    'tasks_by_date': {},
+                    'current_date': None,
+                    'year': year,
+                    'month': month
+                }
+                
+        except Exception as e:
+            logger.error(f"Error getting calendar data for {year}-{month} in firm {firm_id}: {e}")
+            return {
+                'tasks_by_date': {},
+                'current_date': None,
+                'year': year,
+                'month': month
+            }

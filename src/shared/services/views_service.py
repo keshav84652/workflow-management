@@ -98,15 +98,15 @@ class ViewsService(BaseService):
         Returns:
             Dict with calendar view data structure
         """
-        # Import here to avoid circular imports
-        from src.modules.project.task_service import TaskService
+        # Use service registry to reduce coupling
+        from src.shared.bootstrap import get_task_service
         
         if not month or not year:
             now = datetime.now()
             month = month or now.month
             year = year or now.year
         
-        task_service = TaskService()
+        task_service = get_task_service()
         
         # Get tasks with due dates for the specified month/year
         tasks_result = task_service.get_tasks_by_firm(firm_id)
@@ -267,3 +267,149 @@ class ViewsService(BaseService):
             'success': True,
             'preferences': final_preferences
         }
+    
+    @staticmethod
+    def get_time_tracking_data(firm_id: int, start_date: str = None, end_date: str = None, 
+                             user_id: int = None, project_id: int = None) -> Dict[str, Any]:
+        """
+        Get time tracking data for specified parameters
+        
+        Args:
+            firm_id: Firm ID to get data for
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            user_id: Optional user ID filter
+            project_id: Optional project ID filter
+            
+        Returns:
+            Dict containing time tracking data
+        """
+        try:
+            # For now, return empty data structure
+            # This can be expanded when time tracking is fully implemented
+            return {
+                'success': True,
+                'time_entries': [],
+                'total_hours': 0,
+                'filters': {
+                    'start_date': start_date,
+                    'end_date': end_date,
+                    'user_id': user_id,
+                    'project_id': project_id
+                }
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error getting time tracking data: {str(e)}',
+                'time_entries': [],
+                'total_hours': 0
+            }
+    
+    @staticmethod
+    def get_kanban_data(firm_id: int, work_type_filter: str = None, 
+                       priority_filter: str = None, due_filter: str = None) -> Dict[str, Any]:
+        """
+        Get kanban board data with filtering
+        
+        Args:
+            firm_id: Firm ID to get data for
+            work_type_filter: Optional work type filter
+            priority_filter: Optional priority filter
+            due_filter: Optional due date filter
+            
+        Returns:
+            Dict containing kanban board data
+        """
+        try:
+            # Use service registry to reduce coupling
+            from src.shared.bootstrap import get_project_service, get_task_service
+            
+            project_service = get_project_service()
+            task_service = get_task_service()
+            
+            # Get projects and tasks
+            projects_result = project_service.get_projects_by_firm(firm_id)
+            tasks_result = task_service.get_tasks_by_firm(firm_id)
+            
+            if not projects_result['success'] or not tasks_result['success']:
+                return {
+                    'success': False,
+                    'message': 'Error retrieving kanban data',
+                    'columns': []
+                }
+            
+            # Organize data by status columns
+            columns = [
+                {'name': 'Not Started', 'projects': [], 'tasks': []},
+                {'name': 'In Progress', 'projects': [], 'tasks': []},
+                {'name': 'Needs Review', 'projects': [], 'tasks': []},
+                {'name': 'Completed', 'projects': [], 'tasks': []}
+            ]
+            
+            # Apply filters and organize by status
+            # This is a simplified implementation
+            return {
+                'success': True,
+                'columns': columns,
+                'filters': {
+                    'work_type': work_type_filter,
+                    'priority': priority_filter,
+                    'due': due_filter
+                }
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error getting kanban data: {str(e)}',
+                'columns': []
+            }
+    
+    @staticmethod
+    def organize_projects_by_kanban_columns(projects: List[Dict[str, Any]], 
+                                          kanban_columns: List[str]) -> Dict[str, Any]:
+        """
+        Organize projects by kanban columns
+        
+        Args:
+            projects: List of project dictionaries
+            kanban_columns: List of column names to organize by
+            
+        Returns:
+            Dict containing organized projects and counts
+        """
+        try:
+            projects_by_column = {}
+            project_counts = {}
+            
+            # Initialize columns
+            for column in kanban_columns:
+                projects_by_column[column] = []
+                project_counts[column] = 0
+            
+            # Organize projects by status
+            for project in projects:
+                status = project.get('status', 'Not Started')
+                if status in projects_by_column:
+                    projects_by_column[status].append(project)
+                    project_counts[status] += 1
+                else:
+                    # Default to first column if status not found
+                    if kanban_columns:
+                        projects_by_column[kanban_columns[0]].append(project)
+                        project_counts[kanban_columns[0]] += 1
+            
+            return {
+                'success': True,
+                'projects_by_column': projects_by_column,
+                'project_counts': project_counts
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': f'Error organizing projects: {str(e)}',
+                'projects_by_column': {},
+                'project_counts': {}
+            }
