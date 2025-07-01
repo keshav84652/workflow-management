@@ -3,7 +3,7 @@ Task management models
 """
 
 from datetime import datetime, date
-from core import db
+from core.db_import import db
 
 
 class Task(db.Model):

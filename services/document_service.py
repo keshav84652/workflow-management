@@ -1,494 +1,364 @@
 """
-Document and checklist service layer for business logic
+DocumentService: Handles all business logic for documents and checklists, including sharing.
+Updated to use proper service patterns and repositories.
 """
 
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 from datetime import datetime
-from flask import session
-from werkzeug.utils import secure_filename
-import os
-import uuid
-import mimetypes
+import secrets
 
-from core import db
-from models import (
-    DocumentChecklist, ChecklistItem, Client, ClientDocument, 
-    ClientUser, Attachment, User, ClientChecklistAccess
-)
-from utils import create_activity_log
+from core.db_import import db
+from models import DocumentChecklist, Client, ChecklistItem, ClientDocument, IncomeWorksheet
+from services.base import BaseService, transactional
+from repositories.client_repository import ClientRepository
 
 
-class DocumentService:
-    """Service class for document and checklist-related business operations"""
-    
+class DocumentService(BaseService):
+    def __init__(self):
+        super().__init__()
+        self.client_repository = ClientRepository()
     @staticmethod
-    def get_checklists_for_firm(firm_id: int) -> List[DocumentChecklist]:
-        """
-        Get all document checklists for a firm
-        
-        Args:
-            firm_id: The firm's ID
+    def update_checklist_item_status(token, item_id, new_status):
+        """Update checklist item status via public token"""
+        try:
+            # Find checklist by token
+            checklist = DocumentChecklist.query.filter_by(
+                public_access_token=token,
+                public_access_enabled=True
+            ).first()
             
-        Returns:
-            List of DocumentChecklist objects for the firm
-        """
-        return DocumentChecklist.query.join(Client).filter(
-            Client.firm_id == firm_id
-        ).all()
+            if not checklist:
+                return {'success': False, 'message': 'Invalid or expired access token'}
+            
+            # Validate status
+            if new_status not in ['already_provided', 'not_applicable', 'pending']:
+                return {'success': False, 'message': 'Invalid status selected'}
+            
+            item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first()
+            if not item:
+                return {'success': False, 'message': 'Checklist item not found'}
+            
+            # If changing from uploaded status, remove the uploaded file
+            if item.status == 'uploaded' and new_status != 'uploaded':
+                existing_doc = ClientDocument.query.filter_by(
+                    client_id=checklist.client_id,
+                    checklist_item_id=item_id
+                ).first()
+                
+                if existing_doc:
+                    # Remove file
+                    import os
+                    if os.path.exists(existing_doc.file_path):
+                        os.remove(existing_doc.file_path)
+                    db.session.delete(existing_doc)
+            
+            # Update status
+            item.status = new_status
+            item.updated_at = datetime.utcnow()
+            
+            db.session.commit()
+            
+            status_messages = {
+                'already_provided': 'Marked as already provided',
+                'not_applicable': 'Marked as not applicable',
+                'pending': 'Reset to pending'
+            }
+            
+            return {
+                'success': True,
+                'message': status_messages.get(new_status, 'Status updated')
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            return {'success': False, 'message': f'Error updating status: {str(e)}'}
     
-    @staticmethod
-    def get_checklist_by_id(checklist_id: int, firm_id: int) -> Optional[DocumentChecklist]:
-        """
-        Get a checklist by ID, ensuring it belongs to the firm
-        
-        Args:
-            checklist_id: The checklist's ID
-            firm_id: The firm's ID for security check
-            
-        Returns:
-            DocumentChecklist object if found and belongs to firm, None otherwise
-        """
-        return DocumentChecklist.query.join(Client).filter(
+    def generate_share_token(self, checklist_id, firm_id):
+        checklist = DocumentChecklist.query.join(Client).filter(
             DocumentChecklist.id == checklist_id,
             Client.firm_id == firm_id
-        ).first()
+        ).first_or_404()
+        if not checklist.public_access_token:
+            checklist.public_access_token = secrets.token_urlsafe(32)
+            checklist.public_access_enabled = True
+            db.session.commit()
+        return checklist
+
+    @staticmethod  
+    def revoke_share(checklist_id, firm_id):
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first_or_404()
+        checklist.public_access_enabled = False
+        db.session.commit()
+        return checklist
+
+    @staticmethod
+    def regenerate_share_token(checklist_id, firm_id):
+        checklist = DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first_or_404()
+        checklist.public_access_token = secrets.token_urlsafe(32)
+        checklist.public_access_enabled = True
+        db.session.commit()
+        return checklist
     
     @staticmethod
-    def create_checklist(client_id: int, name: str, description: str, 
-                        firm_id: int, user_id: int) -> Dict[str, Any]:
-        """
-        Create a new document checklist
-        
-        Args:
-            client_id: The client's ID
-            name: Checklist name
-            description: Checklist description
-            firm_id: The firm's ID for security check
-            user_id: The creating user's ID
-            
-        Returns:
-            Dict containing success status, checklist data, and any error messages
-        """
+    def create_checklist(name, description=None, client_id=None, firm_id=None, user_id=None):
+        """Create a new document checklist"""
         try:
-            # Verify client belongs to this firm
-            client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
-            if not client:
-                return {
-                    'success': False,
-                    'message': 'Invalid client selected',
-                    'checklist': None
-                }
+            if not name or not name.strip():
+                return {'success': False, 'error': 'Checklist name is required'}
             
             checklist = DocumentChecklist(
-                client_id=client_id,
-                name=name,
+                name=name.strip(),
                 description=description,
-                created_by=user_id,
-                is_active=True
+                client_id=client_id,
+                created_by=user_id
             )
             
             db.session.add(checklist)
             db.session.commit()
             
-            # Create activity log
-            create_activity_log(
-                user_id=user_id,
-                firm_id=firm_id,
-                action='create',
-                details=f'Created checklist "{name}" for client {client.name}'
+            # Publish document creation event
+            from events.schemas import DocumentCreatedEvent
+            from events.publisher import publish_event
+            event = DocumentCreatedEvent(
+                document_id=checklist.id,
+                firm_id=firm_id or 0,
+                name=checklist.name,
+                status='pending'
             )
+            publish_event(event)
             
             return {
                 'success': True,
-                'message': f'Checklist "{name}" created successfully for {client.name}',
-                'checklist': {
-                    'id': checklist.id,
-                    'name': checklist.name,
-                    'client_name': client.name
-                }
+                'checklist_id': checklist.id,
+                'message': 'Checklist created successfully'
             }
-            
         except Exception as e:
             db.session.rollback()
-            return {
-                'success': False,
-                'message': f'Error creating checklist: {str(e)}',
-                'checklist': None
-            }
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
-    def update_checklist(checklist_id: int, name: str, description: str,
-                        firm_id: int, user_id: int) -> Dict[str, Any]:
-        """
-        Update a document checklist's basic information
-        
-        Args:
-            checklist_id: The checklist's ID
-            name: Updated checklist name
-            description: Updated checklist description
-            firm_id: The firm's ID for security check
-            user_id: The updating user's ID
-            
-        Returns:
-            Dict containing success status and any error messages
-        """
+    def add_checklist_item(checklist_id, name, description=None, firm_id=None, user_id=None):
+        """Add item to checklist"""
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-            if not checklist:
-                return {
-                    'success': False,
-                    'message': 'Checklist not found'
-                }
-            
-            old_name = checklist.name
-            checklist.name = name
-            checklist.description = description
-            
-            db.session.commit()
-            
-            # Create activity log if name changed
-            if old_name != name:
-                create_activity_log(
-                    user_id=user_id,
-                    firm_id=firm_id,
-                    action='update',
-                    details=f'Updated checklist name from "{old_name}" to "{name}"'
-                )
-            
-            return {
-                'success': True,
-                'message': 'Checklist updated successfully'
-            }
-            
-        except Exception as e:
-            db.session.rollback()
-            return {
-                'success': False,
-                'message': f'Error updating checklist: {str(e)}'
-            }
-    
-    @staticmethod
-    def add_checklist_item(checklist_id: int, item_name: str, description: str,
-                          firm_id: int, user_id: int, is_required: bool = True,
-                          order_index: Optional[int] = None) -> Dict[str, Any]:
-        """
-        Add an item to a document checklist
-        
-        Args:
-            checklist_id: The checklist's ID
-            item_name: Name of the checklist item
-            description: Description of the item
-            firm_id: The firm's ID for security check
-            user_id: The creating user's ID
-            is_required: Whether the item is required
-            order_index: Position in the checklist
-            
-        Returns:
-            Dict containing success status and any error messages
-        """
-        try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-            if not checklist:
-                return {
-                    'success': False,
-                    'message': 'Checklist not found'
-                }
-            
-            # If no order specified, add at the end
-            if order_index is None:
-                max_order = db.session.query(db.func.max(ChecklistItem.order_index)).filter_by(
-                    checklist_id=checklist_id
-                ).scalar() or 0
-                order_index = max_order + 1
+            if not name or not name.strip():
+                return {'success': False, 'error': 'Item name is required'}
             
             item = ChecklistItem(
-                checklist_id=checklist_id,
-                name=item_name,
+                title=name.strip(),
                 description=description,
-                is_required=is_required,
-                order_index=order_index
+                checklist_id=checklist_id,
+                status='pending'
             )
             
             db.session.add(item)
             db.session.commit()
             
-            # Create activity log
-            create_activity_log(
-                user_id=user_id,
-                firm_id=firm_id,
-                action='create',
-                details=f'Added item "{item_name}" to checklist "{checklist.name}"'
-            )
-            
             return {
                 'success': True,
-                'message': f'Item "{item_name}" added successfully',
-                'item_id': item.id
+                'item_id': item.id,
+                'message': 'Checklist item added successfully'
             }
-            
         except Exception as e:
             db.session.rollback()
-            return {
-                'success': False,
-                'message': f'Error adding checklist item: {str(e)}'
-            }
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
-    def update_checklist_item(item_id: int, item_name: str, description: str,
-                             is_required: bool, checklist_id: int, firm_id: int,
-                             user_id: int) -> Dict[str, Any]:
-        """
-        Update a checklist item
-        
-        Args:
-            item_id: The item's ID
-            item_name: Updated item name
-            description: Updated item description
-            is_required: Whether the item is required
-            checklist_id: The checklist's ID for security check
-            firm_id: The firm's ID for security check
-            user_id: The updating user's ID
-            
-        Returns:
-            Dict containing success status and any error messages
-        """
+    def upload_file_to_checklist_item(item_id, file_path, original_filename, firm_id=None, user_id=None):
+        """Upload file to checklist item"""
         try:
-            # Verify checklist belongs to firm
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-            if not checklist:
-                return {
-                    'success': False,
-                    'message': 'Checklist not found'
-                }
-            
-            item = ChecklistItem.query.filter_by(
-                id=item_id,
-                checklist_id=checklist_id
-            ).first()
-            
+            item = ChecklistItem.query.get(item_id)
             if not item:
-                return {
-                    'success': False,
-                    'message': 'Checklist item not found'
-                }
+                return {'success': False, 'error': 'Checklist item not found'}
             
-            old_name = item.name
-            item.name = item_name
-            item.description = description
-            item.is_required = is_required
+            # Create document record
+            document = ClientDocument(
+                file_path=file_path,
+                original_filename=original_filename,
+                client_id=item.checklist.client_id,
+                checklist_item_id=item_id,
+                uploaded_by=user_id
+            )
             
+            db.session.add(document)
+            item.status = 'uploaded'
             db.session.commit()
-            
-            # Create activity log if name changed
-            if old_name != item_name:
-                create_activity_log(
-                    user_id=user_id,
-                    firm_id=firm_id,
-                    action='update',
-                    details=f'Updated checklist item from "{old_name}" to "{item_name}"'
-                )
             
             return {
                 'success': True,
-                'message': 'Checklist item updated successfully'
+                'message': 'File uploaded successfully'
             }
-            
         except Exception as e:
             db.session.rollback()
-            return {
-                'success': False,
-                'message': f'Error updating checklist item: {str(e)}'
-            }
+            return {'success': False, 'error': str(e)}
     
-    @staticmethod
-    def delete_checklist_item(item_id: int, checklist_id: int, firm_id: int,
-                             user_id: int) -> Dict[str, Any]:
-        """
-        Delete a checklist item
-        
-        Args:
-            item_id: The item's ID
-            checklist_id: The checklist's ID for security check
-            firm_id: The firm's ID for security check
-            user_id: The deleting user's ID
-            
-        Returns:
-            Dict containing success status and any error messages
-        """
+    def get_checklists_for_firm(self, firm_id):
+        """Get all checklists for a firm"""
+        return DocumentChecklist.query.join(Client).filter(
+            Client.firm_id == firm_id
+        ).order_by(DocumentChecklist.created_at.desc()).all()
+    
+    def get_clients_for_firm(self, firm_id):
+        """Get all clients for a firm - used by document blueprints"""
+        return self.client_repository.get_by_firm(firm_id)
+    
+    def get_uploaded_documents(self, firm_id):
+        """Get all uploaded documents for a firm"""
+        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            Client.firm_id == firm_id
+        ).order_by(ClientDocument.uploaded_at.desc()).all()
+    
+    def get_document_for_download(self, document_id, firm_id):
+        """Get document for download with firm access check"""
+        from models import ClientDocument, ChecklistItem, DocumentChecklist, Client
+        return ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+            ClientDocument.id == document_id,
+            Client.firm_id == firm_id
+        ).first()
+    
+    def get_client_by_id_and_firm(self, client_id, firm_id):
+        """Get client by ID with firm access check"""
+        from models import Client
+        return Client.query.filter_by(id=client_id, firm_id=firm_id).first()
+    
+    def get_checklists_by_client_and_firm(self, client_id, firm_id):
+        """Get checklists for specific client and firm"""
+        return DocumentChecklist.query.filter_by(
+            client_id=client_id,
+            firm_id=firm_id
+        ).all()
+    
+    def get_checklist_by_token(self, token):
+        """Get checklist by public access token"""
+        return DocumentChecklist.query.filter_by(
+            public_access_token=token,
+            public_access_enabled=True
+        ).first()
+    
+    def get_active_checklists_with_client_filter(self, firm_id):
+        """Get active checklists with client join for firm"""
+        return DocumentChecklist.query.join(Client).filter(
+            Client.firm_id == firm_id,
+            DocumentChecklist.is_active == True
+        ).order_by(DocumentChecklist.created_at.desc()).all()
+    
+    @classmethod
+    def get_checklist_by_id(cls, checklist_id, firm_id):
+        """Get checklist by ID with firm access check"""
+        return DocumentChecklist.query.join(Client).filter(
+            DocumentChecklist.id == checklist_id,
+            Client.firm_id == firm_id
+        ).first()
+    
+    def get_document_filename_by_id(self, document_id):
+        """Get document filename by ID"""
         try:
-            # Verify checklist belongs to firm
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-            if not checklist:
-                return {
-                    'success': False,
-                    'message': 'Checklist not found'
-                }
-            
-            item = ChecklistItem.query.filter_by(
-                id=item_id,
-                checklist_id=checklist_id
-            ).first()
-            
-            if not item:
-                return {
-                    'success': False,
-                    'message': 'Checklist item not found'
-                }
-            
-            item_name = item.name
-            db.session.delete(item)
-            db.session.commit()
-            
-            # Create activity log
-            create_activity_log(
-                user_id=user_id,
-                firm_id=firm_id,
-                action='delete',
-                details=f'Deleted checklist item "{item_name}" from "{checklist.name}"'
-            )
-            
-            return {
-                'success': True,
-                'message': f'Item "{item_name}" deleted successfully'
-            }
-            
-        except Exception as e:
-            db.session.rollback()
+            document = ClientDocument.query.get(document_id)
+            return document.original_filename if document else f'document_{document_id}'
+        except:
+            return f'document_{document_id}'
+    
+    def get_income_worksheet_by_id_with_access_check(self, worksheet_id, firm_id):
+        """Get income worksheet by ID with firm access check"""
+        from models import IncomeWorksheet
+        worksheet = IncomeWorksheet.query.get(worksheet_id)
+        if not worksheet:
+            return None
+        
+        # Check firm access through checklist -> client -> firm
+        checklist = worksheet.checklist
+        if checklist and checklist.client and checklist.client.firm_id == firm_id:
+            return worksheet
+        return None
+    
+    def get_worksheet_data_for_download(self, worksheet_id, firm_id):
+        """Get worksheet data for download without exposing model to blueprint"""
+        import json
+        
+        worksheet = self.get_income_worksheet_by_id_with_access_check(worksheet_id, firm_id)
+        if not worksheet:
             return {
                 'success': False,
-                'message': f'Error deleting checklist item: {str(e)}'
+                'message': 'Worksheet not found or access denied'
             }
-    
-    @staticmethod
-    def get_checklist_items(checklist_id: int, firm_id: int) -> List[ChecklistItem]:
-        """
-        Get all items for a checklist
         
-        Args:
-            checklist_id: The checklist's ID
-            firm_id: The firm's ID for security check
-            
-        Returns:
-            List of ChecklistItem objects ordered by order_index
-        """
-        # Verify checklist belongs to firm first
-        checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-        if not checklist:
-            return []
-        
-        return ChecklistItem.query.filter_by(
-            checklist_id=checklist_id
-        ).order_by(ChecklistItem.order_index).all()
-    
-    @staticmethod
-    def create_client_access(checklist_id: int, firm_id: int, user_id: int,
-                            password: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Create client access for a checklist
-        
-        Args:
-            checklist_id: The checklist's ID
-            firm_id: The firm's ID for security check
-            user_id: The creating user's ID
-            password: Optional password for access
-            
-        Returns:
-            Dict containing success status, access data, and any error messages
-        """
         try:
-            checklist = DocumentService.get_checklist_by_id(checklist_id, firm_id)
-            if not checklist:
-                return {
-                    'success': False,
-                    'message': 'Checklist not found',
-                    'access': None
-                }
-            
-            # Generate unique access token
-            access_token = str(uuid.uuid4())
-            
-            access = ClientChecklistAccess(
-                checklist_id=checklist_id,
-                access_token=access_token,
-                password=password,
-                is_active=True,
-                created_by=user_id,
-                created_at=datetime.utcnow()
-            )
-            
-            db.session.add(access)
-            db.session.commit()
-            
-            # Create activity log
-            create_activity_log(
-                user_id=user_id,
-                firm_id=firm_id,
-                action='create',
-                details=f'Created client access for checklist "{checklist.name}"'
-            )
-            
+            worksheet_data = json.loads(worksheet.worksheet_data)
             return {
                 'success': True,
-                'message': 'Client access created successfully',
-                'access': {
-                    'id': access.id,
-                    'access_token': access.access_token,
-                    'has_password': bool(password)
-                }
+                'data': worksheet_data,
+                'worksheet_id': worksheet_id
             }
-            
-        except Exception as e:
-            db.session.rollback()
+        except (json.JSONDecodeError, AttributeError) as e:
             return {
                 'success': False,
-                'message': f'Error creating client access: {str(e)}',
-                'access': None
+                'message': f'Error parsing worksheet data: {str(e)}'
             }
     
     @staticmethod
-    def validate_file_upload(filename: str, file_size: int, 
-                           allowed_extensions: set) -> Tuple[bool, str]:
-        """
-        Validate file upload requirements
+    def perform_checklist_ai_analysis(checklist):
+        """Perform one-time AI analysis for a checklist and all its documents"""
+        if checklist.ai_analysis_completed:
+            return
         
-        Args:
-            filename: Name of the uploaded file
-            file_size: Size of the file in bytes
-            allowed_extensions: Set of allowed file extensions
+        try:
+            import json
+            from datetime import datetime
             
-        Returns:
-            Tuple of (is_valid, error_message)
-        """
-        if not filename:
-            return False, "No file selected"
-        
-        # Check file extension
-        if '.' not in filename:
-            return False, "File must have an extension"
-        
-        extension = filename.rsplit('.', 1)[1].lower()
-        if extension not in allowed_extensions:
-            return False, f"File type '{extension}' not allowed"
-        
-        # Check file size (16MB limit)
-        max_size = 16 * 1024 * 1024  # 16MB
-        if file_size > max_size:
-            return False, f"File size too large. Maximum {max_size // (1024*1024)}MB allowed"
-        
-        return True, ""
-    
-    @staticmethod
-    def get_secure_filename(filename: str) -> str:
-        """
-        Generate a secure filename for file uploads
-        
-        Args:
-            filename: Original filename
+            # Analyze all uploaded documents that haven't been analyzed yet
+            total_documents = 0
+            analyzed_documents = 0
+            document_types = {}
+            confidence_scores = []
             
-        Returns:
-            Secure filename with UUID prefix
-        """
-        # Get secure filename and add UUID to prevent conflicts
-        secure_name = secure_filename(filename)
-        unique_id = str(uuid.uuid4()).replace('-', '')[:16]
-        return f"{unique_id}_{secure_name}"
+            for item in checklist.items:
+                for document in item.client_documents:
+                    total_documents += 1
+                    if not document.ai_analysis_completed:
+                        # Skip analysis in this function - let individual requests handle it
+                        # to avoid database locking issues
+                        pass
+                    else:
+                        # Document already analyzed
+                        analyzed_documents += 1
+                        if document.ai_document_type:
+                            document_types[document.ai_document_type] = document_types.get(document.ai_document_type, 0) + 1
+                        if document.ai_confidence_score:
+                            confidence_scores.append(document.ai_confidence_score)
+            
+            # Only save checklist summary if we have some analyzed documents
+            if analyzed_documents > 0:
+                # Create checklist-level summary
+                checklist_summary = {
+                    'total_documents': total_documents,
+                    'analyzed_documents': analyzed_documents,
+                    'document_types': document_types,
+                    'average_confidence': sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0,
+                    'analysis_timestamp': datetime.utcnow().isoformat(),
+                    'status': 'completed' if analyzed_documents == total_documents else 'partial'
+                }
+                
+                try:
+                    # Save checklist analysis with proper error handling
+                    checklist.ai_analysis_completed = True
+                    checklist.ai_analysis_results = json.dumps(checklist_summary)
+                    checklist.ai_analysis_timestamp = datetime.utcnow()
+                    
+                    db.session.commit()
+                    
+                except Exception as db_error:
+                    print(f"Database error saving checklist analysis: {db_error}")
+                    db.session.rollback()
+            
+        except Exception as e:
+            print(f"Error performing checklist AI analysis: {e}")
+            try:
+                db.session.rollback()
+            except:
+                pass

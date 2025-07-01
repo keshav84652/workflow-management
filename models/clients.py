@@ -3,7 +3,7 @@ Client and contact management models
 """
 
 from datetime import datetime
-from core import db
+from core.db_import import db
 
 
 class Client(db.Model):

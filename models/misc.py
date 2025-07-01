@@ -3,7 +3,7 @@ Miscellaneous models for various features
 """
 
 from datetime import datetime
-from core import db
+from core.db_import import db
 
 
 class ClientUser(db.Model):

@@ -10,7 +10,9 @@ import uuid
 
 # Import configuration and core utilities
 from config import get_config
-from core import db, migrate, create_directories
+from core.db_import import db
+from flask_migrate import Migrate
+import os
 
 # Import models
 from models import (
@@ -21,409 +23,194 @@ from models import (
     IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
 )
 
-# Create Flask application
-app = Flask(__name__)
+migrate = Migrate()
 
-# Load configuration
-config_class = get_config()
-app.config.from_object(config_class)
+def create_app(config_name='default'):
+    # Create Flask application
+    app = Flask(__name__)
 
-# Create necessary directories
-create_directories(app)
+    # Load configuration
+    config_class = get_config(config_name)
+    app.config.from_object(config_class)
 
-# Initialize extensions
-db.init_app(app)
-migrate.init_app(app, db)
+    # Create necessary directories
+    os.makedirs('instance', exist_ok=True)
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Register blueprints
-from blueprints import ALL_BLUEPRINTS
-for blueprint in ALL_BLUEPRINTS:
-    app.register_blueprint(blueprint)
+    # Initialize extensions
+    db.init_app(app)
+    migrate.init_app(app, db)
 
-# Add error handlers
-from werkzeug.routing import BuildError
-
-@app.errorhandler(BuildError)
-def handle_build_error(e):
-    """Handle URL build errors without clearing session"""
-    import traceback
+    # Register Jinja2 template filters
+    from utils.template_filters import register_template_filters
+    register_template_filters(app)
     
-    # Log detailed error for debugging
-    app.logger.error(f'BuildError: {e}')
-    app.logger.error(f'Endpoint: {e.endpoint}')
-    app.logger.error(f'Values: {e.values}')
-    app.logger.error(f'Method: {e.method}')
-    app.logger.error(f'Traceback: {traceback.format_exc()}')
-    
-    # Show more specific error message in development
-    if app.debug:
-        flash(f'URL Build Error: {e.endpoint} with values {e.values}', 'error')
-    else:
-        flash(f'Page not found or URL error. Please try again.', 'error')
-    
-    # Redirect to dashboard if user is logged in, otherwise to login
-    if 'firm_id' in session and 'user_id' in session:
-        return redirect(url_for('dashboard.main'))
-    else:
-        return redirect(url_for('auth.login'))
+    # Register blueprints
+    from blueprints import ALL_BLUEPRINTS
+    for blueprint in ALL_BLUEPRINTS:
+        app.register_blueprint(blueprint)
 
-@app.errorhandler(404)
-def handle_not_found(e):
-    """Handle 404 errors without clearing session"""
-    flash('Page not found. Redirecting to dashboard.', 'warning')
-    
-    # Redirect to dashboard if user is logged in, otherwise to login
-    if 'firm_id' in session and 'user_id' in session:
-        return redirect(url_for('dashboard.main'))
-    else:
-        return redirect(url_for('auth.login'))
+    # Add error handlers
+    from werkzeug.routing import BuildError
 
-@app.errorhandler(500)
-def handle_server_error(e):
-    """Handle server errors without clearing session"""
-    app.logger.error(f'Server Error: {e}')
-    flash('A server error occurred. Please try again.', 'error')
-    
-    # Redirect to dashboard if user is logged in, otherwise to login
-    if 'firm_id' in session and 'user_id' in session:
-        return redirect(url_for('dashboard.main'))
-    else:
-        return redirect(url_for('auth.login'))
-
-from utils import generate_access_code, create_activity_log, process_recurring_tasks, calculate_next_due_date, calculate_task_due_date, find_or_create_client
-
-
-# AI Analysis Helper Functions
-def perform_checklist_ai_analysis(checklist):
-    """Perform one-time AI analysis for a checklist and all its documents"""
-    if checklist.ai_analysis_completed:
-        return
-    
-    try:
-        import json
-        from datetime import datetime
+    @app.errorhandler(BuildError)
+    def handle_build_error(e):
+        """Handle URL build errors without clearing session"""
+        import traceback
         
-        # Analyze all uploaded documents that haven't been analyzed yet
-        total_documents = 0
-        analyzed_documents = 0
-        document_types = {}
-        confidence_scores = []
+        # Log detailed error for debugging
+        app.logger.error(f'BuildError: {e}')
+        app.logger.error(f'Endpoint: {e.endpoint}')
+        app.logger.error(f'Values: {e.values}')
+        app.logger.error(f'Method: {e.method}')
+        app.logger.error(f'Traceback: {traceback.format_exc()}')
         
-        for item in checklist.items:
-            for document in item.client_documents:
-                total_documents += 1
-                if not document.ai_analysis_completed:
-                    # Skip analysis in this function - let individual requests handle it
-                    # to avoid database locking issues
-                    pass
-                else:
-                    # Document already analyzed
-                    analyzed_documents += 1
-                    if document.ai_document_type:
-                        document_types[document.ai_document_type] = document_types.get(document.ai_document_type, 0) + 1
-                    if document.ai_confidence_score:
-                        confidence_scores.append(document.ai_confidence_score)
+        # Show more specific error message in development
+        if app.debug:
+            flash(f'URL Build Error: {e.endpoint} with values {e.values}', 'error')
+        else:
+            flash(f'Page not found or URL error. Please try again.', 'error')
         
-        # Only save checklist summary if we have some analyzed documents
-        if analyzed_documents > 0:
-            # Create checklist-level summary
-            checklist_summary = {
-                'total_documents': total_documents,
-                'analyzed_documents': analyzed_documents,
-                'document_types': document_types,
-                'average_confidence': sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0,
-                'analysis_timestamp': datetime.utcnow().isoformat(),
-                'status': 'completed' if analyzed_documents == total_documents else 'partial'
-            }
+        # Redirect to dashboard if user is logged in, otherwise to login
+        if 'firm_id' in session and 'user_id' in session:
+            return redirect(url_for('dashboard.main'))
+        else:
+            return redirect(url_for('auth.login'))
+
+    @app.errorhandler(404)
+    def handle_not_found(e):
+        """Handle 404 errors without clearing session"""
+        flash('Page not found. Redirecting to dashboard.', 'warning')
+        
+        # Redirect to dashboard if user is logged in, otherwise to login
+        if 'firm_id' in session and 'user_id' in session:
+            return redirect(url_for('dashboard.main'))
+        else:
+            return redirect(url_for('auth.login'))
+
+    @app.errorhandler(500)
+    def handle_server_error(e):
+        """Handle server errors without clearing session"""
+        app.logger.error(f'Server Error: {e}')
+        flash('A server error occurred. Please try again.', 'error')
+        
+        # Redirect to dashboard if user is logged in, otherwise to login
+        if 'firm_id' in session and 'user_id' in session:
+            return redirect(url_for('dashboard.main'))
+        else:
+            return redirect(url_for('auth.login'))
+
+    from utils.consolidated import generate_access_code
+    from services.activity_logging_service import ActivityLoggingService as ActivityService
+    from services.task_service import TaskService
+    from services.client_service import ClientService
+
+    # Business logic functions moved to appropriate services:
+    # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis
+    # - would_create_circular_dependency -> TaskService.would_create_circular_dependency
+    # - check_and_update_project_completion -> ProjectService.check_and_update_project_completion
+
+    # AI Document Analysis Integration
+    # AI services are now auto-detected based on available API keys in config
+    from services.ai_service import AIService
+
+    with app.app_context():
+        print("AI Services status determined by configuration:")
+        print("   Azure Document Intelligence:", "Available" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "Not configured")
+        print("   Gemini API:", "Available" if app.config.get('GEMINI_API_KEY') else "Not configured")
+        print("   Overall AI Services:", "Available" if config_class().AI_SERVICES_AVAILABLE else "Not configured")
+        
+        # Test AI service initialization
+        ai_service = AIService(app.config)
+        print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")
+
+    # Recurring tasks are now integrated into the Task model
+    
+    # Note: File validation logic moved to AttachmentService
+    # Note: save_uploaded_file function moved to blueprints/attachments.py
+
+    # Database initialization handled by init_db.py
+
+    @app.before_request
+    def check_access():
+        # Skip authentication for public endpoints and landing page
+        if request.endpoint in ['static', 'auth.home', 'auth.landing', 'auth.logout', 'auth.clear_session', 'admin.login', 'admin.dashboard', 'admin.authenticate']:
+            return
+        
+        # Skip for login flow
+        if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user', 'auth.switch_user']:
+            return
+        
+        # Skip for client portal
+        if request.endpoint in ['client_portal.client_login', 'client_portal.client_authenticate', 'client_portal.client_dashboard', 'client_portal.client_logout']:
+            return
+        
+        # Skip for public checklist access
+        if request.endpoint and any(endpoint in request.endpoint for endpoint in ['public_checklist', 'documents.public']):
+            return
+        
+        # Log session status for debugging
+        app.logger.debug(f'Session check for endpoint {request.endpoint}: firm_id={session.get("firm_id")}, user_id={session.get("user_id")}')
+        
+        # Check firm access - be more conservative about clearing session
+        if 'firm_id' not in session:
+            app.logger.warning(f'No firm_id in session for endpoint {request.endpoint}. Session keys: {list(session.keys())}')
             
-            try:
-                # Save checklist analysis with proper error handling
-                checklist.ai_analysis_completed = True
-                checklist.ai_analysis_results = json.dumps(checklist_summary)
-                checklist.ai_analysis_timestamp = datetime.utcnow()
-                
-                db.session.commit()
-                
-            except Exception as db_error:
-                print(f"Database error saving checklist analysis: {db_error}")
-                db.session.rollback()
+            # Don't clear session aggressively - just redirect
+            flash('Your session has expired. Please log in again.', 'warning')
+            return redirect(url_for('auth.login'))
         
-    except Exception as e:
-        print(f"Error performing checklist AI analysis: {e}")
-        try:
-            db.session.rollback()
-        except:
-            pass
-# AI Document Analysis Integration
-# AI services are now auto-detected based on available API keys in config
-from services.ai_service import AIService
+        # Check user selection (except for user selection pages)
+        if 'user_id' not in session:
+            app.logger.warning(f'No user_id in session for endpoint {request.endpoint}. Session: firm_id={session.get("firm_id")}')
+            return redirect(url_for('auth.select_user'))
 
-with app.app_context():
-    print("💡 AI Services status determined by configuration:")
-    print("   Azure Document Intelligence:", "✅" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "❌")
-    print("   Gemini API:", "✅" if app.config.get('GEMINI_API_KEY') else "❌")
-    print("   Overall AI Services:", "✅ Available" if config_class().AI_SERVICES_AVAILABLE else "❌ Not configured")
-    
-    # Test AI service initialization
-    ai_service = AIService(app.config)
-    print(f"   AI Service Status: {'✅ Ready' if ai_service.is_available() else '❌ Not available'}")
 
-# try:
-#     from backend.services.document_processor import DocumentProcessor
-#     from backend.services.azure_service import AzureDocumentService
-#     from backend.services.gemini_service import GeminiDocumentService
-#     from backend.services.document_visualizer import DocumentVisualizer
-#     from backend.agents.tax_document_analyst_agent import TaxDocumentAnalystAgent
-#     from backend.models.document import FileUpload, ProcessedDocument
-#     from backend.utils.config import settings
-#     AI_SERVICES_AVAILABLE = True
-#     print("✅ AI Services loaded successfully")
-# except Exception as e:
-#     AI_SERVICES_AVAILABLE = False
-#     print(f"⚠️  AI Services not available: {e}")
-#     print("💡 To enable AI features:")
-#     print("   1. Copy .env.template to .env")
-#     print("   2. Add your Azure and Gemini API keys")
-#     print("   3. Install dependencies: pip install -r requirements.txt")
-
-# Recurring tasks are now integrated into the Task model
-
-def allowed_file_local(filename):
-    """Check if file extension is allowed"""
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-# Note: save_uploaded_file function moved to blueprints/attachments.py
-
-def would_create_circular_dependency(task_id, dependency_id):
-    """Check if adding dependency_id as a dependency of task_id would create a circular dependency"""
-    def has_path(from_id, to_id, visited=None):
-        if visited is None:
-            visited = set()
+    @app.after_request
+    def add_security_headers(response):
+        """Add security headers to all responses"""
+        # For authenticated pages, prevent caching
+        if 'firm_id' in session:
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
         
-        if from_id == to_id:
-            return True
+        # Add other security headers
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
         
-        if from_id in visited:
-            return False
-        
-        visited.add(from_id)
-        
-        # Get all tasks that depend on from_id
-        dependent_tasks = Task.query.filter(Task.dependencies.like(f'%{from_id}%')).all()
-        
-        for dependent_task in dependent_tasks:
-            if dependent_task.id in dependent_task.dependency_list:  # Safety check
-                continue
-            if has_path(dependent_task.id, to_id, visited.copy()):
-                return True
-        
-        return False
-    
-    # Check if dependency_id already depends on task_id (would create cycle)
-    return has_path(dependency_id, task_id)
+        return response
 
-def check_and_update_project_completion(project_id):
-    """Check if all tasks in a project are completed and update project status accordingly"""
-    if not project_id:
-        return
-    
-    project = Project.query.get(project_id)
-    if not project:
-        return
-    
-    # Count total tasks and completed tasks
-    total_tasks = Task.query.filter_by(project_id=project_id).count()
-    completed_tasks = Task.query.filter_by(project_id=project_id, status='Completed').count()
-    
-    # If all tasks are completed, mark project as completed
-    if total_tasks > 0 and completed_tasks == total_tasks and project.status != 'Completed':
-        project.status = 'Completed'
-        create_activity_log(
-            f'Project "{project.name}" automatically marked as completed (all tasks finished)',
-            session.get('user_id', 1),
-            project_id
-        )
-    # If project was marked completed but has incomplete tasks, reactivate it
-    elif project.status == 'Completed' and completed_tasks < total_tasks:
-        project.status = 'Active'
-        create_activity_log(
-            f'Project "{project.name}" reactivated (incomplete tasks detected)',
-            session.get('user_id', 1),
-            project_id
-        )
+    # All application routes have been successfully migrated to blueprints!
+    # Total routes migrated: 100 → 0 remaining in app.py
+    # 
+    # Blueprint organization:
+    # - auth_bp: Authentication and user management
+    # - admin_bp: Administrative functions and templates
+    # - dashboard_bp: Main dashboard and overview
+    # - projects_bp: Project management and workflows
+    # - tasks_bp: Task management and operations
+    # - clients_bp: Client management and relationships
+    # - contacts_bp: Contact management and associations
+    # - users_bp: User management within firms
+    # - views_bp: Calendar, Kanban, search, and reports
+    # - documents_bp: Document checklists and file management
+    # - client_portal_bp: Client portal authentication and uploads
+    # - export_bp: CSV export functionality
+    # - api_bp: RESTful API endpoints
+    # - attachments_bp: File upload and download handling
+    # - subtasks_bp: Subtask management operations
+    # - ai_bp: AI document analysis and processing
 
-# Database initialization handled by init_db.py
-
-@app.before_request
-def check_access():
-    # Skip authentication for public endpoints and landing page
-    if request.endpoint in ['static', 'auth.home', 'auth.landing', 'auth.logout', 'auth.clear_session', 'admin.login', 'admin.dashboard', 'admin.authenticate']:
-        return
-    
-    # Skip for login flow
-    if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user', 'auth.switch_user']:
-        return
-    
-    # Skip for client portal
-    if request.endpoint in ['client_portal.client_login', 'client_portal.client_authenticate', 'client_portal.client_dashboard', 'client_portal.client_logout']:
-        return
-    
-    # Skip for public checklist access
-    if request.endpoint and any(endpoint in request.endpoint for endpoint in ['public_checklist', 'documents.public']):
-        return
-    
-    # Log session status for debugging
-    app.logger.debug(f'Session check for endpoint {request.endpoint}: firm_id={session.get("firm_id")}, user_id={session.get("user_id")}')
-    
-    # Check firm access - be more conservative about clearing session
-    if 'firm_id' not in session:
-        app.logger.warning(f'No firm_id in session for endpoint {request.endpoint}. Session keys: {list(session.keys())}')
-        
-        # Don't clear session aggressively - just redirect
-        flash('Your session has expired. Please log in again.', 'warning')
-        return redirect(url_for('auth.login'))
-    
-    # Check user selection (except for user selection pages)
-    if 'user_id' not in session:
-        app.logger.warning(f'No user_id in session for endpoint {request.endpoint}. Session: firm_id={session.get("firm_id")}')
-        return redirect(url_for('auth.select_user'))
-
-
-@app.after_request
-def add_security_headers(response):
-    """Add security headers to all responses"""
-    # For authenticated pages, prevent caching
-    if 'firm_id' in session:
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-    
-    # Add other security headers
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    
-    return response
-
-# Auth routes moved to auth blueprint
-
-
-
-# Dashboard route moved to dashboard blueprint
-
-# Admin routes moved to admin blueprint
-
-
-
-
-
-# Project delete route moved to projects blueprint
-
-
-# Task edit route moved to tasks blueprint
-
-# Task view route moved to tasks blueprint
-
-# Task comments route moved to tasks blueprint
-
-# Task log-time route moved to tasks blueprint
-
-# Task bulk-update route moved to tasks blueprint
-
-# Task bulk-delete route moved to tasks blueprint
-
-# Task update route moved to tasks blueprint
-
-# Task timer start route moved to tasks blueprint
-
-# Task timer stop route moved to tasks blueprint
-
-# Task timer status route moved to tasks blueprint
-
-# Reports time-tracking route moved to views blueprint
-
-# User routes moved to users blueprint
-
-# Client routes moved to clients blueprint
-
-# Calendar route moved to views blueprint
-
-# Kanban route moved to views blueprint
-
-# API clients search route moved to api blueprint
-
-# API project progress route moved to api blueprint
-
-# Search route moved to views blueprint
-
-# Export routes moved to export blueprint
-
-# Additional client routes moved to clients blueprint
-
-# Admin work_types routes moved to admin blueprint
-# Admin work_types edit and status create routes moved to admin blueprint
-# Remaining admin status routes moved to admin blueprint
-
-# Contact routes moved to contacts blueprint
-
-# Client and contact association routes moved to clients and contacts blueprints
-
-# API clients route moved to api blueprint
-
-
-# File upload and attachment routes moved to attachments blueprint
-
-# Subtask management routes moved to subtasks blueprint
-
-# Admin recurring task processing route moved to admin blueprint
-
-# Document checklist management routes moved to documents blueprint
-
-# Create and edit checklist routes moved to documents blueprint
-
-# Client access setup and document checklist routes moved to clients and documents blueprints
-
-# Client portal authentication routes moved to client_portal blueprint
-
-# Client upload and status update routes moved to client_portal blueprint
-
-
-# AI document analysis routes moved to ai blueprint
-
-# All remaining routes moved to appropriate blueprints:
-# - AI analysis routes → ai blueprint
-# - Document sharing routes → documents blueprint
-
-# End of blueprint migration - all routes successfully moved!
-
-# All application routes have been successfully migrated to blueprints!
-# Total routes migrated: 100 → 0 remaining in app.py
-# 
-# Blueprint organization:
-# - auth_bp: Authentication and user management
-# - admin_bp: Administrative functions and templates
-# - dashboard_bp: Main dashboard and overview
-# - projects_bp: Project management and workflows
-# - tasks_bp: Task management and operations
-# - clients_bp: Client management and relationships
-# - contacts_bp: Contact management and associations
-# - users_bp: User management within firms
-# - views_bp: Calendar, Kanban, search, and reports
-# - documents_bp: Document checklists and file management
-# - client_portal_bp: Client portal authentication and uploads
-# - export_bp: CSV export functionality
-# - api_bp: RESTful API endpoints
-# - attachments_bp: File upload and download handling
-# - subtasks_bp: Subtask management operations
-# - ai_bp: AI document analysis and processing
-
-# Flask application is now fully modularized with blueprints!
-# All route handlers have been moved to their respective blueprints.
-# The app.py file now serves as a clean application factory.
+    # Flask application is now fully modularized with blueprints!
+    # All route handlers have been moved to their respective blueprints.
+    # The app.py file now serves as a clean application factory.
+    return app
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+    app = create_app()
+    # REMOVED db.create_all() - was wiping out data on every app start!
+    # Database tables should be created via migrations or init_db.py only
     app.run(debug=True, host='0.0.0.0', port=5002, use_reloader=False)

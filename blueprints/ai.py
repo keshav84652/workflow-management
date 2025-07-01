@@ -8,13 +8,15 @@ import os
 import json
 from pathlib import Path
 
-from core import db
+from core.db_import import db
 from models import (
     ClientDocument, ChecklistItem, DocumentChecklist, Client, 
     IncomeWorksheet, User, Attachment
 )
-from utils import create_activity_log
+from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.ai_service import AIService
+from services.document_service import DocumentService
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -24,25 +26,9 @@ def ai_services_status():
     """Check the status of AI services"""
     try:
         ai_service = AIService(current_app.config)
-        
-        status = {
-            'ai_services_available': ai_service.is_available(),
-            'azure_available': ai_service.azure_client is not None,
-            'gemini_available': ai_service.gemini_client is not None,
-            'services_configured': []
-        }
-        
-        if ai_service.azure_client:
-            status['services_configured'].append('Azure Document Intelligence')
-        if ai_service.gemini_client:
-            status['services_configured'].append('Google Gemini')
-            
-        if not status['ai_services_available']:
-            status['message'] = 'No AI services configured. Please add GEMINI_API_KEY or Azure Document Intelligence credentials.'
-        else:
-            status['message'] = f"AI services ready: {', '.join(status['services_configured'])}"
-            
-        return jsonify(status)
+        status = ai_service.get_ai_services_status()
+        status_code = 500 if 'error' in status else 200
+        return jsonify(status), status_code
         
     except Exception as e:
         return jsonify({
@@ -54,13 +40,13 @@ def ai_services_status():
 @ai_bp.route('/analyze-document/<int:document_id>', methods=['POST'])
 def analyze_document(document_id):
     """Analyze a client document using AI (Azure + Gemini)"""
-    firm_id = session['firm_id']
+    from utils.consolidated import get_session_firm_id
     
     try:
-        # Initialize AI service
-        ai_service = AIService(current_app.config)
+        firm_id = get_session_firm_id()
         
-        # Perform analysis
+        # Initialize AI service and perform analysis
+        ai_service = AIService(current_app.config)
         results = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis=True)
         
         return jsonify({
@@ -73,37 +59,48 @@ def analyze_document(document_id):
         })
         
     except ValueError as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 404
+        return jsonify({'success': False, 'error': str(e)}), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Analysis failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Analysis failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/api/document-analysis/<int:document_id>', methods=['GET', 'POST'])
 def get_document_analysis(document_id):
     """Get or trigger analysis for a document"""
-    try:
-        if 'firm_id' not in session:
-            return jsonify({'error': 'No firm session found'}), 401
-            
-        firm_id = session['firm_id']
-    except Exception as session_error:
-        return jsonify({'error': f'Session error: {str(session_error)}'}), 500
-    
-    # Check for force_reanalysis parameter
-    force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
+    from utils.consolidated import get_session_firm_id
     
     try:
-        # Initialize AI service
-        ai_service = AIService(current_app.config)
+        firm_id = get_session_firm_id()
+        force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
         
-        # Get or perform analysis
+        # Use AI service for business logic
+        ai_service = AIService(current_app.config)
         response_data = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis)
+        
+        # Transform new data structure to old format for frontend compatibility
+        if response_data.get('success') and 'analysis_results' in response_data:
+            analysis_results = response_data['analysis_results']
+            
+            # Handle both string (from database) and dict (fresh analysis) formats
+            if isinstance(analysis_results, str):
+                try:
+                    analysis_results = json.loads(analysis_results)
+                except json.JSONDecodeError:
+                    analysis_results = {}
+            
+            # Use AIService to transform data structure  
+            ai_service = AIService(current_app.config)
+            transformed_data = ai_service.transform_analysis_to_old_format(analysis_results)
+            
+            # Add metadata
+            transformed_data.update({
+                'status': 'completed',
+                'cached': response_data.get('was_cached', False),
+                'filename': _get_document_filename(document_id),
+                'processing_notes': f"Analysis completed at {datetime.utcnow().isoformat()}"
+            })
+            
+            return jsonify(transformed_data)
         
         return jsonify(response_data)
         
@@ -113,23 +110,27 @@ def get_document_analysis(document_id):
         return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
 
+
+
+def _get_document_filename(document_id):
+    """Get document filename from database"""
+    document_service = DocumentService()
+    return document_service.get_document_filename_by_id(document_id)
+
+
 @ai_bp.route('/api/analyze-checklist/<int:checklist_id>', methods=['POST'])
 def analyze_checklist(checklist_id):
     """Analyze all documents in a checklist"""
-    try:
-        if 'firm_id' not in session:
-            return jsonify({'error': 'No firm session found'}), 401
-            
-        firm_id = session['firm_id']
-    except Exception as session_error:
-        return jsonify({'error': f'Session error: {str(session_error)}'}), 500
-    
-    # Get force_reanalysis flag
-    request_data = request.get_json(silent=True) or {}
-    force_reanalysis = request_data.get('force_reanalysis', False)
+    from utils.consolidated import get_session_firm_id
     
     try:
-        # Initialize AI service
+        firm_id = get_session_firm_id()
+        
+        # Get force_reanalysis flag
+        request_data = request.get_json(silent=True) or {}
+        force_reanalysis = request_data.get('force_reanalysis', False)
+        
+        # Use AI service for business logic
         ai_service = AIService(current_app.config)
         
         # Check if AI services are available first
@@ -161,64 +162,48 @@ def analyze_checklist(checklist_id):
 @ai_bp.route('/api/export-checklist-analysis/<int:checklist_id>', methods=['GET'])
 def export_checklist_analysis(checklist_id):
     """Export checklist analysis results"""
-    firm_id = session['firm_id']
-    
-    # Get checklist and verify access
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    from utils.consolidated import get_session_firm_id
+    import tempfile
     
     try:
-        # Gather analysis results
-        analysis_data = {
-            'checklist_name': checklist.name,
-            'client_name': checklist.client.name,
-            'export_timestamp': datetime.utcnow().isoformat(),
-            'documents': []
-        }
+        firm_id = get_session_firm_id()
         
-        for item in checklist.items:
-            for document in item.client_documents:
-                doc_data = {
-                    'item_title': item.title,
-                    'filename': document.original_filename,
-                    'analysis_completed': document.ai_analysis_completed,
-                    'analysis_results': json.loads(document.ai_analysis_results) if document.ai_analysis_results else None
-                }
-                analysis_data['documents'].append(doc_data)
+        # Use AI service for business logic
+        ai_service = AIService(current_app.config)
+        result = ai_service.export_checklist_analysis(checklist_id, firm_id)
         
-        # Create temporary JSON file
-        import tempfile
+        if not result['success']:
+            return jsonify(result), 500
+        
+        # Create temporary JSON file for download
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
-            json.dump(analysis_data, temp_file, indent=2)
+            json.dump(result['data'], temp_file, indent=2)
             temp_path = temp_file.name
         
         return send_file(
             temp_path,
             as_attachment=True,
-            download_name=f'checklist_analysis_{checklist_id}.json',
+            download_name=result['filename'],
             mimetype='application/json'
         )
         
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Export failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Export failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/api/generate-income-worksheet/<int:checklist_id>', methods=['POST'])
 def generate_income_worksheet(checklist_id):
     """Generate income worksheet from analyzed documents"""
-    firm_id = session['firm_id']
-    user_id = session['user_id']
+    from utils.consolidated import get_session_firm_id, get_session_user_id
     
     try:
-        # Initialize AI service
-        ai_service = AIService(current_app.config)
+        firm_id = get_session_firm_id()
+        user_id = get_session_user_id()
         
-        # Generate income worksheet
+        # Use AI service for business logic
+        ai_service = AIService(current_app.config)
         results = ai_service.generate_income_worksheet(checklist_id, firm_id, user_id)
         
         return jsonify(results)
@@ -232,49 +217,47 @@ def generate_income_worksheet(checklist_id):
 @ai_bp.route('/download-income-worksheet/<int:checklist_id>')
 def download_income_worksheet(checklist_id):
     """Download generated income worksheet"""
-    firm_id = session['firm_id']
-    
-    # Get checklist and verify access
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first_or_404()
+    from utils.consolidated import get_session_firm_id
+    import tempfile
     
     try:
-        # Create temporary worksheet file
-        import tempfile
-        worksheet_data = json.loads(worksheet.worksheet_data)
+        firm_id = get_session_firm_id()
         
+        # Use AI service for business logic
+        ai_service = AIService(current_app.config)
+        result = ai_service.get_income_worksheet_for_download(checklist_id, firm_id)
+        
+        if not result['success']:
+            return jsonify(result), 500
+        
+        # Create temporary file for download
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
-            json.dump(worksheet_data, temp_file, indent=2)
+            json.dump(result['data'], temp_file, indent=2)
             temp_path = temp_file.name
         
         return send_file(
             temp_path,
             as_attachment=True,
-            download_name=f'income_worksheet_{checklist.client.name}.json',
+            download_name=result['filename'],
             mimetype='application/json'
         )
         
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 404
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Download failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Download failed: {str(e)}'}), 500
 
 
 @ai_bp.route('/api/saved-income-worksheet/<int:checklist_id>')
 def get_saved_income_worksheet(checklist_id):
     """Get saved income worksheet data"""
-    firm_id = session['firm_id']
+    from utils.consolidated import get_session_firm_id
     
     try:
-        # Initialize AI service
-        ai_service = AIService(current_app.config)
+        firm_id = get_session_firm_id()
         
-        # Get saved worksheet
+        # Use AI service for business logic
+        ai_service = AIService(current_app.config)
         results = ai_service.get_saved_income_worksheet(checklist_id, firm_id)
         
         if not results['success']:
@@ -291,17 +274,19 @@ def get_saved_income_worksheet(checklist_id):
 @ai_bp.route('/download-saved-worksheet/<int:worksheet_id>')
 def download_saved_worksheet(worksheet_id):
     """Download a specific saved worksheet"""
-    worksheet = IncomeWorksheet.query.get_or_404(worksheet_id)
-    
-    # Verify access through checklist
-    checklist = worksheet.checklist
-    if checklist.client.firm_id != session['firm_id']:
-        return jsonify({'error': 'Access denied'}), 403
+    from utils.consolidated import get_session_firm_id
+    import tempfile
     
     try:
-        worksheet_data = json.loads(worksheet.worksheet_data)
+        firm_id = get_session_firm_id()
         
-        import tempfile
+        # Get worksheet data via service layer
+        document_service = DocumentService()
+        result = document_service.get_worksheet_data_for_download(worksheet_id, firm_id)
+        if not result['success']:
+            return jsonify({'error': result['message']}), 404
+        
+        worksheet_data = result['data']
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as temp_file:
             json.dump(worksheet_data, temp_file, indent=2)
             temp_path = temp_file.name
@@ -314,10 +299,7 @@ def download_saved_worksheet(worksheet_id):
         )
         
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Download failed: {str(e)}'
-        }), 500
+        return jsonify({'success': False, 'error': f'Download failed: {str(e)}'}), 500
 
 
 # Additional AI routes for document visualization and workpaper generation would go here

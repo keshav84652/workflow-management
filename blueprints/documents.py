@@ -9,12 +9,14 @@ import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
 
-from core import db
+from core.db_import import db
 from models import (
-    DocumentChecklist, ChecklistItem, Client, ClientDocument, 
+    DocumentChecklist, ChecklistItem, ClientDocument, 
     ClientUser, Attachment, User, ClientChecklistAccess
 )
-from utils import create_activity_log
+from services.activity_logging_service import ActivityLoggingService as ActivityService
+from utils.consolidated import get_session_firm_id, get_session_user_id
+from services.document_service import DocumentService
 
 documents_bp = Blueprint('documents', __name__)
 
@@ -23,15 +25,12 @@ documents_bp = Blueprint('documents', __name__)
 @documents_bp.route('/document_checklists')  # Legacy URL support
 def document_checklists():
     """CPA view to manage document checklists"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get all checklists for the firm
-    checklists = DocumentChecklist.query.join(Client).filter(
-        Client.firm_id == firm_id
-    ).all()
-    
-    # Get all clients for creating new checklists
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    # Get data using service layer
+    document_service = DocumentService()
+    checklists = document_service.get_checklists_for_firm(firm_id)
+    clients = document_service.get_clients_for_firm(firm_id)
     
     return render_template('documents/document_checklists.html', checklists=checklists, clients=clients)
 
@@ -39,147 +38,123 @@ def document_checklists():
 @documents_bp.route('/create-checklist', methods=['GET', 'POST'])
 def create_checklist():
     """Create a new document checklist"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
+    
+    document_service = DocumentService()
     
     if request.method == 'POST':
         client_id = request.form.get('client_id')
         name = request.form.get('name')
         description = request.form.get('description', '')
+        user_id = get_session_user_id()
         
-        # Verify client belongs to this firm
-        client = Client.query.filter_by(id=client_id, firm_id=firm_id).first()
-        if not client:
-            flash('Invalid client selected', 'error')
-            return redirect(url_for('documents.document_checklists'))
-        
-        checklist = DocumentChecklist(
-            client_id=client_id,
+        # Use service layer for business logic
+        result = document_service.create_checklist(
             name=name,
             description=description,
-            created_by=session['user_id'],
-            is_active=True
+            client_id=client_id,
+            firm_id=firm_id,
+            user_id=user_id
         )
         
-        db.session.add(checklist)
-        db.session.commit()
-        
-        flash(f'Checklist "{name}" created successfully for {client.name}', 'success')
-        return redirect(url_for('documents.edit_checklist', checklist_id=checklist.id))
+        if result['success']:
+            flash(result['message'], 'success')
+            return redirect(url_for('documents.edit_checklist', checklist_id=result['checklist'].id))
+        else:
+            flash(result['message'], 'error')
+            return redirect(url_for('documents.document_checklists'))
     
     # GET request - show form
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    clients = document_service.get_clients_for_firm(firm_id)
     return render_template('documents/create_checklist_modern.html', clients=clients)
 
 
 @documents_bp.route('/edit-checklist/<int:checklist_id>', methods=['GET', 'POST'])
 def edit_checklist(checklist_id):
     """Edit a document checklist and its items"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
+    user_id = get_session_user_id()
     
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Get checklist using service layer
+    checklist = document_service.get_checklist_by_id(checklist_id, firm_id)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     if request.method == 'POST':
         action = request.form.get('action')
         
         # If no specific action, this is the main form submission (Save Changes button)
         if not action:
-            # Update basic checklist info
-            checklist.name = request.form.get('name')
-            checklist.description = request.form.get('description', '')
+            name = request.form.get('name')
+            description = request.form.get('description', '')
             
-            # Handle deleted items first
-            deleted_item_ids = request.form.getlist('deleted_item_ids[]')
-            for item_id in deleted_item_ids:
-                if item_id:
-                    item = ChecklistItem.query.filter_by(
-                        id=item_id, 
-                        checklist_id=checklist_id
-                    ).first()
-                    if item:
-                        db.session.delete(item)
+            # Prepare items data for service
+            items_data = {
+                'deleted_item_ids': request.form.getlist('deleted_item_ids[]'),
+                'item_ids': request.form.getlist('item_ids[]'),
+                'item_titles': request.form.getlist('item_titles[]'),
+                'item_descriptions': request.form.getlist('item_descriptions[]'),
+                'item_required': request.form.getlist('item_required[]'),
+                'item_sort_orders': request.form.getlist('item_sort_orders[]')
+            }
             
-            # Handle existing items updates
-            item_ids = request.form.getlist('item_ids[]')
-            item_titles = request.form.getlist('item_titles[]')
-            item_descriptions = request.form.getlist('item_descriptions[]')
-            item_required = request.form.getlist('item_required[]')
-            item_sort_orders = request.form.getlist('item_sort_orders[]')
+            # Use service layer for complex update
+            result = document_service.update_checklist_with_items(
+                checklist_id=checklist_id,
+                name=name,
+                description=description,
+                items_data=items_data,
+                firm_id=firm_id,
+                user_id=user_id
+            )
             
-            # Update existing items
-            for i, item_id in enumerate(item_ids):
-                if item_id and i < len(item_titles):  # Only process if we have an ID and title
-                    item = ChecklistItem.query.filter_by(
-                        id=item_id, 
-                        checklist_id=checklist_id
-                    ).first()
-                    
-                    if item:
-                        item.title = item_titles[i] if i < len(item_titles) else item.title
-                        item.description = item_descriptions[i] if i < len(item_descriptions) else ''
-                        item.is_required = str(i) in item_required
-                        item.sort_order = int(item_sort_orders[i]) if i < len(item_sort_orders) and item_sort_orders[i] else item.sort_order
-                
-                elif not item_id and i < len(item_titles) and item_titles[i].strip():
-                    # This is a new item (no ID but has title)
-                    max_order = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
-                        checklist_id=checklist_id
-                    ).scalar() or 0
-                    
-                    new_item = ChecklistItem(
-                        checklist_id=checklist_id,
-                        title=item_titles[i],
-                        description=item_descriptions[i] if i < len(item_descriptions) else '',
-                        is_required=str(i) in item_required,
-                        sort_order=int(item_sort_orders[i]) if i < len(item_sort_orders) and item_sort_orders[i] else max_order + 1
-                    )
-                    db.session.add(new_item)
-            
-            db.session.commit()
-            flash('Checklist and items updated successfully', 'success')
+            flash(result['message'], 'success' if result['success'] else 'error')
             return redirect(url_for('documents.edit_checklist', checklist_id=checklist_id))
         
         elif action == 'update_checklist':
-            checklist.name = request.form.get('name')
-            checklist.description = request.form.get('description', '')
-            db.session.commit()
-            flash('Checklist updated successfully', 'success')
+            name = request.form.get('name')
+            description = request.form.get('description', '')
+            
+            result = document_service.update_checklist(
+                checklist_id=checklist_id,
+                name=name,
+                description=description,
+                firm_id=firm_id,
+                user_id=user_id
+            )
+            
+            flash(result['message'], 'success' if result['success'] else 'error')
             
         elif action == 'add_item':
             title = request.form.get('title')
             description = request.form.get('description', '')
             is_required = request.form.get('is_required') == 'on'
             
-            # Get next sort order
-            max_order = db.session.query(db.func.max(ChecklistItem.sort_order)).filter_by(
-                checklist_id=checklist_id
-            ).scalar() or 0
-            
-            item = ChecklistItem(
+            result = document_service.add_checklist_item(
                 checklist_id=checklist_id,
-                title=title,
+                item_name=title,
                 description=description,
                 is_required=is_required,
-                sort_order=max_order + 1
+                firm_id=firm_id,
+                user_id=user_id
             )
             
-            db.session.add(item)
-            db.session.commit()
-            flash(f'Document item "{title}" added successfully', 'success')
+            flash(result['message'], 'success' if result['success'] else 'error')
             
         elif action == 'delete_item':
             item_id = request.form.get('item_id')
-            item = ChecklistItem.query.filter_by(
-                id=item_id, 
-                checklist_id=checklist_id
-            ).first()
-            if item:
-                db.session.delete(item)
-                db.session.commit()
-                flash('Document item deleted successfully', 'success')
+            
+            result = document_service.delete_checklist_item(
+                item_id=item_id,
+                checklist_id=checklist_id,
+                firm_id=firm_id,
+                user_id=user_id
+            )
+            
+            flash(result['message'], 'success' if result['success'] else 'error')
         
         return redirect(url_for('documents.edit_checklist', checklist_id=checklist_id))
     
@@ -189,13 +164,15 @@ def edit_checklist(checklist_id):
 @documents_bp.route('/checklist-dashboard/<int:checklist_id>')
 def checklist_dashboard(checklist_id):
     """Modern dashboard view for a specific checklist"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Get checklist using service layer
+    checklist = document_service.get_checklist_by_id(checklist_id, firm_id)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     return render_template('documents/checklist_dashboard.html', checklist=checklist)
 
@@ -203,13 +180,15 @@ def checklist_dashboard(checklist_id):
 @documents_bp.route('/download-document/<int:document_id>')
 def download_document(document_id):
     """Download a client-uploaded document"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get document and verify access
-    document = ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-        ClientDocument.id == document_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Get document using service layer
+    document = document_service.get_document_for_download(document_id, firm_id)
+    if not document:
+        flash('Document not found or access denied', 'error')
+        return redirect(request.referrer or url_for('documents.document_checklists'))
     
     if not os.path.exists(document.file_path):
         flash('File not found', 'error')
@@ -226,16 +205,18 @@ def download_document(document_id):
 @documents_bp.route('/analysis/<int:client_id>')
 def view_document_analysis(client_id):
     """View document analysis for a client"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get client and verify access
-    client = Client.query.filter_by(id=client_id, firm_id=firm_id).first_or_404()
+    document_service = DocumentService()
+    
+    # Get client and verify access using service layer
+    client = document_service.get_client_by_id_and_firm(client_id, firm_id)
+    if not client:
+        flash('Client not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     # Get all checklists and documents for this client
-    checklists = DocumentChecklist.query.filter_by(
-        client_id=client_id, 
-        firm_id=firm_id
-    ).all()
+    checklists = document_service.get_checklists_by_client_and_firm(client_id, firm_id)
     
     return render_template('documents/document_analysis.html', 
                          client=client, 
@@ -245,12 +226,12 @@ def view_document_analysis(client_id):
 @documents_bp.route('/uploaded-documents')
 def uploaded_documents():
     """View all uploaded documents across all checklists"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get all uploaded documents for this firm
-    documents = ClientDocument.query.join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
-        Client.firm_id == firm_id
-    ).order_by(ClientDocument.uploaded_at.desc()).all()
+    document_service = DocumentService()
+    
+    # Get all uploaded documents for this firm using service layer
+    documents = document_service.get_uploaded_documents(firm_id)
     
     return render_template('documents/uploaded_documents.html', documents=documents)
 
@@ -258,12 +239,13 @@ def uploaded_documents():
 @documents_bp.route('/api/checklist-stats/<int:checklist_id>')
 def checklist_stats_api(checklist_id):
     """API endpoint for real-time checklist statistics"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
+    document_service = DocumentService()
+    checklist = document_service.get_checklist_by_id(checklist_id, firm_id)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     stats = {
         'total_items': len(checklist.items),
@@ -286,45 +268,24 @@ def checklist_stats_api(checklist_id):
 @documents_bp.route('/checklist/<int:checklist_id>/share')
 def share_checklist(checklist_id):
     """Generate shareable link for public checklist access"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Generate or get existing access token
-    if not checklist.public_access_token:
-        import secrets
-        checklist.public_access_token = secrets.token_urlsafe(32)
-        checklist.public_access_enabled = True
-        db.session.commit()
-    
-    # Generate shareable URL
+    document_service = DocumentService()
+    checklist = document_service.generate_share_token(checklist_id, firm_id)
     from flask import url_for
     share_url = url_for('documents.public_checklist', token=checklist.public_access_token, _external=True)
-    
-    return render_template('documents/share_checklist.html', 
-                         checklist=checklist, 
+    return render_template('documents/share_checklist.html',
+                         checklist=checklist,
                          share_url=share_url)
 
 
 @documents_bp.route('/checklist/<int:checklist_id>/revoke-share', methods=['POST'])
 def revoke_checklist_share(checklist_id):
     """Revoke public access to checklist"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Disable public access
-    checklist.public_access_enabled = False
-    db.session.commit()
-    
+    document_service = DocumentService()
+    document_service.revoke_share(checklist_id, firm_id)
     flash('Public access revoked successfully', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
 
@@ -332,20 +293,10 @@ def revoke_checklist_share(checklist_id):
 @documents_bp.route('/checklist/<int:checklist_id>/regenerate-share', methods=['POST'])
 def regenerate_checklist_share(checklist_id):
     """Regenerate shareable token for checklist"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     
-    # Get checklist and verify it belongs to this firm
-    checklist = DocumentChecklist.query.join(Client).filter(
-        DocumentChecklist.id == checklist_id,
-        Client.firm_id == firm_id
-    ).first_or_404()
-    
-    # Generate new token
-    import secrets
-    checklist.public_access_token = secrets.token_urlsafe(32)
-    checklist.public_access_enabled = True
-    db.session.commit()
-    
+    document_service = DocumentService()
+    document_service.regenerate_share_token(checklist_id, firm_id)
     flash('New shareable link generated', 'success')
     return redirect(url_for('documents.share_checklist', checklist_id=checklist_id))
 
@@ -353,11 +304,13 @@ def regenerate_checklist_share(checklist_id):
 @documents_bp.route('/checklist/<token>')
 def public_checklist(token):
     """Public view of checklist for client access"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Find checklist by token using service layer
+    checklist = document_service.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     return render_template('documents/public_checklist.html', checklist=checklist)
 
@@ -365,155 +318,67 @@ def public_checklist(token):
 @documents_bp.route('/checklist/<token>/upload', methods=['POST'])
 def public_checklist_upload(token):
     """Handle public document upload via shared link"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Find checklist by token using service layer
+    checklist = document_service.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     item_id = request.form.get('item_id')
-    item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first_or_404()
+    file = request.files.get('file')
     
-    if 'file' not in request.files:
-        flash('No file uploaded', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    # Use service layer for file upload business logic
+    result = document_service.upload_file_to_checklist_item(
+        file=file,
+        token=token,
+        item_id=int(item_id) if item_id else None
+    )
     
-    file = request.files['file']
-    if file.filename == '':
-        flash('No file selected', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
     
-    from werkzeug.utils import secure_filename
-    
-    try:
-        # Generate unique filename
-        original_filename = secure_filename(file.filename)
-        file_extension = original_filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-        
-        # Create client-specific subdirectory
-        from flask import current_app
-        client_upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], f'client_{checklist.client_id}')
-        os.makedirs(client_upload_dir, exist_ok=True)
-        
-        file_path = os.path.join(client_upload_dir, unique_filename)
-        
-        # Save file
-        file.save(file_path)
-        file_size = os.path.getsize(file_path)
-        
-        # Detect MIME type
-        mime_type, _ = mimetypes.guess_type(original_filename)
-        
-        # Delete any existing document for this item
-        existing_doc = ClientDocument.query.filter_by(
-            client_id=checklist.client_id,
-            checklist_item_id=item_id
-        ).first()
-        
-        if existing_doc:
-            # Remove old file
-            if os.path.exists(existing_doc.file_path):
-                os.remove(existing_doc.file_path)
-            db.session.delete(existing_doc)
-        
-        # Create new document record
-        document = ClientDocument(
-            client_id=checklist.client_id,
-            checklist_item_id=item_id,
-            filename=unique_filename,
-            original_filename=original_filename,
-            file_path=file_path,
-            file_size=file_size,
-            mime_type=mime_type,
-            uploaded_by_client=True
-        )
-        
-        db.session.add(document)
-        
-        # Update item status
-        item.status = 'uploaded'
-        item.updated_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        flash('File uploaded successfully', 'success')
-        return redirect(url_for('documents.public_checklist', token=token))
-        
-    except Exception as e:
-        db.session.rollback()
-        # Clean up file if database operation fails
-        if 'file_path' in locals() and os.path.exists(file_path):
-            os.remove(file_path)
-        flash(f'Error uploading file: {str(e)}', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    return redirect(url_for('documents.public_checklist', token=token))
 
 
 @documents_bp.route('/checklist/<token>/status', methods=['POST'])
 def public_checklist_status(token):
     """Update document status via public link"""
-    # Find checklist by token
-    checklist = DocumentChecklist.query.filter_by(
-        public_access_token=token,
-        public_access_enabled=True
-    ).first_or_404()
+    document_service = DocumentService()
+    
+    # Find checklist by token using service layer
+    checklist = document_service.get_checklist_by_token(token)
+    if not checklist:
+        flash('Checklist not found or access denied', 'error')
+        return redirect(url_for('documents.document_checklists'))
     
     item_id = request.form.get('item_id')
     new_status = request.form.get('status')
     
-    if new_status not in ['already_provided', 'not_applicable', 'pending']:
-        flash('Invalid status selected', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    result = document_service.update_checklist_item_status(token, item_id, new_status)
     
-    item = ChecklistItem.query.filter_by(id=item_id, checklist_id=checklist.id).first_or_404()
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['message'], 'error')
     
-    try:
-        # If changing from uploaded status, remove the uploaded file
-        if item.status == 'uploaded' and new_status != 'uploaded':
-            existing_doc = ClientDocument.query.filter_by(
-                client_id=checklist.client_id,
-                checklist_item_id=item_id
-            ).first()
-            
-            if existing_doc:
-                # Remove file
-                if os.path.exists(existing_doc.file_path):
-                    os.remove(existing_doc.file_path)
-                db.session.delete(existing_doc)
-        
-        # Update status
-        item.status = new_status
-        item.updated_at = datetime.utcnow()
-        
-        db.session.commit()
-        
-        status_messages = {
-            'already_provided': 'Marked as already provided',
-            'not_applicable': 'Marked as not applicable',
-            'pending': 'Reset to pending'
-        }
-        
-        flash(status_messages.get(new_status, 'Status updated'), 'success')
-        return redirect(url_for('documents.public_checklist', token=token))
-        
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Error updating status: {str(e)}', 'error')
-        return redirect(url_for('documents.public_checklist', token=token))
+    return redirect(url_for('documents.public_checklist', token=token))
 
 @documents_bp.route("/api/checklists/refresh")
 def refresh_checklists_data():
     """API endpoint to get refreshed checklist data"""
-    firm_id = session["firm_id"]
+    firm_id = get_session_firm_id()
     
-    # Get all checklists for the firm
-    checklists = DocumentChecklist.query.join(Client).filter(
-        Client.firm_id == firm_id,
-        DocumentChecklist.is_active == True
-    ).order_by(DocumentChecklist.created_at.desc()).all()
+    document_service = DocumentService()
     
-    # Get all clients for the firm
-    clients = Client.query.filter_by(firm_id=firm_id).all()
+    # Get all checklists for the firm using service layer
+    checklists = document_service.get_active_checklists_with_client_filter(firm_id)
+    
+    # Get all clients for the firm using service layer
+    clients = document_service.get_clients_for_firm(firm_id)
     
     # Calculate clients with access
     clients_with_access = [c for c in clients if any(

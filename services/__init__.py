@@ -8,7 +8,7 @@ from .client_service import ClientService
 from .auth_service import AuthService
 from .document_service import DocumentService
 from .admin_service import AdminService
-from .dashboard_service import DashboardService
+from .dashboard_aggregator_service import DashboardAggregatorService
 
 __all__ = [
     'ProjectService', 
@@ -17,5 +17,5 @@ __all__ = [
     'AuthService',
     'DocumentService', 
     'AdminService',
-    'DashboardService'
+    'DashboardAggregatorService'
 ]

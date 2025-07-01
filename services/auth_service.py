@@ -5,15 +5,21 @@ Authentication service layer for business logic
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from flask import session, request
-from core import db
+from core.db_import import db
 from models import Firm, User, DemoAccessRequest
+from repositories.firm_repository import FirmRepository
+from repositories.user_repository import UserRepository
 
 
 class AuthService:
     """Service class for authentication-related business operations"""
+
+    def __init__(self):
+        self.firm_repository = FirmRepository()
+        self.user_repository = UserRepository()
     
-    @staticmethod
-    def authenticate_firm(access_code: str, email: str) -> Dict[str, Any]:
+
+    def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
         """
         Authenticate a firm using access code and optional email
         
@@ -30,7 +36,7 @@ class AuthService:
             email = email.strip()
             
             # Find active firm with matching access code
-            firm = Firm.query.filter_by(access_code=access_code, is_active=True).first()
+            firm = self.firm_repository.get_by_access_code(access_code, active_only=True)
             
             if not firm:
                 return {
@@ -59,6 +65,31 @@ class AuthService:
                 'message': f'Authentication error: {str(e)}',
                 'firm': None
             }
+    
+
+    def authenticate_firm_by_code(self, access_code: str) -> Optional[Firm]:
+        """
+        Authenticate a firm using access code only
+        
+        Args:
+            access_code: The firm's access code
+            
+        Returns:
+            Firm object if found and active, None otherwise
+        """
+        return self.firm_repository.get_by_access_code(access_code, active_only=True)
+    
+    def get_users_for_firm(self, firm_id: int) -> List[User]:
+        """
+        Get all users for a specific firm (static method for blueprint usage)
+        
+        Args:
+            firm_id: The firm's ID
+            
+        Returns:
+            List of User objects for the firm
+        """
+        return self.user_repository.get_by_firm(firm_id)
     
     @staticmethod
     def _track_demo_access(email: str) -> None:
@@ -97,8 +128,8 @@ class AuthService:
             # Don't block access if demo tracking fails
             print(f"Demo tracking error: {e}")
     
-    @staticmethod
-    def get_firm_users(firm_id: int) -> List[User]:
+
+    def get_firm_users(self, firm_id: int) -> List[User]:
         """
         Get all users for a specific firm
         
@@ -108,10 +139,10 @@ class AuthService:
         Returns:
             List of User objects for the firm
         """
-        return User.query.filter_by(firm_id=firm_id).all()
+        return self.user_repository.get_by_firm(firm_id)
     
-    @staticmethod
-    def get_user_by_id(user_id: int, firm_id: int) -> Optional[User]:
+
+    def get_user_by_id(self, user_id: int, firm_id: int) -> Optional[User]:
         """
         Get a user by ID, ensuring they belong to the specified firm
         
@@ -122,10 +153,10 @@ class AuthService:
         Returns:
             User object if found and belongs to firm, None otherwise
         """
-        return User.query.filter_by(id=user_id, firm_id=firm_id).first()
+        return self.user_repository.get_by_id_and_firm(user_id, firm_id)
     
-    @staticmethod
-    def create_session(firm_data: Dict[str, Any], email: str) -> None:
+
+    def create_session(self, firm_data: Dict[str, Any], email: str) -> None:
         """
         Create a persistent session for authenticated firm
         
@@ -141,8 +172,8 @@ class AuthService:
         session['firm_id'] = firm_data['id']
         session['firm_name'] = firm_data['name']
     
-    @staticmethod
-    def set_user_in_session(user_id: int, firm_id: int) -> Dict[str, Any]:
+
+    def set_user_in_session(self, user_id: int, firm_id: int) -> Dict[str, Any]:
         """
         Set the selected user in the session
         
@@ -154,7 +185,7 @@ class AuthService:
             Dict containing success status and user data
         """
         try:
-            user = AuthService.get_user_by_id(user_id, firm_id)
+            user = self.get_user_by_id(user_id, firm_id)
             
             if not user:
                 return {
@@ -183,6 +214,7 @@ class AuthService:
                 'message': f'Error setting user: {str(e)}'
             }
     
+
     @staticmethod
     def is_authenticated() -> bool:
         """
@@ -193,6 +225,7 @@ class AuthService:
         """
         return 'firm_id' in session and 'user_id' in session
     
+
     @staticmethod
     def is_firm_authenticated() -> bool:
         """
@@ -203,6 +236,7 @@ class AuthService:
         """
         return 'firm_id' in session
     
+
     @staticmethod
     def logout() -> None:
         """
@@ -210,6 +244,7 @@ class AuthService:
         """
         session.clear()
     
+
     @staticmethod
     def get_current_user_info() -> Dict[str, Any]:
         """
@@ -227,6 +262,7 @@ class AuthService:
             'firm_name': session.get('firm_name')
         }
     
+
     @staticmethod
     def require_authentication() -> Optional[str]:
         """

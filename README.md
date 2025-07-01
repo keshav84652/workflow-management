@@ -16,24 +16,45 @@ A comprehensive workflow management application designed specifically for CPA fi
 - **Modern UI/UX**: Sidebar minimization, partial page refresh, smooth transitions
 - **Multi-User Collaboration**: Team management with granular permissions and activity feeds
 
-### 🆕 **Enterprise Architecture (Updated 2024)**
-- **Complete Service Layer**: AuthService, DocumentService, AdminService, DashboardService, ProjectService, TaskService, ClientService
+### 🆕 **Modern Event-Driven Architecture (2024)**
+- **Repository Pattern**: Data access abstraction with multi-tenant safety and caching
+- **Event-Driven Design**: Comprehensive event system for business operations
+- **Service Layer**: Clean business logic with repository integration and event publishing
+- **Worker System**: Celery-based background task processing
 - **Modular Flask Architecture**: Clean separation with domain-specific Blueprints
-- **Business Logic Separation**: All business operations isolated in service classes
-- **Consistent Error Handling**: Standardized return patterns across all services
 - **Type Safety**: Comprehensive type hints throughout the codebase
-- **Professional Code Quality**: Cleaned debug artifacts and consistent documentation
-- **Scalable Architecture**: Ready for enterprise deployment and team development
+- **Enterprise Patterns**: Repository, Service, and Event patterns for scalability
+- **Observability**: Full event auditing and activity logging
 
 ## 🏗️ Technology Stack
 
 - **Backend**: Python Flask with modular Blueprint architecture
 - **Database**: SQLAlchemy ORM with migration support
+- **Caching**: Redis for repository caching and event queuing
+- **Workers**: Celery for background task processing
 - **Frontend**: Tailwind CSS with modern responsive design
 - **JavaScript**: Alpine.js for reactive components
 - **Authentication**: Access code + enhanced role management
 - **API**: RESTful API with v1 versioning
-- **Architecture**: OpenProject + Vikunja + Plane inspired patterns
+- **Architecture**: Event-driven design with Repository and Service patterns
+
+## 📐 Architecture Overview
+
+The application follows modern enterprise patterns:
+
+```
+HTTP Request → Blueprint → Service → Repository → Database
+                  ↓           ↓
+              Response ← Event Publisher → Redis → Workers
+```
+
+- **Blueprints**: HTTP controllers (thin layer)
+- **Services**: Business logic with event publishing
+- **Repositories**: Data access with multi-tenant safety
+- **Events**: Comprehensive auditing and automation
+- **Workers**: Background processing and system maintenance
+
+See [Architecture Documentation](docs/architecture/README.md) for detailed information.
 
 ## Quick Start
 

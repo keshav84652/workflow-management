@@ -10,9 +10,12 @@ import logging
 from typing import Dict, Any, Optional, Tuple
 from werkzeug.utils import secure_filename
 
-from core import db
+from core.db_import import db
 from models import Task, Project, Attachment
-from services.activity_service import ActivityService
+from services.activity_logging_service import ActivityLoggingService as ActivityService
+from repositories.attachment_repository import AttachmentRepository
+from repositories.task_repository import TaskRepository
+from repositories.project_repository import ProjectRepository
 
 
 class AttachmentService:
@@ -21,6 +24,9 @@ class AttachmentService:
     def __init__(self, config=None):
         """Initialize attachment service with configuration"""
         self.config = config
+        self.attachment_repository = AttachmentRepository()
+        self.task_repository = TaskRepository()
+        self.project_repository = ProjectRepository()
     
     def is_allowed_file(self, filename: str) -> bool:
         """Check if file extension is allowed"""
@@ -98,10 +104,7 @@ class AttachmentService:
         """Delete an attachment and its file"""
         try:
             # Get attachment and verify firm access
-            attachment = Attachment.query.filter_by(
-                id=attachment_id,
-                firm_id=firm_id
-            ).first()
+            attachment = self.attachment_repository.get_by_id_and_firm(attachment_id, firm_id)
             
             if not attachment:
                 return False, "Attachment not found"
@@ -142,10 +145,7 @@ class AttachmentService:
     def get_attachment_file_path(self, attachment_id: int, firm_id: int) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Get file path for downloading an attachment"""
         try:
-            attachment = Attachment.query.filter_by(
-                id=attachment_id,
-                firm_id=firm_id
-            ).first()
+            attachment = self.attachment_repository.get_by_id_and_firm(attachment_id, firm_id)
             
             if not attachment:
                 return None, None, "Attachment not found"
@@ -164,7 +164,7 @@ class AttachmentService:
         try:
             # Verify entity exists and user has access
             if entity_type == 'task':
-                task = Task.query.get(entity_id)
+                task = self.task_repository.get_by_id(entity_id)
                 if not task:
                     return {'success': False, 'message': 'Task not found'}
                 
@@ -178,7 +178,7 @@ class AttachmentService:
                 project_id = task.project_id if task.project else None
                 
             elif entity_type == 'project':
-                project = Project.query.get(entity_id)
+                project = self.project_repository.get_by_id(entity_id)
                 if not project:
                     return {'success': False, 'message': 'Project not found'}
                 
@@ -222,7 +222,7 @@ class AttachmentService:
     def download_attachment(self, attachment_id: int, firm_id: int, user_id: int) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         """Get attachment file for download and log the activity"""
         try:
-            attachment = Attachment.query.get(attachment_id)
+            attachment = self.attachment_repository.get_by_id(attachment_id)
             
             if not attachment:
                 return None, None, None, 'Attachment not found'
@@ -253,7 +253,7 @@ class AttachmentService:
     def delete_attachment_with_activity_log(self, attachment_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
         """Delete attachment with activity logging"""
         try:
-            attachment = Attachment.query.get(attachment_id)
+            attachment = self.attachment_repository.get_by_id(attachment_id)
             
             if not attachment:
                 return {'success': False, 'message': 'Attachment not found'}

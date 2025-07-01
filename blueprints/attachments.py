@@ -5,6 +5,7 @@ File attachment handling blueprint
 from flask import Blueprint, request, redirect, url_for, session, flash, jsonify, send_file, current_app
 
 from services.attachment_service import AttachmentService
+from utils.consolidated import get_session_firm_id, get_session_user_id
 
 attachments_bp = Blueprint('attachments', __name__, url_prefix='/attachments')
 
@@ -30,7 +31,7 @@ def upload_file():
     except ValueError:
         return jsonify({'success': False, 'message': 'Invalid entity ID'}), 400
     
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     user_id = session['user_id']
     
     # Initialize attachment service
@@ -48,7 +49,7 @@ def upload_file():
 @attachments_bp.route('/<int:attachment_id>/download')
 def download_attachment(attachment_id):
     """Download an attachment"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     user_id = session['user_id']
     
     # Initialize attachment service
@@ -74,7 +75,7 @@ def download_attachment(attachment_id):
 @attachments_bp.route('/<int:attachment_id>/delete', methods=['POST'])
 def delete_attachment(attachment_id):
     """Delete an attachment"""
-    firm_id = session['firm_id']
+    firm_id = get_session_firm_id()
     user_id = session['user_id']
     
     # Initialize attachment service
