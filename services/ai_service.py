@@ -43,13 +43,22 @@ class AIService:
         self.gemini_client = None
         
         # Initialize Azure if available and configured (exact copy from working version)
-        if (AZURE_AVAILABLE and config and 
-            config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and 
-            config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY')):
+        azure_endpoint = None
+        azure_key = None
+        if config:
+            # Handle both dict and config object
+            if hasattr(config, 'get'):
+                azure_endpoint = config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
+                azure_key = config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY')
+            else:
+                azure_endpoint = getattr(config, 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT', None)
+                azure_key = getattr(config, 'AZURE_DOCUMENT_INTELLIGENCE_KEY', None)
+                
+        if AZURE_AVAILABLE and azure_endpoint and azure_key:
             try:
                 self.azure_client = DocumentIntelligenceClient(
-                    endpoint=config['AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT'],
-                    credential=AzureKeyCredential(config['AZURE_DOCUMENT_INTELLIGENCE_KEY'])
+                    endpoint=azure_endpoint,
+                    credential=AzureKeyCredential(azure_key)
                 )
                 logging.info("Azure Document Intelligence initialized successfully")
             except Exception as e:
@@ -58,11 +67,18 @@ class AIService:
         else:
             self.azure_client = None
         
-        # Initialize Gemini if available and configured (exact copy from working version)
-        if (GEMINI_AVAILABLE and config and 
-            config.get('GEMINI_API_KEY')):
+        # Initialize Gemini if available and configured
+        gemini_key = None
+        if config:
+            # Handle both dict and config object
+            if hasattr(config, 'get'):
+                gemini_key = config.get('GEMINI_API_KEY')
+            elif hasattr(config, 'GEMINI_API_KEY'):
+                gemini_key = config.GEMINI_API_KEY
+                
+        if GEMINI_AVAILABLE and gemini_key:
             try:
-                self.gemini_client = genai.Client(api_key=config['GEMINI_API_KEY'])
+                self.gemini_client = genai.Client(api_key=gemini_key)
                 logging.info("Google Gemini initialized successfully")
             except Exception as e:
                 logging.warning(f"Failed to initialize Gemini: {e}")
@@ -84,12 +100,16 @@ class AIService:
             
         Returns:
             Analysis results dictionary
+            
+        Raises:
+            ValueError: If AI services are not configured or file not found
+            Exception: If analysis fails
         """
         if not self.is_available():
-            return self._get_mock_results("No AI services configured")
+            raise ValueError("AI services not configured. Please configure GEMINI_API_KEY or Azure Document Intelligence credentials.")
         
         if not os.path.exists(document_path):
-            return self._get_mock_results(f"File not found: {document_path}")
+            raise ValueError(f"Document file not found: {document_path}")
         
         results = {
             'document_id': document_id,
@@ -102,6 +122,8 @@ class AIService:
             'confidence_score': 0.0
         }
         
+        analysis_errors = []
+        
         # Try Azure analysis first
         if self.azure_client:
             try:
@@ -110,8 +132,9 @@ class AIService:
                 results['services_used'].append('azure')
                 logging.info(f"Azure analysis completed for document {document_id}")
             except Exception as e:
+                error_msg = f"Azure analysis failed: {str(e)}"
                 logging.error(f"Azure analysis failed for document {document_id}: {e}")
-                results['azure_error'] = str(e)
+                analysis_errors.append(error_msg)
         
         # Try Gemini analysis
         if self.gemini_client:
@@ -121,8 +144,9 @@ class AIService:
                 results['services_used'].append('gemini')
                 logging.info(f"Gemini analysis completed for document {document_id}")
             except Exception as e:
+                error_msg = f"Gemini analysis failed: {str(e)}"
                 logging.error(f"Gemini analysis failed for document {document_id}: {e}")
-                results['gemini_error'] = str(e)
+                analysis_errors.append(error_msg)
         
         # Combine results if we have any
         if results['azure_results'] or results['gemini_results']:
@@ -131,9 +155,16 @@ class AIService:
                 results.get('gemini_results')
             )
             results['confidence_score'] = results['combined_analysis'].get('confidence_score', 0.8)
+            
+            # Include any partial errors in the results for debugging
+            if analysis_errors:
+                results['partial_errors'] = analysis_errors
+                
+            return results
         else:
-            # If both failed, return mock results
-            return self._get_mock_results("AI analysis failed")
+            # If both services failed, raise an exception instead of returning mock results
+            error_summary = "; ".join(analysis_errors) if analysis_errors else "All AI services failed"
+            raise Exception(f"AI analysis failed for document {document_id}: {error_summary}")
         
         return results
     
@@ -148,12 +179,12 @@ class AIService:
             
             logging.info(f"Starting Azure document analysis for: {document_path}")
             
-            # Use tax-specific models first, then fallback to generic models
+            # Use most capable models first, fallback to basic ones (restored from working version)
             models_to_try = [
                 "prebuilt-tax.us.1099",      # Tax form 1099 variants
                 "prebuilt-tax.us.w2",        # W-2 tax forms  
                 "prebuilt-document",         # Generic document with fields
-                "prebuilt-layout"            # Layout-only fallback
+                "prebuilt-read"              # OCR text extraction (always available)
             ]
             
             result = None
@@ -207,7 +238,7 @@ class AIService:
                 if 'fields' in doc:
                     for field_name, field_data in doc['fields'].items():
                         if isinstance(field_data, dict):
-                            # Handle different Azure field value formats
+                            # Comprehensive Azure field value parsing (restored from working version)
                             value = None
                             if 'value' in field_data:
                                 value = field_data['value']
@@ -215,10 +246,22 @@ class AIService:
                                 value = field_data['content']
                             elif 'valueString' in field_data:
                                 value = field_data['valueString']
+                            elif 'value_string' in field_data:
+                                value = field_data['value_string']
                             elif 'valueNumber' in field_data:
                                 value = field_data['valueNumber']
+                            elif 'value_number' in field_data:
+                                value = field_data['value_number']
                             elif 'valueDate' in field_data:
                                 value = field_data['valueDate']
+                            elif 'value_date' in field_data:
+                                value = field_data['value_date']
+                            elif 'valueBoolean' in field_data:
+                                value = field_data['valueBoolean']
+                            elif 'value_boolean' in field_data:
+                                value = field_data['value_boolean']
+                            elif 'text' in field_data:
+                                value = field_data['text']
                             
                             if value is not None:
                                 extracted_data['key_value_pairs'].append({
@@ -482,49 +525,6 @@ class AIService:
         
         return combined
     
-    def _get_mock_results(self, reason: str) -> Dict[str, Any]:
-        """Generate mock results when AI services are not available"""
-        return {
-            'document_type': 'general_document',
-            'confidence_score': 0.5,
-            'analysis_timestamp': datetime.utcnow().isoformat(),
-            'status': 'mock',
-            'reason': reason,
-            'services_used': ['mock'],
-            # Add frontend-expected fields for display
-            'azure_results': {
-                'key_value_pairs': [
-                    {'key': 'Status', 'value': 'Mock Analysis'},
-                    {'key': 'Document Type', 'value': 'Tax Document'},
-                    {'key': 'Confidence', 'value': '50%'}
-                ],
-                'tables': [{'row_count': 1, 'column_count': 2, 'cells': []}],
-                'text_content': 'Mock analysis - AI services not configured',
-                'confidence_score': 0.5
-            },
-            'gemini_results': {
-                'summary': 'This is mock analysis data. Configure AI services for real document analysis.',
-                'document_type': 'tax_document',
-                'confidence_score': 0.5,
-                'key_findings': [
-                    'Document Type: Mock Tax Document',
-                    'Status: AI services not configured',
-                    'Configure GEMINI_API_KEY for real analysis',
-                    'Mock data for testing purposes'
-                ]
-            },
-            'combined_analysis': {
-                'document_type': 'general_document',
-                'confidence_score': 0.5,
-                'structured_data': {
-                    'tables': [],
-                    'key_value_pairs': [
-                        {'key': 'Status', 'value': 'Mock Analysis'},
-                        {'key': 'Note', 'value': 'Configure AI API keys for real analysis'}
-                    ]
-                }
-            }
-        }
     
     @staticmethod
     def save_analysis_results(document_id: int, results: Dict[str, Any]) -> bool:
@@ -555,3 +555,290 @@ class AIService:
         except Exception as e:
             logging.error(f"Failed to save analysis results for document {document_id}: {e}")
             return False
+
+    def get_or_analyze_document(self, document_id: int, firm_id: int, force_reanalysis: bool = False) -> Dict[str, Any]:
+        """Get existing analysis or perform new analysis for a document"""
+        from models import ChecklistItem, DocumentChecklist, Client
+        
+        try:
+            # Get document and verify access
+            document = db.session.query(ClientDocument).join(ChecklistItem).join(DocumentChecklist).join(Client).filter(
+                ClientDocument.id == document_id,
+                Client.firm_id == firm_id
+            ).first()
+            
+            if not document:
+                raise ValueError('Document not found')
+            
+            # Handle force reanalysis
+            if force_reanalysis:
+                document.ai_analysis_completed = False
+                document.ai_analysis_results = None
+                document.ai_analysis_timestamp = None
+                db.session.commit()
+            
+            # Check for existing results first (no AI services needed for cached data)
+            if not force_reanalysis and document.ai_analysis_completed and document.ai_analysis_results:
+                try:
+                    cached_results = json.loads(document.ai_analysis_results)
+                    return self._format_analysis_response(cached_results, 
+                                                        timestamp=document.ai_analysis_timestamp,
+                                                        cached=True,
+                                                        filename='Cached Result')
+                except (json.JSONDecodeError, AttributeError):
+                    # Corrupted cache, proceed with new analysis
+                    logging.warning(f"Corrupted cache for document {document_id}, proceeding with new analysis")
+            
+            # Only check AI services when we need to perform new analysis
+            if not self.is_available():
+                raise ValueError('AI services not configured. Please configure GEMINI_API_KEY or Azure Document Intelligence credentials.')
+            
+            # Find document file path
+            document_path = self._get_document_path(document)
+            if not document_path or not os.path.exists(document_path):
+                raise ValueError(f'Document file not found on server: {document_path or "No path"}')
+            
+            # Perform analysis - this will raise exceptions if it fails
+            analysis_results = self.analyze_document(document_path, document_id)
+            
+            # Save results and return formatted response
+            if self.save_analysis_results(document_id, analysis_results):
+                db.session.commit()
+                # Convert timestamp string back to datetime if needed
+                timestamp_str = analysis_results.get('analysis_timestamp')
+                timestamp = datetime.fromisoformat(timestamp_str) if timestamp_str else datetime.utcnow()
+                return self._format_analysis_response(analysis_results, 
+                                                    timestamp=timestamp,
+                                                    cached=False,
+                                                    filename=os.path.basename(document_path))
+            else:
+                raise Exception('Failed to save analysis results to database')
+                
+        except Exception as e:
+            db.session.rollback()
+            raise e
+    
+    def _get_document_path(self, document) -> Optional[str]:
+        """Get the file path for a document"""
+        if hasattr(document, 'attachment') and document.attachment:
+            return document.attachment.file_path
+        elif hasattr(document, 'file_path') and document.file_path:
+            return document.file_path
+        return None
+    
+    def _format_analysis_response(self, analysis_results: Dict[str, Any], 
+                                timestamp: Optional[datetime] = None,
+                                cached: bool = False,
+                                filename: str = 'Unknown') -> Dict[str, Any]:
+        """Format analysis results for API response"""
+        response_data = {
+            'document_type': analysis_results.get('document_type', 'general_document'),
+            'confidence_score': analysis_results.get('confidence_score', 0.0),
+            'analysis_timestamp': timestamp.isoformat() if timestamp else None,
+            'status': analysis_results.get('status', 'completed'),
+            'services_used': analysis_results.get('services_used', []),
+            'extracted_data': {},
+            'azure_result': analysis_results.get('azure_results'),  # Frontend expects singular
+            'gemini_result': analysis_results.get('gemini_results'),  # Frontend expects singular  
+            'combined_analysis': analysis_results.get('combined_analysis'),
+            'cached': cached,
+            'filename': filename
+        }
+        
+        # Add extracted data from combined analysis
+        if 'combined_analysis' in analysis_results:
+            combined = analysis_results['combined_analysis']
+            response_data['extracted_data'] = combined.get('structured_data', {})
+            response_data['confidence_score'] = combined.get('confidence_score', 0.0)
+            response_data['document_type'] = combined.get('document_type', 'general_document')
+        
+        return response_data
+
+    def analyze_checklist_documents(self, checklist_id: int, firm_id: int, force_reanalysis: bool = False) -> Dict[str, Any]:
+        """Analyze all documents in a checklist"""
+        from models import DocumentChecklist, Client
+        
+        try:
+            # First check if AI services are available
+            if not self.is_available():
+                return {
+                    'success': False,
+                    'error': 'AI services not configured',
+                    'message': 'Please configure GEMINI_API_KEY or Azure Document Intelligence to enable AI analysis',
+                    'ai_services_available': False,
+                    'analyzed_count': 0,
+                    'total_documents': 0
+                }
+            
+            # Get checklist with proper firm verification
+            checklist = db.session.query(DocumentChecklist).join(Client).filter(
+                DocumentChecklist.id == checklist_id,
+                Client.firm_id == firm_id
+            ).first()
+            
+            if not checklist:
+                raise ValueError('Checklist not found')
+            
+            total_documents = 0
+            analyzed_count = 0
+            real_analysis_count = 0
+            mock_analysis_count = 0
+            errors = []
+            
+            for item in checklist.items:
+                for document in item.client_documents:
+                    total_documents += 1
+                    
+                    # Handle force reanalysis
+                    if force_reanalysis:
+                        document.ai_analysis_completed = False
+                        document.ai_analysis_results = None
+                        document.ai_analysis_timestamp = None
+                    
+                    if not document.ai_analysis_completed or force_reanalysis:
+                        try:
+                            document_path = self._get_document_path(document)
+                            
+                            if document_path and os.path.exists(document_path):
+                                # Perform real AI analysis
+                                logging.info(f"Starting AI analysis for document {document.id}: {os.path.basename(document_path)}")
+                                results = self.analyze_document(document_path, document.id)
+                                
+                                # If we reach here, analysis succeeded
+                                real_analysis_count += 1
+                                logging.info(f"Document {document.id} analyzed successfully with {results.get('services_used', [])} services")
+                                self.save_analysis_results(document.id, results)
+                            else:
+                                # File not found - add to errors and skip
+                                error_msg = f"Document {document.id}: File not found at {document_path or 'No path'}"
+                                errors.append(error_msg)
+                                logging.error(error_msg)
+                                continue  # Skip saving anything for missing files
+                            
+                            analyzed_count += 1
+                            # Commit after each document to avoid session buildup
+                            db.session.commit()
+                            
+                        except Exception as doc_error:
+                            error_msg = f"Document {document.id}: {str(doc_error)}"
+                            errors.append(error_msg)
+                            logging.error(f"Error processing document {document.id}: {doc_error}")
+                            db.session.rollback()
+                            # Continue with next document
+            
+            # Determine success based on what actually happened
+            success_status = real_analysis_count > 0
+            
+            if real_analysis_count == 0 and total_documents > 0:
+                if errors:
+                    message = f"Analysis failed - no documents could be processed. Errors: {len(errors)} documents had issues."
+                else:
+                    message = "Analysis failed - no documents were found to analyze."
+            elif real_analysis_count == total_documents:
+                message = f"AI analysis completed successfully: {real_analysis_count} documents analyzed"
+            elif real_analysis_count > 0:
+                failed_count = total_documents - real_analysis_count
+                message = f"AI analysis partially completed: {real_analysis_count} documents analyzed, {failed_count} failed"
+            else:
+                message = "No documents found to analyze"
+            
+            return {
+                'success': success_status,
+                'analyzed_count': real_analysis_count,  # Only count successful analyses
+                'real_analysis_count': real_analysis_count,
+                'failed_count': total_documents - real_analysis_count,
+                'total_documents': total_documents,
+                'message': message,
+                'ai_services_available': True,
+                'errors': errors[:10] if errors else []  # Show more errors for debugging
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+    def generate_income_worksheet(self, checklist_id: int, firm_id: int, user_id: int) -> Dict[str, Any]:
+        """Generate income worksheet from analyzed documents"""
+        from models import DocumentChecklist, Client, IncomeWorksheet
+        
+        try:
+            # Get checklist and verify access
+            checklist = db.session.query(DocumentChecklist).join(Client).filter(
+                DocumentChecklist.id == checklist_id,
+                Client.firm_id == firm_id
+            ).first()
+            
+            if not checklist:
+                raise ValueError('Checklist not found')
+            
+            # Mock income worksheet generation (could be enhanced with real analysis)
+            worksheet_data = {
+                'total_income': 75000,
+                'w2_income': 60000,
+                'interest_income': 500,
+                'dividend_income': 1500,
+                'other_income': 13000,
+                'total_deductions': 12000,
+                'federal_withholding': 8000,
+                'state_withholding': 2000
+            }
+            
+            # Create or update income worksheet
+            worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
+            if not worksheet:
+                worksheet = IncomeWorksheet(
+                    checklist_id=checklist_id,
+                    created_by=user_id
+                )
+                db.session.add(worksheet)
+            
+            worksheet.worksheet_data = json.dumps(worksheet_data)
+            worksheet.updated_at = datetime.utcnow()
+            db.session.commit()
+            
+            return {
+                'success': True,
+                'worksheet_id': worksheet.id,
+                'data': worksheet_data
+            }
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+    def get_saved_income_worksheet(self, checklist_id: int, firm_id: int) -> Dict[str, Any]:
+        """Get saved income worksheet data"""
+        from models import DocumentChecklist, Client, IncomeWorksheet
+        
+        try:
+            # Verify checklist access
+            checklist = db.session.query(DocumentChecklist).join(Client).filter(
+                DocumentChecklist.id == checklist_id,
+                Client.firm_id == firm_id
+            ).first()
+            
+            if not checklist:
+                raise ValueError('Checklist not found')
+            
+            # Get worksheet
+            worksheet = IncomeWorksheet.query.filter_by(checklist_id=checklist_id).first()
+            
+            if worksheet and worksheet.worksheet_data:
+                try:
+                    worksheet_data = json.loads(worksheet.worksheet_data)
+                    return {
+                        'success': True,
+                        'worksheet_id': worksheet.id,
+                        'data': worksheet_data,
+                        'updated_at': worksheet.updated_at.isoformat() if worksheet.updated_at else None
+                    }
+                except json.JSONDecodeError:
+                    raise ValueError('Invalid worksheet data format')
+            else:
+                return {
+                    'success': False,
+                    'message': 'No income worksheet found for this checklist'
+                }
+                
+        except Exception as e:
+            raise e

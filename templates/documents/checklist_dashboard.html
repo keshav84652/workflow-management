@@ -771,6 +771,18 @@ function showAnalysisModal(data) {
     document.body.appendChild(modal);
 }
 
+// Check AI service status before allowing analysis
+async function checkAIServiceStatus() {
+    try {
+        const response = await fetch('/api/ai-services/status');
+        const status = await response.json();
+        return status;
+    } catch (error) {
+        console.error('Failed to check AI service status:', error);
+        return { ai_services_available: false, error: 'Failed to check AI service status' };
+    }
+}
+
 // Analyze all documents (always re-run analysis) - Efficient bulk API call
 async function analyzeAllDocuments(forceReanalysis = true) {
     if (allDocuments.length === 0) {
@@ -778,10 +790,17 @@ async function analyzeAllDocuments(forceReanalysis = true) {
         return;
     }
     
+    // Check AI service status first
+    const aiStatus = await checkAIServiceStatus();
+    if (!aiStatus.ai_services_available) {
+        alert(`AI services are not configured. ${aiStatus.message || 'Please configure GEMINI_API_KEY or Azure Document Intelligence credentials.'}`);
+        return;
+    }
+    
     const checklistId = {{ checklist.id }};
     const progressElement = document.getElementById('bulkProgress');
     progressElement.classList.remove('hidden');
-    progressElement.querySelector('span').textContent = `Starting analysis for ${allDocuments.length} documents...`;
+    progressElement.querySelector('span').textContent = `Starting AI analysis for ${allDocuments.length} documents...`;
     
     try {
         const response = await fetch(`/api/analyze-checklist/${checklistId}`, {
@@ -792,24 +811,49 @@ async function analyzeAllDocuments(forceReanalysis = true) {
             body: JSON.stringify({ force_reanalysis: forceReanalysis })
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Bulk analysis failed');
-        }
-
         const data = await response.json();
 
+        if (response.status === 503) {
+            // AI services not configured
+            alert(`AI services are not configured: ${data.message || data.error}`);
+            return;
+        }
+
+        if (response.status === 422) {
+            // No real analysis performed
+            alert(`Analysis failed: ${data.message}${data.errors && data.errors.length > 0 ? '\n\nErrors:\n' + data.errors.join('\n') : ''}`);
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Bulk analysis failed');
+        }
+
         if (data.success) {
-            alert(`Analysis complete! Processed ${data.analyzed_count} out of ${data.total_documents} documents.`);
+            let message = `AI analysis completed!\n\n`;
+            message += `Successfully analyzed: ${data.real_analysis_count} documents\n`;
+            if (data.failed_count > 0) {
+                message += `Failed: ${data.failed_count} documents\n`;
+            }
+            message += `Total documents: ${data.total_documents}`;
+            
+            if (data.errors && data.errors.length > 0) {
+                message += `\n\nErrors:\n${data.errors.slice(0, 3).join('\n')}`;
+                if (data.errors.length > 3) {
+                    message += `\n... and ${data.errors.length - 3} more errors`;
+                }
+            }
+            
+            alert(message);
             // Refresh the page to show all the new analysis results
             location.reload();
         } else {
-            throw new Error(data.error || 'Analysis returned an error');
+            throw new Error(data.message || data.error || 'Analysis failed');
         }
 
     } catch (error) {
         console.error('Bulk analysis error:', error);
-        alert('Bulk analysis failed: ' + error.message);
+        alert('AI analysis failed: ' + error.message);
     } finally {
         progressElement.classList.add('hidden');
     }
@@ -818,6 +862,14 @@ async function analyzeAllDocuments(forceReanalysis = true) {
 // Document analysis functionality (updated)
 async function analyzeDocument(documentId, filename, showModal = true, forceReanalysis = false) {
     try {
+        // Check AI service status first if forcing reanalysis
+        if (forceReanalysis) {
+            const aiStatus = await checkAIServiceStatus();
+            if (!aiStatus.ai_services_available) {
+                throw new Error(`AI services are not configured. ${aiStatus.message || 'Please configure GEMINI_API_KEY or Azure Document Intelligence credentials.'}`);
+            }
+        }
+        
         // Call the analysis API with force_reanalysis parameter if needed
         const url = forceReanalysis ? 
             `/api/document-analysis/${documentId}?force_reanalysis=true` : 
@@ -830,11 +882,14 @@ async function analyzeDocument(documentId, filename, showModal = true, forceRean
             }
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
         const data = await response.json();
+        
+        if (!response.ok) {
+            if (response.status === 503) {
+                throw new Error(`AI services not configured: ${data.message || data.error}`);
+            }
+            throw new Error(data.error || `HTTP error! status: ${response.status}`);
+        }
         
         if (data.error) {
             throw new Error(data.message || data.details || data.error);

@@ -356,6 +356,12 @@ document.addEventListener('DOMContentLoaded', function() {
 function updateProjectStatus(projectId, statusId) {
     console.log('Moving project:', projectId, 'to column:', statusId);
     
+    // Show loading state
+    const projectCard = document.querySelector(`[data-project-id="${projectId}"]`);
+    if (projectCard) {
+        projectCard.classList.add('opacity-75', 'cursor-wait');
+    }
+    
     fetch(`/projects/${projectId}/move-status`, {
         method: 'POST',
         headers: {
@@ -380,9 +386,10 @@ function updateProjectStatus(projectId, statusId) {
                 updateProjectProgress(projectId, data.project_progress, data.completed_tasks, data.total_tasks);
             }
             
-            // Show a subtle success indicator
+            // Show a subtle success indicator and remove loading state
             const projectCard = document.querySelector(`[data-project-id="${projectId}"]`);
             if (projectCard) {
+                projectCard.classList.remove('opacity-75', 'cursor-wait');
                 projectCard.classList.add('ring-2', 'ring-green-400');
                 setTimeout(() => {
                     projectCard.classList.remove('ring-2', 'ring-green-400');
@@ -396,8 +403,21 @@ function updateProjectStatus(projectId, statusId) {
     })
     .catch(error => {
         console.error('Error updating project status:', error);
-        alert('Network error moving project. Please check console and try again.');
-        location.reload();
+        
+        // Show a less intrusive error message and remove loading state
+        const projectCard = document.querySelector(`[data-project-id="${projectId}"]`);
+        if (projectCard) {
+            projectCard.classList.remove('opacity-75', 'cursor-wait');
+            projectCard.classList.add('ring-2', 'ring-red-400');
+            setTimeout(() => {
+                projectCard.classList.remove('ring-2', 'ring-red-400');
+            }, 3000);
+        }
+        
+        // Only reload if it's an authentication error
+        if (error.message.includes('401') || error.message.includes('Authentication')) {
+            setTimeout(() => location.reload(), 1000);
+        }
     });
 }
 

@@ -277,27 +277,26 @@ def kanban_view():
                 projects_by_column['completed'].append(project)
                 project_counts['completed'] += 1
             elif len(kanban_columns) > 0:
-                # Assign based on progress percentage across available columns
-                progress = project.progress_percentage
-                column_count = len(kanban_columns)
+                # Assign based on project's current workflow status (NOT progress percentage)
+                column_placed = False
                 
-                # Calculate which column based on progress
-                if progress == 0:
-                    # 0% progress - first column
-                    target_column_index = 0
-                elif progress >= 100:
-                    # Should be in completed already, but fallback to last column
-                    target_column_index = column_count - 1
-                else:
-                    # Distribute projects across columns based on progress ranges
-                    # Example: 0-33% = column 0, 34-66% = column 1, 67-99% = column 2
-                    progress_per_column = 100 / column_count
-                    target_column_index = min(int(progress / progress_per_column), column_count - 1)
+                # If project has a current_status_id, find the corresponding template task
+                if project.current_status_id:
+                    # Find the template task that corresponds to this status
+                    for column in kanban_columns:
+                        if hasattr(column, 'default_status_id') and column.default_status_id == project.current_status_id:
+                            column_id = column.id
+                            projects_by_column[column_id].append(project)
+                            project_counts[column_id] += 1
+                            column_placed = True
+                            break
                 
-                target_column = kanban_columns[target_column_index]
-                column_id = target_column.id if hasattr(target_column, 'id') else target_column.name
-                projects_by_column[column_id].append(project)
-                project_counts[column_id] += 1
+                # If no specific status match, place in first column as default
+                if not column_placed and kanban_columns:
+                    first_column = kanban_columns[0]
+                    column_id = first_column.id if hasattr(first_column, 'id') else first_column.name
+                    projects_by_column[column_id].append(project)
+                    project_counts[column_id] += 1
     else:
         # Fallback if no columns found - use simple status-based columns
         projects_by_column = {

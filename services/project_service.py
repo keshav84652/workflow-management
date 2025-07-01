@@ -287,17 +287,38 @@ class ProjectService:
                     project.current_status_id = None
                     status_name = template_task.title
                 
-                # Update the project-level task that corresponds to this workflow stage
-                # Find the project task that corresponds to this template task
-                corresponding_task = None
-                for task in project.tasks:
-                    if task.template_task_origin_id == template_task.id:
-                        corresponding_task = task
+                # Implement logical workflow progression: complete all previous stages
+                # Get all template tasks ordered by workflow
+                all_template_tasks = TemplateTask.query.filter_by(
+                    template_id=template_task.template_id
+                ).order_by(TemplateTask.workflow_order.asc()).all()
+                
+                # Find position of current template task
+                current_position = 0
+                for i, tt in enumerate(all_template_tasks):
+                    if tt.id == template_task.id:
+                        current_position = i
                         break
                 
-                # If there's a corresponding task, mark it as "In Progress" to indicate the project is at this stage
-                if corresponding_task and corresponding_task.status == 'Not Started':
-                    corresponding_task.status = 'In Progress'
+                # Update task statuses based on workflow progression
+                for i, tt in enumerate(all_template_tasks):
+                    for task in project.tasks:
+                        if task.template_task_origin_id == tt.id:
+                            if i < current_position:
+                                # Previous stages: mark as completed
+                                if task.status != 'Completed':
+                                    task.status = 'Completed'
+                                    task.completed_at = datetime.utcnow()
+                            elif i == current_position:
+                                # Current stage: mark as in progress
+                                if task.status != 'In Progress':
+                                    task.status = 'In Progress'
+                            else:
+                                # Future stages: reset to "Not Started"
+                                if task.status != 'Not Started':
+                                    task.status = 'Not Started'
+                                    task.completed_at = None
+                            break
                 
                 project.status = 'Active'
             
