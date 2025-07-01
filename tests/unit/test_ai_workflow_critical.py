@@ -24,8 +24,8 @@ from config import TestingConfig
 import os
 
 # Import db from root core.py file
-from core.db_import import db
-from services.ai_service import AIService
+from src.shared.database.db_import import db
+from src.modules.document.ai_service import AIService
 
 
 class CriticalAIWorkflowTests(unittest.TestCase):

@@ -25,19 +25,19 @@ from config import TestingConfig
 import os
 
 # Import db from root core.py file
-from core.db_import import db
+from src.shared.database.db_import import db
 
 # Import models
-from models import (
+from src.models import (
     User, Firm, Client, Project, Task, 
     DocumentChecklist, ChecklistItem, ClientDocument
 )
 
 # Import services that will be tested during refactor
-from services.project_service import ProjectService
-from services.task_service import TaskService
-from services.document_service import DocumentService
-from services.ai_service import AIService
+from src.modules.project.service import ProjectService
+from src.modules.project.task_service import TaskService
+from src.modules.document.service import DocumentService
+from src.modules.document.ai_service import AIService
 
 
 class RefactorSafetyIntegrationTests(unittest.TestCase):
@@ -519,10 +519,10 @@ class RefactorSafetyIntegrationTests(unittest.TestCase):
     
     def test_session_management_contract(self):
         """Test session helper functions work correctly"""
-        from utils.consolidated import get_session_firm_id, get_session_user_id
+        from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
         
         # Mock Flask session
-        with patch('utils.session', self.session_data):
+        with patch('src.shared.utils.consolidated.session', self.session_data):
             firm_id = get_session_firm_id()
             user_id = get_session_user_id()
             

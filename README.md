@@ -84,15 +84,17 @@ This creates a demo firm with enhanced user roles and sample data.
 ### 3. Run Application
 
 ```bash
-# Start the new modular Flask application
-python run_new.py
+# Start the modular Flask application
+python -m src.app
+# OR alternatively (from src directory):
+cd src && python app.py
 ```
 
-The application will be available at http://localhost:5001
+The application will be available at http://localhost:5002
 
 ### 4. Login
 
-- Visit http://localhost:5001
+- Visit http://localhost:5002
 - Enter access code: **DEMO2024**
 - Select from demo users with different roles:
   - **Admin User** (Admin) - Full system access

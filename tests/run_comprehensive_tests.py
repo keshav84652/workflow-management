@@ -6,7 +6,7 @@ Validates test structure and imports without running full pytest.
 
 import sys
 import os
-from core.db_import import db
+from src.shared.database.db_import import db
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

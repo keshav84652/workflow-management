@@ -18,10 +18,10 @@ from flask import Flask
 from config import TestingConfig
 
 # Import db from centralized db_import module
-from core.db_import import db
+from src.shared.database.db_import import db
 # Import all models to ensure relationships are properly registered
-import models
-from models import (
+import src.models as models
+from src.models import (
     User, Firm, Client, Project, Task, 
     DocumentChecklist, ChecklistItem, ClientDocument,
     WorkType, TaskStatus, Template, TemplateTask, ActivityLog

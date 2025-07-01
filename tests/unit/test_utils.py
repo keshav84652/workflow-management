@@ -8,10 +8,10 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 import time
 
-from utils.error_handling import CircuitBreaker, CircuitState, GracefulDegradation
-from utils.health_checks import check_database_health, check_redis_health, check_system_health
-from utils.session_helpers import get_session_firm_id, get_session_user_id
-from utils.consolidated import format_currency, format_date, calculate_business_days
+from src.shared.utils.simple_error_handling import CircuitBreaker, CircuitState, GracefulDegradation
+from src.shared.utils.health_checks import check_database_health, check_redis_health, check_system_health
+from src.shared.utils.consolidated import get_session_firm_id, get_session_user_id
+from src.shared.utils.consolidated import format_currency, format_date
 
 
 class TestCircuitBreaker:
@@ -390,36 +390,7 @@ class TestCoreUtilities:
         assert format_date(test_date, "%B %d, %Y") == "December 25, 2024"
         assert format_date(test_date, "%m/%d/%Y") == "12/25/2024"
     
-    def test_calculate_business_days(self):
-        """Test business days calculation."""
-        start_date = date(2024, 1, 1)  # Monday
-        end_date = date(2024, 1, 5)    # Friday
-        
-        business_days = calculate_business_days(start_date, end_date)
-        assert business_days == 4  # Mon, Tue, Wed, Thu (not including end date)
-    
-    def test_calculate_business_days_with_weekend(self):
-        """Test business days calculation spanning weekend."""
-        start_date = date(2024, 1, 5)  # Friday
-        end_date = date(2024, 1, 10)   # Wednesday
-        
-        business_days = calculate_business_days(start_date, end_date)
-        assert business_days == 3  # Fri, Mon, Tue (not including end date)
-    
-    def test_calculate_business_days_same_date(self):
-        """Test business days calculation for same date."""
-        test_date = date(2024, 1, 1)
-        
-        business_days = calculate_business_days(test_date, test_date)
-        assert business_days == 0
-    
-    def test_calculate_business_days_reverse_order(self):
-        """Test business days calculation with reverse date order."""
-        start_date = date(2024, 1, 10)
-        end_date = date(2024, 1, 5)
-        
-        business_days = calculate_business_days(start_date, end_date)
-        assert business_days == 0  # Should handle gracefully
+    # calculate_business_days function removed as unused
 
 
 class TestUtilityIntegration:
@@ -473,7 +444,6 @@ class TestUtilityIntegration:
         # Test multiple utility operations
         format_currency(1234.56)
         format_date(date.today())
-        calculate_business_days(date(2024, 1, 1), date(2024, 1, 10))
         
         performance_tracker.stop()
         performance_tracker.assert_performance('utility_operations', 0.01)  # Should be very fast
@@ -488,6 +458,4 @@ class TestUtilityIntegration:
         assert format_date("invalid") == ""
         assert format_date(123) == ""
         
-        # Business days calculation with invalid inputs
-        assert calculate_business_days(None, None) == 0
-        assert calculate_business_days("invalid", "invalid") == 0
+        # Note: calculate_business_days function removed as unused

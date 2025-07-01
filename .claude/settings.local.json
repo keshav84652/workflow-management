@@ -9,7 +9,8 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "Bash(rg:*)",
-      "Bash(python -m pytest tests/test_critical_fixes_simple.py::SimpleCriticalFixesTests::test_session_helper_functions -v)"
+      "Bash(python -m pytest tests/test_critical_fixes_simple.py::SimpleCriticalFixesTests::test_session_helper_functions -v)",
+      "Bash(python -m pytest tests/unit/test_services.py --collect-only -q)"
     ],
     "deny": []
   }

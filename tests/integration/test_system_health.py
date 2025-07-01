@@ -8,12 +8,12 @@ import time
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 
-from utils.health_checks import (
+from src.shared.utils.health_checks import (
     check_database_health, check_redis_health, check_system_health,
     check_service_health
 )
-from utils.error_handling import CircuitBreaker, GracefulDegradation
-from core.redis_client import redis_client
+from src.shared.utils.simple_error_handling import CircuitBreaker, GracefulDegradation
+from src.shared.database.redis_client import redis_client
 
 
 class TestSystemHealthMonitoring:

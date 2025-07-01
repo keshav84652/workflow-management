@@ -7,9 +7,9 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date
 
-from repositories.base import BaseRepository
-from repositories.task_repository import TaskRepository
-from models import Task, Project, User, Firm
+from src.shared.repositories import BaseRepository
+from src.modules.project.task_repository import TaskRepository
+from src.models import Task, Project, User, Firm
 
 
 class TestBaseRepository:

@@ -7,11 +7,11 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, date, timedelta
 
-from services.task_service import TaskService
-from services.project_service import ProjectService
-from services.document_service import DocumentService
-from services.client_service import ClientService
-from models import Task, Project, Client, User, Firm, DocumentChecklist, ChecklistItem
+from src.modules.project.task_service import TaskService
+from src.modules.project.service import ProjectService
+from src.modules.document.service import DocumentService
+from src.modules.client.service import ClientService
+from src.models import Task, Project, Client, User, Firm, DocumentChecklist, ChecklistItem
 
 
 class TestKanbanWorkflow:
