@@ -380,9 +380,10 @@ def refresh_checklists_data():
     # Get all clients for the firm using service layer
     clients = document_service.get_clients_for_firm(firm_id)
     
-    # Calculate clients with access
+    # Calculate clients with access (those with active access tokens)
     clients_with_access = [c for c in clients if any(
-        checklist.public_access_enabled for checklist in c.document_checklists
+        checklist.access_token and not checklist.is_token_expired
+        for checklist in c.document_checklists
     )]
     
     # Prepare data for JSON response

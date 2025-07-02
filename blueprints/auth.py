@@ -56,7 +56,8 @@ def select_user():
     
     firm_id = session['firm_id']
     # Use AuthService to get users
-    users = AuthService.get_users_for_firm(firm_id)
+    auth_service = AuthService()
+    users = auth_service.get_users_for_firm(firm_id)
     return render_template('auth/select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 
