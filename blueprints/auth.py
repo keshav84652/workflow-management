@@ -22,6 +22,24 @@ def landing():
     return redirect(url_for('auth.home'))
 
 
+@auth_bp.route('/cpa-tax-software')
+def cpa_tax_software():
+    """Targeted landing page for CPA tax software keyword"""
+    return render_template('auth/cpa-tax-software.html')
+
+
+@auth_bp.route('/ai-tax-preparation')
+def ai_tax_preparation():
+    """Targeted landing page for AI tax preparation keyword"""
+    return render_template('auth/ai-tax-preparation.html')
+
+
+@auth_bp.route('/cch-axcess-integration')
+def cch_axcess_integration():
+    """Targeted landing page for CCH Axcess integration keyword"""
+    return render_template('auth/cch-axcess-integration.html')
+
+
 @auth_bp.route('/login')
 def login():
     if AuthService.is_authenticated():

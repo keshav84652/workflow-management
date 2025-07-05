@@ -49,6 +49,17 @@ def create_app(config_name='default'):
     from blueprints import ALL_BLUEPRINTS
     for blueprint in ALL_BLUEPRINTS:
         app.register_blueprint(blueprint)
+    
+    # SEO routes
+    @app.route('/robots.txt')
+    def robots_txt():
+        """Serve robots.txt file for search engines"""
+        return send_file('static/robots.txt', mimetype='text/plain')
+    
+    @app.route('/sitemap.xml')
+    def sitemap_xml():
+        """Serve sitemap.xml file for search engines"""
+        return send_file('static/sitemap.xml', mimetype='application/xml')
 
     # Add error handlers
     from werkzeug.routing import BuildError

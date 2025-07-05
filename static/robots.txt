@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+
+# Allow important resources
+Allow: /static/
+Allow: /auth/login
+Allow: /auth/landing
+
+# Disallow private/admin areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /uploads/
+Disallow: /instance/
+Disallow: /venv/
+Disallow: /tests/
+Disallow: /*?*
+Disallow: /auth/select_user
+
+# Sitemap location
+Sitemap: https://ctrlfiling.com/static/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1

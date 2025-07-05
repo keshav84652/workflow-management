@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPA Tax Software - AI-Powered Tax Preparation | CtrlFiling</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Professional CPA tax software with AI automation. Streamline tax preparation, integrate with CCH Axcess & Lacerte, and save 80% time. Try CtrlFiling's AI tax solution.">
+    <meta name="keywords" content="CPA tax software, tax preparation software, professional tax software, AI tax preparation, CCH Axcess integration, Lacerte integration">
+    <meta name="robots" content="index, follow">
+    <meta name="author" content="CtrlFiling">
+    <link rel="canonical" href="https://ctrlfiling.com/cpa-tax-software">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://ctrlfiling.com/cpa-tax-software">
+    <meta property="og:title" content="CPA Tax Software - AI-Powered Tax Preparation | CtrlFiling">
+    <meta property="og:description" content="Professional CPA tax software with AI automation. Streamline tax preparation, integrate with CCH Axcess & Lacerte, and save 80% time.">
+    <meta property="og:image" content="https://ctrlfiling.com/static/images/logos/ctrlfiling-logo.svg">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/logos/favicon.ico') }}">
+    
+    <!-- Preload Critical Resources -->
+    <link rel="preload" href="{{ url_for('static', filename='css/landing.css') }}" as="style">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    
+    <style>
+        .hero-tax-software {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 80vh;
+            padding: 8rem 2rem 4rem;
+            color: white;
+        }
+        
+        .tax-software-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        
+        .tax-software-title {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 900;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .tax-software-subtitle {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+        
+        .comparison-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .comparison-card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: white;
+        }
+        
+        .comparison-card p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+        }
+        
+        .breadcrumb {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem 2rem;
+            margin-top: 80px;
+        }
+        
+        .breadcrumb nav {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .breadcrumb a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            color: white;
+        }
+        
+        .breadcrumb span {
+            color: rgba(255, 255, 255, 0.5);
+            margin: 0 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="nav">
+            <a href="{{ url_for('auth.landing') }}" class="logo">
+                <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo">
+            </a>
+            <ul class="nav-links">
+                <li><a href="{{ url_for('auth.landing') }}#ai-tools">AI Tools</a></li>
+                <li><a href="{{ url_for('auth.landing') }}#features">Features</a></li>
+                <li><a href="{{ url_for('auth.landing') }}#how-it-works">How It Works</a></li>
+                <li><a href="{{ url_for('auth.landing') }}#faq">FAQ</a></li>
+                <li><a href="mailto:keshav@ctrlfiling.com">Contact Us</a></li>
+            </ul>
+            <a href="{{ url_for('auth.login') }}" class="cta-button">Try Demo</a>
+        </nav>
+    </header>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb">
+        <nav>
+            <a href="{{ url_for('auth.landing') }}">Home</a>
+            <span>/</span>
+            <span>CPA Tax Software</span>
+        </nav>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero-tax-software">
+        <div class="tax-software-container">
+            <h1 class="tax-software-title">Professional CPA Tax Software with AI Automation</h1>
+            <p class="tax-software-subtitle">
+                Transform your tax preparation process with AI-powered automation that integrates seamlessly with CCH Axcess and Lacerte. Reduce preparation time by 80% while maintaining 99% accuracy.
+            </p>
+            
+            <div class="hero-buttons">
+                <a href="{{ url_for('auth.login') }}" class="btn-primary">
+                    <span>Try Demo Now</span>
+                    <span class="icon-arrow"></span>
+                </a>
+                <a href="mailto:keshav@ctrlfiling.com" class="btn-secondary">Schedule Demo</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CPA Tax Software Features -->
+    <section class="features">
+        <div class="features-container">
+            <div class="section-header">
+                <h2 class="section-title">Why CPA Firms Choose CtrlFiling Tax Software</h2>
+                <p class="section-subtitle">Purpose-built for professional tax preparation with enterprise-grade security and compliance</p>
+            </div>
+            
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>🔗 Native Tax Software Integration</h3>
+                    <p>Direct export to CCH Axcess and Lacerte with pre-validated data. No manual data entry, no import errors, no headaches.</p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>🤖 AI-Powered Document Processing</h3>
+                    <p>Automatically extract data from W-2s, 1099s, K-1s, and bank statements with 99% accuracy. AI handles the tedious work while you focus on strategy.</p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>📊 Intelligent Reconciliation</h3>
+                    <p>Generate client-specific reconciliation worksheets automatically using prior year data and custom templates. Spot discrepancies instantly.</p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>🔒 Enterprise Security & Compliance</h3>
+                    <p>SOC 2 Type II compliant with bank-grade encryption. Meet all regulatory requirements for CPA firms handling sensitive financial data.</p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>⚡ Workflow Automation</h3>
+                    <p>Automate document collection, client communication, and status updates. Create custom workflows that match your firm's processes.</p>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>📈 Performance Analytics</h3>
+                    <p>Track preparation time, accuracy rates, and client satisfaction. Make data-driven decisions to optimize your practice.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Ready to Revolutionize Your Tax Preparation Process?</h2>
+            <p>Join hundreds of CPA firms who've already made the switch to AI-powered tax software. See the difference for yourself.</p>
+            <div class="hero-buttons">
+                <a href="{{ url_for('auth.login') }}" class="btn-primary">
+                    <span>Start Free Trial</span>
+                    <span class="icon-arrow"></span>
+                </a>
+                <a href="mailto:keshav@ctrlfiling.com" class="btn-secondary">Talk to Sales</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Schema.org Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "CtrlFiling CPA Tax Software",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web",
+        "url": "https://ctrlfiling.com/cpa-tax-software",
+        "description": "Professional CPA tax software with AI automation, CCH Axcess and Lacerte integration, and enterprise-grade security.",
+        "featureList": [
+            "CCH Axcess integration",
+            "Lacerte integration", 
+            "AI document processing",
+            "Automated reconciliation",
+            "SOC 2 compliance",
+            "Workflow automation"
+        ],
+        "targetMarket": "CPA firms, tax professionals, accounting practices"
+    }
+    </script>
+</body>
+</html>

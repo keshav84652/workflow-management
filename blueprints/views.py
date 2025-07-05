@@ -51,7 +51,8 @@ def calendar_view():
                          calendar_data=serialized_calendar_data,
                          current_date=calendar_data['current_date'],
                          year=calendar_data['year'],
-                         month=calendar_data['month'])
+                         month=calendar_data['month'],
+                         month_name=calendar_data['month_name'])
 
 @views_bp.route('/search')
 def search():
