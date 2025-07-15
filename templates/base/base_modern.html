@@ -13,6 +13,9 @@
     <!-- Tailwind CSS - Using the Play CDN -->
     <script src="https://cdn.tailwindcss.com/3.4.0"></script>
     
+    <!-- Modern UI Design System -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-ui.css') }}"?v={{ moment().format('X') }}>
+    
     <script>
         tailwind.config = {
             theme: {

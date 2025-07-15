@@ -49,6 +49,37 @@ def dashboard():
     return render_template('admin/admin_dashboard.html', firms=firms, stats=stats)
 
 
+@admin_bp.route('/dashboard/ultra-modern')
+def dashboard_ultra_modern():
+    """Ultra-modern dashboard with glassmorphism design"""
+    from services.admin_service import AdminService
+    
+    admin_service = AdminService()
+    if not admin_service.is_admin_authenticated():
+        return redirect(url_for('admin.login'))
+    
+    try:
+        # Get basic stats for the modern dashboard
+        stats = admin_service.get_firm_statistics()
+        
+        # Mock data for demonstration - replace with real data
+        context = {
+            'active_tasks_count': stats.get('total_tasks', 0),
+            'active_projects_count': stats.get('total_projects', 0), 
+            'total_clients_count': stats.get('total_clients', 0),
+            'overdue_tasks_count': stats.get('overdue_tasks', 0),
+            'recent_activities': [],  # Add real activity data later
+            'task_completion_rate': 75,
+            'project_health_stats': {},
+        }
+        
+        return render_template('admin/dashboard_ultra_modern.html', **context)
+        
+    except Exception as e:
+        flash(f'Error loading ultra-modern dashboard: {str(e)}', 'error')
+        return redirect(url_for('admin.dashboard'))
+
+
 # Template Management Routes
 @admin_bp.route('/templates')
 def templates():

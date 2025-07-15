@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-100">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modern CPA WorkflowPilot Dashboard - Preview</title>
+    
+    <!-- Inter Font for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    
+    <!-- Modern UI Design System -->
+    <link rel="stylesheet" href="static/css/modern-ui.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        'cpa-navy': '#1e3a8a',
+                        'cpa-blue': '#3b82f6',
+                        'cpa-green': '#10b981',
+                        'cpa-amber': '#f59e0b',
+                        'cpa-red': '#ef4444',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="h-full bg-gradient-to-br from-slate-50 to-blue-50">
+    <div class="min-h-screen p-6">
+        <!-- Modern Header -->
+        <div class="max-w-7xl mx-auto">
+            <div class="space-y-8 animate-fade-in-up">
+                <!-- Header with Gradient -->
+                <div class="relative overflow-hidden rounded-2xl p-8 mb-8">
+                    <div class="absolute inset-0 gradient-primary opacity-10"></div>
+                    <div class="relative">
+                        <div class="sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <h1 class="text-4xl font-extrabold text-gradient mb-2">
+                                    Welcome back, John! 👋
+                                </h1>
+                                <p class="text-lg text-gray-600 font-medium">
+                                    Here's your workflow overview for today
+                                </p>
+                            </div>
+                            <div class="mt-6 sm:mt-0 flex space-x-3">
+                                <button class="btn-secondary-modern">
+                                    <i class="bi bi-download mr-2"></i>
+                                    Export Report
+                                </button>
+                                <button class="btn-primary-modern">
+                                    <i class="bi bi-plus mr-2"></i>
+                                    New Task
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modern Stats Grid with Glassmorphism -->
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- Active Tasks Card -->
+                    <div class="stat-card-modern animate-slide-in-right" style="animation-delay: 0.1s">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="p-3 rounded-xl gradient-primary">
+                                        <i class="bi bi-list-task text-white text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Tasks</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-baseline space-x-2">
+                                    <p class="stat-number">24</p>
+                                    <div class="flex items-center text-emerald-500 text-sm font-semibold">
+                                        <i class="bi bi-arrow-up mr-1"></i>
+                                        <span>12%</span>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">vs last week</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <div class="progress-modern">
+                                <div class="progress-bar-modern" style="width: 75%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">75% completion rate</p>
+                        </div>
+                    </div>
+
+                    <!-- Active Projects Card -->
+                    <div class="stat-card-modern animate-slide-in-right" style="animation-delay: 0.2s">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="p-3 rounded-xl gradient-success">
+                                        <i class="bi bi-folder text-white text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Active Projects</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-baseline space-x-2">
+                                    <p class="stat-number">8</p>
+                                    <div class="flex items-center text-emerald-500 text-sm font-semibold">
+                                        <i class="bi bi-arrow-up mr-1"></i>
+                                        <span>8%</span>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">vs last month</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <div class="progress-modern">
+                                <div class="progress-bar-modern gradient-success" style="width: 60%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">60% on track</p>
+                        </div>
+                    </div>
+
+                    <!-- Total Clients Card -->
+                    <div class="stat-card-modern animate-slide-in-right" style="animation-delay: 0.3s">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="p-3 rounded-xl gradient-warning">
+                                        <i class="bi bi-people text-white text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total Clients</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-baseline space-x-2">
+                                    <p class="stat-number">156</p>
+                                    <div class="flex items-center text-blue-500 text-sm font-semibold">
+                                        <i class="bi bi-arrow-up mr-1"></i>
+                                        <span>5%</span>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">new this quarter</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <div class="flex space-x-2">
+                                <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                                <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+                                <div class="w-2 h-2 rounded-full bg-red-400"></div>
+                                <span class="text-xs text-gray-500 ml-2">Client status</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Overdue Tasks Card -->
+                    <div class="stat-card-modern animate-slide-in-right" style="animation-delay: 0.4s">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="flex items-center space-x-3 mb-4">
+                                    <div class="p-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-500">
+                                        <i class="bi bi-exclamation-triangle text-white text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-semibold text-gray-600 uppercase tracking-wide">Overdue Tasks</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-baseline space-x-2">
+                                    <p class="stat-number text-red-500">3</p>
+                                    <div class="flex items-center text-red-500 text-sm font-semibold">
+                                        <i class="bi bi-arrow-down mr-1"></i>
+                                        <span>Need attention</span>
+                                    </div>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-2">requires immediate action</p>
+                            </div>
+                        </div>
+                        <div class="mt-6">
+                            <button class="text-red-600 hover:text-red-700 text-sm font-semibold">
+                                View overdue tasks →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modern Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                    <!-- Task Progress Chart -->
+                    <div class="glass-card p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-gray-900">Task Progress</h3>
+                            <div class="flex space-x-2">
+                                <button class="text-sm text-gray-500 hover:text-gray-700">7D</button>
+                                <button class="text-sm text-blue-600 font-semibold">30D</button>
+                                <button class="text-sm text-gray-500 hover:text-gray-700">90D</button>
+                            </div>
+                        </div>
+                        <div class="h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl">
+                            <div class="text-center">
+                                <i class="bi bi-bar-chart text-blue-400 text-4xl mb-3"></i>
+                                <p class="text-gray-500">Interactive Chart Coming Soon</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="glass-card p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-6">Recent Activity</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
+                                        <i class="bi bi-check text-white text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-900">Task "Tax Return Review" completed</p>
+                                    <p class="text-xs text-gray-500">2 hours ago</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full gradient-success flex items-center justify-center">
+                                        <i class="bi bi-folder-plus text-white text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-900">New project "Q4 Audit" created</p>
+                                    <p class="text-xs text-gray-500">4 hours ago</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                                <div class="flex-shrink-0">
+                                    <div class="w-8 h-8 rounded-full gradient-warning flex items-center justify-center">
+                                        <i class="bi bi-person-plus text-white text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm text-gray-900">New client "ABC Corp" added</p>
+                                    <p class="text-xs text-gray-500">1 day ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modern Quick Actions -->
+                <div class="glass-card p-6 mt-8">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <button class="flex flex-col items-center p-4 rounded-xl hover:bg-blue-50 transition-colors group">
+                            <div class="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <i class="bi bi-plus text-white text-xl"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">New Task</span>
+                        </button>
+                        
+                        <button class="flex flex-col items-center p-4 rounded-xl hover:bg-green-50 transition-colors group">
+                            <div class="w-12 h-12 rounded-xl gradient-success flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <i class="bi bi-folder-plus text-white text-xl"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">New Project</span>
+                        </button>
+                        
+                        <button class="flex flex-col items-center p-4 rounded-xl hover:bg-purple-50 transition-colors group">
+                            <div class="w-12 h-12 rounded-xl gradient-warning flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <i class="bi bi-person-plus text-white text-xl"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">New Client</span>
+                        </button>
+                        
+                        <button class="flex flex-col items-center p-4 rounded-xl hover:bg-indigo-50 transition-colors group">
+                            <div class="w-12 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <i class="bi bi-kanban text-white text-xl"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">Kanban Board</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    /* Additional custom styles for this demo */
+    .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    /* Smooth entrance animations */
+    .animate-slide-in-right {
+        opacity: 0;
+        transform: translateX(20px);
+        animation: slideInRight 0.6s ease-out forwards;
+    }
+
+    /* Hover effects for quick actions */
+    .group:hover .group-hover\:scale-110 {
+        transform: scale(1.1);
+    }
+    </style>
+</body>
+</html>
