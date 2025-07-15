@@ -32,6 +32,17 @@ def create_app(config_name='default'):
     # Load configuration
     config_class = get_config(config_name)
     app.config.from_object(config_class)
+    
+    # Configure CORS for Next.js frontend
+    @app.after_request
+    def after_request(response):
+        origin = request.headers.get('Origin')
+        if origin and origin.startswith('http://localhost:'):
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
 
     # Create necessary directories
     os.makedirs('instance', exist_ok=True)
@@ -150,6 +161,10 @@ def create_app(config_name='default'):
         
         # Skip for login flow
         if request.endpoint in ['auth.login', 'auth.authenticate', 'auth.select_user', 'auth.set_user', 'auth.switch_user']:
+            return
+        
+        # Skip for API endpoints that handle their own authentication
+        if request.endpoint and request.endpoint.startswith('api.'):
             return
         
         # Skip for client portal

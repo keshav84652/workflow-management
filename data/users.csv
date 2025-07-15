@@ -1,0 +1,7 @@
+id,name,role,firm_id,created_at
+1,"Sarah Johnson",Admin,1,"2025-06-06 08:41:25.665503"
+2,"Michael Chen",Admin,1,"2025-06-06 08:41:25.665507"
+3,"Emily Rodriguez",Member,1,"2025-06-06 08:41:25.665508"
+4,"David Park",Member,1,"2025-06-06 08:41:25.665509"
+5,"Test User",Member,1,"2025-06-28 17:02:06.229722"
+6,"Test User 2",Member,1,"2025-06-28 17:05:31.687442"

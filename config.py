@@ -5,10 +5,14 @@ Environment-based configuration for CPA WorkflowPilot
 
 import os
 import secrets
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (optional for demo)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not available, use environment variables directly
+    pass
 
 
 class BaseConfig:

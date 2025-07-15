@@ -1,0 +1,6 @@
+id,firm_id,name,description,color,is_active,position,created_at
+1,1,"Tax Return","Workflow for Tax Return",#dc2626,1,1,"2025-06-06 08:41:25.645755"
+2,1,"Monthly Bookkeeping","Regular bookkeeping and financial statement preparation",#059669,1,2,"2025-06-06 08:41:25.650820"
+3,1,"Payroll Processing","Payroll calculation, processing, and filing",#3b82f6,1,3,"2025-06-06 08:41:25.654052"
+4,1,"Advisory Services","Business consulting and advisory engagements",#8b5cf6,1,4,"2025-06-06 08:41:25.655193"
+5,1,"Business Tax Return","Workflow for Business Tax Return",#3b82f6,1,0,"2025-06-11 11:50:13.587916"

@@ -1,0 +1,9 @@
+id,first_name,last_name,email,phone,title,notes,created_at,company,address
+1,John,Smith,john.smith@abccorp.com,555-0101,CEO,,"2025-06-06 08:41:25.676055","ABC Corporation",
+2,Sarah,Johnson,sarah.j@techstartup.com,555-0102,Founder,,"2025-06-06 08:41:25.676059","Tech Startup LLC",
+3,Michael,Brown,mbrown@retailbiz.com,555-0103,Owner,,"2025-06-06 08:41:25.676060","Retail Business Inc",
+4,Emily,Davis,emily.davis@restaurant.com,555-0104,Manager,,"2025-06-06 08:41:25.676061","Local Restaurant",
+5,David,Wilson,dwilson@consulting.com,555-0105,Partner,,"2025-06-06 08:41:25.676062","Consulting Group",
+6,Lisa,Anderson,lisa.a@freelance.com,555-0106,Freelancer,,"2025-06-06 08:41:25.676063","Individual Client",
+7,Robert,Taylor,robert.taylor@construction.com,555-0107,Contractor,,"2025-06-06 08:41:25.676064","Individual Client",
+8,Jennifer,Martinez,jen.martinez@healthcare.com,555-0108,Administrator,,"2025-06-06 08:41:25.676065","Healthcare Practice",

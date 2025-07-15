@@ -1,0 +1,10 @@
+id,name,email,phone,address,contact_person,entity_type,tax_id,notes,firm_id,is_active,created_at
+1,"ABC Corporation","","","","",Corporation,12-3456789,"",1,1,"2025-06-06 08:41:25.689787"
+2,"Tech Startup LLC",,,,,LLC,98-7654321,,1,1,"2025-06-06 08:41:25.700575"
+3,"Retail Business Inc",,,,,S-Corp,11-2233445,,1,1,"2025-06-06 08:41:25.703563"
+4,"Local Restaurant",,,,,Partnership,33-4455667,,1,1,"2025-06-06 08:41:25.704543"
+5,"Consulting Group",,,,,LLC,55-6677889,,1,1,"2025-06-06 08:41:25.705465"
+6,"Individual Client",,,,,Individual,123-45-6789,,1,1,"2025-06-06 08:41:25.706520"
+7,"Construction Co",,,,,LLC,77-8899001,,1,1,"2025-06-06 08:41:25.708318"
+8,"Healthcare Practice",,,,,"Professional Corp",99-0011223,,1,1,"2025-06-06 08:41:25.708856"
+9,"Individual client",,,,,Individual,,,1,1,"2025-06-14 10:23:51.321673"
