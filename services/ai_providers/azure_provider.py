@@ -40,12 +40,17 @@ class AzureProvider(AIProvider):
             return False
         
         # Extract configuration
+        logging.info(f"Azure provider config type: {type(self.config)}")
+        logging.info(f"Azure provider config has get: {hasattr(self.config, 'get') if self.config else False}")
+        
         if hasattr(self.config, 'get'):
             self.endpoint = self.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
             self.key = self.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY')
+            logging.info(f"Azure config via .get(): endpoint={bool(self.endpoint)}, key={bool(self.key)}")
         else:
             self.endpoint = getattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT', None)
             self.key = getattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_KEY', None)
+            logging.info(f"Azure config via getattr(): endpoint={bool(self.endpoint)}, key={bool(self.key)}")
         
         if not self.endpoint or not self.key:
             logging.warning("Azure endpoint or key not configured")
@@ -169,47 +174,19 @@ class AzureProvider(AIProvider):
                 extracted_text = doc.get('content', '')
                 extracted_data['text_content'] = extracted_text
                 
-                # Extract fields as key-value pairs (as array) - working version
+                # Extract fields using flat extraction (like cpa_copilot)
                 if 'fields' in doc:
-                    for field_name, field_data in doc['fields'].items():
-                        if isinstance(field_data, dict):
-                            # Comprehensive Azure field value parsing (restored from working version)
-                            value = None
-                            if 'value' in field_data:
-                                value = field_data['value']
-                            elif 'content' in field_data:
-                                value = field_data['content']
-                            elif 'valueString' in field_data:
-                                value = field_data['valueString']
-                            elif 'value_string' in field_data:
-                                value = field_data['value_string']
-                            elif 'valueNumber' in field_data:
-                                value = field_data['valueNumber']
-                            elif 'value_number' in field_data:
-                                value = field_data['value_number']
-                            elif 'valueDate' in field_data:
-                                value = field_data['valueDate']
-                            elif 'value_date' in field_data:
-                                value = field_data['value_date']
-                            elif 'valueBoolean' in field_data:
-                                value = field_data['valueBoolean']
-                            elif 'value_boolean' in field_data:
-                                value = field_data['value_boolean']
-                            elif 'text' in field_data:
-                                value = field_data['text']
-                            
-                            if value is not None:
-                                # Store in both formats for compatibility
-                                fields[field_name] = {
-                                    'value': value,
-                                    'confidence': field_data.get('confidence', 0.8)
-                                }
-                                extracted_data['key_value_pairs'].append({
-                                    'key': field_name,
-                                    'value': str(value)
-                                })
-                                # Debug logging for field extraction
-                                logging.debug(f"📋 Extracted field: {field_name} = {value}")
+                    # Use flat field extraction
+                    flat_fields = self._extract_flat_fields(doc['fields'])
+                    fields.update(flat_fields)
+                    
+                    # Also populate key_value_pairs for frontend compatibility
+                    for field_name, value in flat_fields.items():
+                        extracted_data['key_value_pairs'].append({
+                            'key': field_name,
+                            'value': str(value)
+                        })
+                        logging.debug(f"📋 Extracted flat field: {field_name} = {value}")
             
             # Extract tables from result (original approach)
             entities = []
@@ -355,13 +332,31 @@ class AzureProvider(AIProvider):
         # Check for tax forms
         tax_indicators = ['1099', 'w2', 'tax', 'irs', 'taxable', 'withholding']
         
-        all_text = ' '.join([
-            str(field.get('value', '')) for field in fields.values()
-        ] + [
-            f"{entity.get('key', '')} {entity.get('value', '')}" for entity in entities
-        ]).lower()
+        try:
+            # Safely build all_text with proper string conversion
+            field_texts = []
+            for field in fields.values():
+                if isinstance(field, dict):
+                    value = field.get('value', '')
+                    field_texts.append(str(value) if value is not None else '')
+                else:
+                    field_texts.append(str(field) if field is not None else '')
+            
+            entity_texts = []
+            for entity in entities:
+                if isinstance(entity, dict):
+                    key = entity.get('key', '')
+                    value = entity.get('value', '')
+                    entity_texts.append(f"{str(key) if key is not None else ''} {str(value) if value is not None else ''}")
+                else:
+                    entity_texts.append(str(entity) if entity is not None else '')
+            
+            all_text = ' '.join(field_texts + entity_texts).lower()
+        except Exception as e:
+            logging.warning(f"Error building text for document type detection: {e}")
+            all_text = ''
         
-        if any(indicator in all_text for indicator in tax_indicators):
+        if all_text and any(indicator in all_text for indicator in tax_indicators):
             return 'tax_document'
         elif 'invoice' in all_text or 'bill' in all_text:
             return 'invoice'
@@ -369,3 +364,77 @@ class AzureProvider(AIProvider):
             return 'receipt'
         else:
             return 'general_document'
+    
+    def _extract_flat_fields(self, fields_dict: Dict[str, Any], prefix: str = "") -> Dict[str, Any]:
+        """Extract and flatten fields from Azure response (from cpa_copilot)."""
+        flat_fields = {}
+        
+        for field_name, field_data in fields_dict.items():
+            current_key = f"{prefix}_{field_name}" if prefix else field_name
+            
+            if isinstance(field_data, dict):
+                # Handle different Azure field types
+                if 'type' in field_data:
+                    field_type = field_data.get('type')
+                    
+                    if field_type == 'object' and 'valueObject' in field_data:
+                        # Recursively flatten nested objects
+                        nested_fields = self._extract_flat_fields(field_data['valueObject'], current_key)
+                        flat_fields.update(nested_fields)
+                    elif field_type == 'array' and 'valueArray' in field_data:
+                        # Handle arrays
+                        flat_fields[current_key] = self._extract_array_values(field_data['valueArray'])
+                    elif field_type == 'address' and 'valueAddress' in field_data:
+                        # Flatten address fields
+                        address_fields = self._flatten_address(field_data['valueAddress'], current_key)
+                        flat_fields.update(address_fields)
+                    else:
+                        # Extract scalar values
+                        value = self._extract_scalar_value(field_data)
+                        if value is not None:
+                            flat_fields[current_key] = value
+                else:
+                    # Simple dictionary without type information
+                    flat_fields[current_key] = field_data
+            else:
+                flat_fields[current_key] = field_data
+        
+        return flat_fields
+    
+    def _extract_scalar_value(self, field_data: Dict[str, Any]) -> Any:
+        """Extract scalar value from Azure field data."""
+        # Try different value types in order of preference
+        for value_key in ['valueString', 'valueNumber', 'valueDate', 'valueTime', 'valueBoolean', 'content']:
+            if value_key in field_data:
+                return field_data[value_key]
+        return None
+    
+    def _extract_array_values(self, array_data: list) -> list:
+        """Extract values from array field."""
+        values = []
+        for item in array_data:
+            if isinstance(item, dict):
+                if 'type' in item and item['type'] == 'object' and 'valueObject' in item:
+                    # Flatten object in array
+                    flat_obj = self._extract_flat_fields(item['valueObject'])
+                    values.append(flat_obj)
+                else:
+                    # Try to extract scalar value
+                    scalar = self._extract_scalar_value(item)
+                    if scalar is not None:
+                        values.append(scalar)
+            else:
+                values.append(item)
+        return values
+    
+    def _flatten_address(self, address_data: Dict[str, Any], prefix: str) -> Dict[str, Any]:
+        """Flatten address fields."""
+        address_fields = {}
+        address_components = ['houseNumber', 'road', 'city', 'state', 'postalCode', 'countryRegion']
+        
+        for component in address_components:
+            if component in address_data:
+                key = f"{prefix}_{component}"
+                address_fields[key] = address_data[component]
+        
+        return address_fields

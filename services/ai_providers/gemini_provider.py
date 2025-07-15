@@ -27,6 +27,63 @@ class GeminiProvider(AIProvider):
         super().__init__(config)
         self.client = None
         self.api_key = None
+        
+        # Define structured output schema to match cpa_copilot exactly
+        if GEMINI_AVAILABLE:
+            self.output_schema = types.Schema(
+                type=types.Type.OBJECT,
+                properties={
+                    "document_category": types.Schema(
+                        type=types.Type.STRING,
+                        description="Primary category or type of the document"
+                    ),
+                    "document_analysis_summary": types.Schema(
+                        type=types.Type.STRING,
+                        description="Professional analysis highlighting key tax-relevant information (max 200 words)"
+                    ),
+                    "extracted_key_info": types.Schema(
+                        type=types.Type.OBJECT,
+                        description="Flat structure with all extracted information as key-value pairs",
+                        properties={
+                            "tax_year": types.Schema(type=types.Type.STRING, description="Tax year"),
+                            "form_type": types.Schema(type=types.Type.STRING, description="Form type"),
+                            "payer_name": types.Schema(type=types.Type.STRING, description="Payer name"),
+                            "payer_tin": types.Schema(type=types.Type.STRING, description="Payer TIN/EIN"),
+                            "recipient_name": types.Schema(type=types.Type.STRING, description="Recipient name"),
+                            "recipient_tin": types.Schema(type=types.Type.STRING, description="Recipient TIN/SSN"),
+                            "box1": types.Schema(type=types.Type.STRING, description="Box 1 amount"),
+                            "box2": types.Schema(type=types.Type.STRING, description="Box 2 amount"),
+                            "box3": types.Schema(type=types.Type.STRING, description="Box 3 amount"),
+                            "box4": types.Schema(type=types.Type.STRING, description="Box 4 amount"),
+                            "box5": types.Schema(type=types.Type.STRING, description="Box 5 amount"),
+                            "box6": types.Schema(type=types.Type.STRING, description="Box 6 amount"),
+                            "box7": types.Schema(type=types.Type.STRING, description="Box 7 amount"),
+                            "box8": types.Schema(type=types.Type.STRING, description="Box 8 amount"),
+                            "box9": types.Schema(type=types.Type.STRING, description="Box 9 amount"),
+                            "box1a": types.Schema(type=types.Type.STRING, description="Box 1a amount"),
+                            "box1b": types.Schema(type=types.Type.STRING, description="Box 1b amount"),
+                            "box2a": types.Schema(type=types.Type.STRING, description="Box 2a amount"),
+                            "box2b": types.Schema(type=types.Type.STRING, description="Box 2b amount"),
+                            "federal_tax_withheld": types.Schema(type=types.Type.STRING, description="Federal income tax withheld"),
+                            "state_tax_withheld": types.Schema(type=types.Type.STRING, description="State tax withheld"),
+                            "total_amount": types.Schema(type=types.Type.STRING, description="Main dollar amount"),
+                            "is_corrected": types.Schema(type=types.Type.STRING, description="Corrected document")
+                        }
+                    ),
+                    "suggested_bookmark_structure": types.Schema(
+                        type=types.Type.OBJECT,
+                        properties={
+                            "level1": types.Schema(type=types.Type.STRING, description="Category"),
+                            "level2": types.Schema(type=types.Type.STRING, description="File Type"),
+                            "level3": types.Schema(type=types.Type.STRING, description="Specifics")
+                        },
+                        required=["level1", "level2", "level3"]
+                    )
+                },
+                required=["document_category", "document_analysis_summary", "extracted_key_info", "suggested_bookmark_structure"]
+            )
+        else:
+            self.output_schema = None
     
     def initialize(self) -> bool:
         """Initialize Gemini client"""
@@ -38,11 +95,16 @@ class GeminiProvider(AIProvider):
             logging.warning("No configuration provided for Gemini provider")
             return False
         
-        # Extract API key
+        # Extract API key (try both GOOGLE_API_KEY and GEMINI_API_KEY for compatibility)
+        logging.info(f"Gemini provider config type: {type(self.config)}")
+        logging.info(f"Gemini provider config has get: {hasattr(self.config, 'get') if self.config else False}")
+        
         if hasattr(self.config, 'get'):
-            self.api_key = self.config.get('GEMINI_API_KEY')
+            self.api_key = self.config.get('GOOGLE_API_KEY') or self.config.get('GEMINI_API_KEY')
+            logging.info(f"Gemini config via .get(): key={bool(self.api_key)}")
         else:
-            self.api_key = getattr(self.config, 'GEMINI_API_KEY', None)
+            self.api_key = getattr(self.config, 'GOOGLE_API_KEY', None) or getattr(self.config, 'GEMINI_API_KEY', None)
+            logging.info(f"Gemini config via getattr(): key={bool(self.api_key)}")
         
         if not self.api_key:
             logging.warning("Gemini API key not configured")
@@ -93,7 +155,8 @@ class GeminiProvider(AIProvider):
             mime_type = self._get_mime_type(document_path)
             
             # Create the prompt for document analysis
-            analysis_prompt = self._create_analysis_prompt()
+            document_name = os.path.basename(document_path)
+            analysis_prompt = self._create_analysis_prompt(document_name)
             
             # Prepare the content for Gemini (using working API from original code)
             parts = []
@@ -109,21 +172,9 @@ class GeminiProvider(AIProvider):
                 content_text = document_content.decode('utf-8', errors='ignore')
                 parts.append(f"Document content:\n{content_text[:2000]}")
             
-            # Add analysis prompt (from working version)
-            prompt = f"""Analyze this tax document and extract key information.
-
-**Requirements:**
-1. Identify document type (W-2, 1099-DIV, 1099-G, 1098-T, etc.)
-2. Extract payer/recipient names and TINs
-3. Extract all numbered box amounts (Box1, Box1a, Box2, etc.)
-4. Identify tax withholdings (federal, state)
-5. Note if document is corrected
-
-**Important:**
-- Extract amounts exactly as shown, including $0.00
-- Only include visible information
-- Use "Unknown" for missing fields
-- Keep analysis summary under 200 words"""
+            # Add analysis prompt (matching cpa_copilot exactly)
+            document_name = os.path.basename(document_path)
+            prompt = self._create_analysis_prompt(document_name)
             
             parts.append(prompt)
             
@@ -218,43 +269,85 @@ class GeminiProvider(AIProvider):
         }
         return mime_types.get(extension, 'application/octet-stream')
     
-    def _create_analysis_prompt(self) -> str:
+    def _create_analysis_prompt(self, document_name: str) -> str:
+        """Create a concise analysis prompt for Gemini (matching cpa_copilot exactly)."""
+        return f"""Analyze this tax document '{document_name}' and extract key information.
+
+**Requirements:**
+1. Identify document type (W-2, 1099-DIV, 1099-G, etc.)
+2. Extract payer/recipient names and TINs
+3. Extract all numbered box amounts (Box1, Box1a, Box2, etc.)
+4. Identify tax withholdings (federal, state)
+5. Note if document is corrected
+
+**For Bookmark Structure:**
+- Level 1: Choose from "Income Documents", "Deduction Documents", "Investment Documents", "Business Documents", "Other Tax Documents"  
+- Level 2: Specific form type (e.g., "1099-DIV", "W-2")
+- Level 3: Include payer name (e.g., "1099-DIV - Bank Name")
+
+**Important:**
+- Extract amounts exactly as shown, including $0.00
+- Only include visible information
+- Use "Unknown" for missing fields
+- Keep analysis summary under 200 words
+
+Provide structured JSON response with all extracted information."""
+    
+    def _clean_json_response(self, response_text: str) -> str:
         """
-        Create comprehensive analysis prompt for Gemini
+        Clean JSON response text to fix common parsing issues.
         
+        Args:
+            response_text: Raw response text from Gemini
+            
         Returns:
-            Prompt string
+            Cleaned JSON string
         """
-        return """Please analyze this document thoroughly and provide the following information in a structured format:
-
-1. DOCUMENT TYPE: Identify what type of document this is (tax form, invoice, receipt, contract, etc.)
-
-2. EXTRACTED TEXT: Provide all readable text from the document
-
-3. KEY FIELDS: Extract key fields and their values in JSON format, such as:
-   - Names, addresses, phone numbers
-   - Dates (due dates, creation dates, etc.)
-   - Monetary amounts
-   - ID numbers, account numbers
-   - Any form-specific fields
-
-4. KEY-VALUE PAIRS: Identify important label-value relationships
-
-5. ENTITIES: Extract named entities like:
-   - Person names
-   - Organizations
-   - Locations
-   - Dates
-   - Financial amounts
-
-Please format your response as follows:
-DOCUMENT_TYPE: [type]
-EXTRACTED_TEXT: [full text]
-FIELDS: {JSON object with key-value pairs}
-ENTITIES: [list of entities with types]
-CONFIDENCE: [your confidence level 0-1]
-
-Be thorough and accurate in your extraction."""
+        import re
+        
+        # Remove any leading/trailing whitespace
+        cleaned = response_text.strip()
+        
+        # Fix common issues
+        # 1. Remove any markdown code block markers
+        cleaned = re.sub(r'^```json\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```$', '', cleaned)
+        
+        # 2. Remove any null bytes
+        cleaned = cleaned.replace('\x00', '')
+        
+        # 3. Fix potential trailing commas (basic fix)
+        cleaned = re.sub(r',(\s*[}\]])', r'\1', cleaned)
+        
+        return cleaned
+    
+    def _create_fallback_result(self, response_text: str, document_name: str) -> Dict[str, Any]:
+        """
+        Create a fallback result when JSON parsing fails.
+        
+        Args:
+            response_text: The raw response text
+            document_name: Name of the document being processed
+            
+        Returns:
+            Minimal valid result structure
+        """
+        return {
+            "document_category": "Unknown",
+            "document_analysis_summary": f"Document analysis completed with parsing issues. Raw response available in logs.",
+            "extracted_key_info": {
+                "form_type": "Unknown",
+                "tax_year": "Unknown",
+                "payer_name": "Unknown",
+                "recipient_name": "Unknown",
+                "parsing_error": "JSON parsing failed - raw response preserved"
+            },
+            "suggested_bookmark_structure": {
+                "level1": "Other Tax Documents",
+                "level2": "Processing Error",
+                "level3": f"Error - {document_name}"
+            }
+        }
     
     def _extract_document_type(self, text: str) -> str:
         """Extract document type from analysis text"""

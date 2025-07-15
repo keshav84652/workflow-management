@@ -5,6 +5,7 @@ Authentication service layer for business logic
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from flask import session, request
+from flask_bcrypt import Bcrypt
 from core.db_import import db
 from models import Firm, User, DemoAccessRequest
 from repositories.firm_repository import FirmRepository
@@ -17,41 +18,64 @@ class AuthService:
     def __init__(self):
         self.firm_repository = FirmRepository()
         self.user_repository = UserRepository()
+        self.bcrypt = Bcrypt()
     
 
-    def authenticate_firm(self, access_code: str, email: str) -> Dict[str, Any]:
+    def authenticate_user(self, email: str, password: str) -> Dict[str, Any]:
         """
-        Authenticate a firm using access code and optional email
+        Authenticate a user using email and password
         
         Args:
-            access_code: The firm's access code
-            email: User's email for tracking purposes
+            email: User's email address
+            password: User's password
             
         Returns:
-            Dict containing success status, firm data, and any error messages
+            Dict containing success status, user data, firm data, and any error messages
         """
         try:
             # Clean input
-            access_code = access_code.strip()
-            email = email.strip()
+            email = email.strip().lower()
             
-            # Find active firm with matching access code
-            firm = self.firm_repository.get_by_access_code(access_code, active_only=True)
+            # Find user by email
+            user = self.user_repository.get_by_email(email)
             
-            if not firm:
+            if not user:
                 return {
                     'success': False,
-                    'message': 'Invalid access code',
+                    'message': 'Invalid email or password',
+                    'user': None,
                     'firm': None
                 }
             
-            # Handle demo access tracking
-            if access_code == 'DEMO2024':
-                AuthService._track_demo_access(email)
+            # Verify password
+            if not self.bcrypt.check_password_hash(user.password_hash, password):
+                return {
+                    'success': False,
+                    'message': 'Invalid email or password',
+                    'user': None,
+                    'firm': None
+                }
+            
+            # Get firm data
+            firm = self.firm_repository.get_by_id(user.firm_id)
+            
+            if not firm or not firm.is_active:
+                return {
+                    'success': False,
+                    'message': 'Your firm account is not active',
+                    'user': None,
+                    'firm': None
+                }
             
             return {
                 'success': True,
                 'message': 'Authentication successful',
+                'user': {
+                    'id': user.id,
+                    'name': user.name,
+                    'email': user.email,
+                    'role': user.role
+                },
                 'firm': {
                     'id': firm.id,
                     'name': firm.name,
@@ -63,6 +87,7 @@ class AuthService:
             return {
                 'success': False,
                 'message': f'Authentication error: {str(e)}',
+                'user': None,
                 'firm': None
             }
     
@@ -156,19 +181,22 @@ class AuthService:
         return self.user_repository.get_by_id_and_firm(user_id, firm_id)
     
 
-    def create_session(self, firm_data: Dict[str, Any], email: str) -> None:
+    def create_session(self, user_data: Dict[str, Any], firm_data: Dict[str, Any]) -> None:
         """
-        Create a persistent session for authenticated firm
+        Create a persistent session for authenticated user
         
         Args:
+            user_data: Dictionary containing user information
             firm_data: Dictionary containing firm information
-            email: User's email for tracking
         """
         # Make session permanent for better persistence
         session.permanent = True
         
-        # Store firm and user data in session
-        session['user_email'] = email
+        # Store user and firm data in session
+        session['user_id'] = user_data['id']
+        session['user_name'] = user_data['name']
+        session['user_email'] = user_data['email']
+        session['user_role'] = user_data['role']
         session['firm_id'] = firm_data['id']
         session['firm_name'] = firm_data['name']
     
@@ -277,3 +305,30 @@ class AuthService:
             else:
                 return 'auth.login'
         return None
+    
+    
+    def hash_password(self, password: str) -> str:
+        """
+        Hash a password using bcrypt
+        
+        Args:
+            password: Plain text password
+            
+        Returns:
+            Hashed password string
+        """
+        return self.bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    
+    def verify_password(self, password: str, password_hash: str) -> bool:
+        """
+        Verify a password against its hash
+        
+        Args:
+            password: Plain text password
+            password_hash: Hashed password
+            
+        Returns:
+            True if password matches, False otherwise
+        """
+        return self.bcrypt.check_password_hash(password_hash, password)

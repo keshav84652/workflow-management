@@ -51,6 +51,7 @@ rich>=13.5.0
 
 # Security
 cryptography>=41.0.0
+Flask-Bcrypt>=1.0.1
 
 # Development & Testing (optional)
 pytest>=7.4.0

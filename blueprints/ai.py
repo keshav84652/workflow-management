@@ -6,7 +6,34 @@ from flask import Blueprint, request, session, jsonify, send_file, render_templa
 from datetime import datetime
 import os
 import json
+import logging
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+def create_ai_config():
+    """Create AI configuration with environment variables"""
+    class AIConfig(dict):
+        def __init__(self):
+            super().__init__()
+            self.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT = os.getenv('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
+            self.AZURE_DOCUMENT_INTELLIGENCE_KEY = os.getenv('AZURE_DOCUMENT_INTELLIGENCE_KEY') 
+            self.GEMINI_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+            self.GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+            
+            # Also populate as dictionary for .get() method
+            self['AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT'] = self.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT
+            self['AZURE_DOCUMENT_INTELLIGENCE_KEY'] = self.AZURE_DOCUMENT_INTELLIGENCE_KEY
+            self['GEMINI_API_KEY'] = self.GEMINI_API_KEY
+            self['GOOGLE_API_KEY'] = self.GOOGLE_API_KEY
+    
+    config = AIConfig()
+    logging.info(f"AI Config - Azure endpoint: {bool(config.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT)}")
+    logging.info(f"AI Config - Azure key: {bool(config.AZURE_DOCUMENT_INTELLIGENCE_KEY)}")
+    logging.info(f"AI Config - Gemini key: {bool(config.GEMINI_API_KEY)}")
+    return config
 
 from core.db_import import db
 from models import (
@@ -16,6 +43,7 @@ from models import (
 from services.activity_logging_service import ActivityLoggingService as ActivityService
 from services.ai_service import AIService
 from services.document_service import DocumentService
+from services.workpaper_generator_service import WorkpaperGeneratorService
 from utils.consolidated import get_session_firm_id, get_session_user_id
 
 ai_bp = Blueprint('ai', __name__)
@@ -25,8 +53,8 @@ ai_bp = Blueprint('ai', __name__)
 def ai_services_status():
     """Check the status of AI services"""
     try:
-        ai_service = AIService(current_app.config)
-        status = ai_service.get_ai_services_status()
+        config = create_ai_config()
+        status = AIService.get_ai_services_status(config)
         status_code = 500 if 'error' in status else 200
         return jsonify(status), status_code
         
@@ -46,7 +74,7 @@ def analyze_document(document_id):
         firm_id = get_session_firm_id()
         
         # Initialize AI service and perform analysis
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         results = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis=True)
         
         return jsonify({
@@ -74,7 +102,7 @@ def get_document_analysis(document_id):
         force_reanalysis = request.args.get('force_reanalysis', 'false').lower() == 'true'
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         response_data = ai_service.get_or_analyze_document(document_id, firm_id, force_reanalysis)
         
         # Transform new data structure to old format for frontend compatibility
@@ -89,7 +117,9 @@ def get_document_analysis(document_id):
                     analysis_results = {}
             
             # Use AIService to transform data structure  
-            ai_service = AIService(current_app.config)
+            ai_service = AIService(create_ai_config())
+            
+            # Transform the analysis data
             transformed_data = ai_service.transform_analysis_to_old_format(analysis_results)
             
             # Add metadata
@@ -131,7 +161,7 @@ def analyze_checklist(checklist_id):
         force_reanalysis = request_data.get('force_reanalysis', False)
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         
         # Check if AI services are available first
         if not ai_service.is_available():
@@ -169,7 +199,7 @@ def export_checklist_analysis(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         result = ai_service.export_checklist_analysis(checklist_id, firm_id)
         
         if not result['success']:
@@ -203,7 +233,7 @@ def generate_income_worksheet(checklist_id):
         user_id = get_session_user_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         results = ai_service.generate_income_worksheet(checklist_id, firm_id, user_id)
         
         return jsonify(results)
@@ -224,7 +254,7 @@ def download_income_worksheet(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         result = ai_service.get_income_worksheet_for_download(checklist_id, firm_id)
         
         if not result['success']:
@@ -257,7 +287,7 @@ def get_saved_income_worksheet(checklist_id):
         firm_id = get_session_firm_id()
         
         # Use AI service for business logic
-        ai_service = AIService(current_app.config)
+        ai_service = AIService(create_ai_config())
         results = ai_service.get_saved_income_worksheet(checklist_id, firm_id)
         
         if not results['success']:
@@ -326,11 +356,108 @@ def document_visualization(document_id):
 @ai_bp.route('/generate-bulk-workpaper', methods=['POST'])
 def generate_bulk_workpaper():
     """Generate bulk workpaper from multiple documents"""
-    # Placeholder implementation
-    return jsonify({
-        'success': True,
-        'message': 'Bulk workpaper generation started'
-    })
+    try:
+        firm_id = get_session_firm_id()
+        user_id = get_session_user_id()
+        
+        if not firm_id:
+            return jsonify({
+                'success': False,
+                'message': 'Access denied'
+            }), 403
+        
+        data = request.get_json()
+        checklist_id = data.get('checklist_id')
+        
+        if not checklist_id:
+            return jsonify({
+                'success': False,
+                'message': 'Checklist ID required'
+            }), 400
+        
+        # Get checklist info for client name
+        checklist = DocumentChecklist.query.filter_by(
+            id=checklist_id,
+            firm_id=firm_id
+        ).first()
+        
+        if not checklist:
+            return jsonify({
+                'success': False,
+                'message': 'Checklist not found'
+            }), 404
+        
+        # Get client name
+        client_name = checklist.client.name if checklist.client else None
+        
+        # Generate workpaper
+        workpaper_service = WorkpaperGeneratorService()
+        result = workpaper_service.generate_workpaper_from_checklist(
+            checklist_id=checklist_id,
+            firm_id=firm_id,
+            title=data.get('title', 'Tax Document Workpaper'),
+            preparer_name=data.get('preparer_name'),
+            client_name=client_name,
+            tax_year=data.get('tax_year')
+        )
+        
+        if result['success']:
+            # Log activity
+            ActivityService.log_activity(
+                user_id=user_id,
+                firm_id=firm_id,
+                activity_type='workpaper_generated',
+                entity_type='checklist',
+                entity_id=checklist_id,
+                description=f"Generated workpaper for {client_name}"
+            )
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error in generate_bulk_workpaper: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
+
+
+@ai_bp.route('/download-workpaper/<path:filename>')
+def download_workpaper(filename):
+    """Download generated workpaper"""
+    try:
+        firm_id = get_session_firm_id()
+        
+        if not firm_id:
+            return jsonify({
+                'success': False,
+                'message': 'Access denied'
+            }), 403
+        
+        # Security check: only allow downloads from workpaper directory
+        workpaper_dir = Path("temp/workpapers")
+        file_path = workpaper_dir / filename
+        
+        # Ensure the file exists and is within the workpaper directory
+        if not file_path.exists() or not file_path.resolve().is_relative_to(workpaper_dir.resolve()):
+            return jsonify({
+                'success': False,
+                'message': 'File not found'
+            }), 404
+        
+        return send_file(
+            file_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error downloading workpaper: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'Internal server error'
+        }), 500
 
 
 @ai_bp.route('/api/chat-with-document', methods=['POST'])

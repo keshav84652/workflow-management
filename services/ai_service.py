@@ -39,8 +39,22 @@ class AIService(BaseService):
     def _initialize_providers(self):
         """Initialize all available AI providers"""
         try:
+            # Debug logging for configuration
+            if self.config:
+                azure_endpoint = getattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT', None) if hasattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') else self.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') if hasattr(self.config, 'get') else None
+                azure_key = getattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_KEY', None) if hasattr(self.config, 'AZURE_DOCUMENT_INTELLIGENCE_KEY') else self.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') if hasattr(self.config, 'get') else None
+                gemini_key = getattr(self.config, 'GEMINI_API_KEY', None) if hasattr(self.config, 'GEMINI_API_KEY') else self.config.get('GEMINI_API_KEY') if hasattr(self.config, 'get') else None
+                
+                logging.info(f"AI Service config check: Azure endpoint={bool(azure_endpoint)}, Azure key={bool(azure_key)}, Gemini key={bool(gemini_key)}")
+            else:
+                logging.warning("AI Service: No config provided")
+            
             # Create all available providers
             self.providers = AIProviderFactory.create_all_available_providers(self.config)
+            
+            logging.info(f"AI Service initialized with {len(self.providers)} providers")
+            for provider in self.providers:
+                logging.info(f"  - {provider.get_provider_name()}: Available={provider.is_available()}")
             
             # Set primary provider (preference order: Azure, then Gemini)
             for provider in self.providers:
@@ -949,3 +963,85 @@ class AIService(BaseService):
                         'confidence': 1.0
                     })
         return kv_pairs
+    
+    def create_flat_export(self, document_ids: List[int], firm_id: int, include_metadata: bool = True) -> Dict[str, Any]:
+        """
+        Create a flat export structure (no hierarchical data) like cpa_copilot.
+        
+        Args:
+            document_ids: List of document IDs to export
+            firm_id: Firm ID for access control
+            include_metadata: Whether to include document metadata
+            
+        Returns:
+            Flat export data structure
+        """
+        export_data = {
+            "export_date": datetime.utcnow().isoformat(),
+            "document_count": len(document_ids),
+            "documents": []
+        }
+        
+        for doc_id in document_ids:
+            try:
+                # Get document with access control
+                document = ClientDocument.query.filter_by(
+                    id=doc_id,
+                    firm_id=firm_id
+                ).first()
+                
+                if not document:
+                    continue
+                
+                doc_data = {}
+                
+                # Add metadata if requested
+                if include_metadata:
+                    doc_data.update({
+                        "filename": document.filename or f"document_{doc_id}",
+                        "document_id": doc_id,
+                        "created_at": document.upload_date.isoformat() if document.upload_date else None,
+                        "checklist_item": document.checklist_item.title if document.checklist_item else None
+                    })
+                
+                # Get AI analysis results
+                analysis = document.ai_analysis
+                if analysis:
+                    if isinstance(analysis, dict):
+                        # Extract Azure fields (flat only)
+                        azure_result = analysis.get('provider_results', {}).get('Azure Document Intelligence', {})
+                        if azure_result and 'error' not in azure_result:
+                            doc_data.update({
+                                "doc_type": azure_result.get('document_type', 'unknown'),
+                                "confidence": azure_result.get('confidence_score', 0.0),
+                            })
+                            
+                            # Add flat fields from Azure
+                            azure_fields = azure_result.get('raw_results', {}).get('fields', {})
+                            if isinstance(azure_fields, dict):
+                                # Fields are already flat from our updated Azure provider
+                                doc_data.update(azure_fields)
+                        
+                        # Extract Gemini analysis (flat structure)
+                        gemini_result = analysis.get('provider_results', {}).get('Gemini AI', {})
+                        if gemini_result and 'error' not in gemini_result:
+                            gemini_data = gemini_result.get('raw_results', {})
+                            doc_data.update({
+                                "gemini_category": gemini_data.get('document_category', ''),
+                                "gemini_summary": gemini_data.get('document_summary', ''),
+                                "gemini_type": gemini_data.get('document_type', '')
+                            })
+                            
+                            # Add Gemini extracted info (flat)
+                            extracted_info = gemini_data.get('extracted_info', {})
+                            if isinstance(extracted_info, dict):
+                                for key, value in extracted_info.items():
+                                    doc_data[f"gemini_{key}"] = value
+                
+                export_data["documents"].append(doc_data)
+                
+            except Exception as e:
+                logging.error(f"Error processing document {doc_id} for flat export: {str(e)}")
+                continue
+        
+        return export_data

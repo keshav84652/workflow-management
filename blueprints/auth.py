@@ -44,24 +44,23 @@ def cch_axcess_integration():
 def login():
     if AuthService.is_authenticated():
         return redirect(url_for('dashboard.main'))
-    elif AuthService.is_firm_authenticated():
-        return redirect(url_for('auth.select_user'))
     return render_template('auth/login.html')
 
 
 @auth_bp.route('/authenticate', methods=['POST'])
 def authenticate():
-    access_code = request.form.get('access_code', '').strip()
     email = request.form.get('email', '').strip()
+    password = request.form.get('password', '').strip()
     
     # Use AuthService for authentication
     auth_service = AuthService()
-    result = auth_service.authenticate_firm(access_code, email)
+    result = auth_service.authenticate_user(email, password)
     
     if result['success']:
-        # Create session using AuthService
-        auth_service.create_session(result['firm'], email)
-        return redirect(url_for('auth.select_user'))
+        # Create session using AuthService - automatically signs in to firm
+        auth_service.create_session(result['user'], result['firm'])
+        flash(f'Welcome, {result["user"]["name"]}!', 'success')
+        return redirect(url_for('dashboard.main'))
     else:
         flash(result['message'], 'error')
         return redirect(url_for('auth.login'))

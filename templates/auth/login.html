@@ -355,7 +355,7 @@
                 <div class="logo">
                     <img src="{{ url_for('static', filename='images/logos/ctrlfiling-logo.svg') }}" alt="CtrlFiling Logo" style="height: 50px; width: auto;">
                 </div>
-                <p class="welcome-text">Access your workflow management portal</p>
+                <p class="welcome-text">Sign in to your account</p>
             </div>
 
             <!-- Login Form -->
@@ -373,59 +373,22 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="access_code" class="form-label">Firm Access Code</label>
+                    <label for="password" class="form-label">Password</label>
                     <input 
-                        type="text" 
-                        id="access_code" 
-                        name="access_code" 
+                        type="password" 
+                        id="password" 
+                        name="password" 
                         class="form-input"
-                        placeholder="Enter your firm's access code"
+                        placeholder="Enter your password"
                         required
-                        autocomplete="off">
+                        autocomplete="current-password">
                 </div>
 
                 <button type="submit" class="login-button">
                     <span class="icon-lock"></span>
-                    <span>Access Portal</span>
+                    <span>Sign In</span>
                 </button>
             </form>
-
-            <!-- Demo Access -->
-            <div class="divider">
-                <div class="divider-line"></div>
-                <span class="divider-text">Demo Access</span>
-                <div class="divider-line"></div>
-            </div>
-
-            <button 
-                type="button" 
-                class="demo-button"
-                onclick="tryDemo()">
-                <span class="icon-play"></span>
-                <span>Try Demo</span>
-            </button>
-
-            <script>
-                function tryDemo() {
-                    const email = document.getElementById('email').value;
-                    if (!email) {
-                        alert('Please enter your email address first');
-                        document.getElementById('email').focus();
-                        return;
-                    }
-                    
-                    // Validate email format
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(email)) {
-                        alert('Please enter a valid email address');
-                        document.getElementById('email').focus();
-                        return;
-                    }
-                    
-                    document.getElementById('access_code').value = 'DEMO2024';
-                    document.getElementById('loginForm').submit();
-                }
-            </script>
 
             <!-- Back Link -->
             <div class="back-link">
