@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from datetime import datetime, date, timedelta
 import calendar
-import os
 import time
 from pathlib import Path
 from dateutil.relativedelta import relativedelta
@@ -10,43 +9,32 @@ import mimetypes
 import uuid
 
 # Import configuration and core utilities
-from .config import get_config
-from src.shared.database.db_import import db
+from config import get_config
+from core.db_import import db
 from flask_migrate import Migrate
+import os
 
-# Import models - TEMPORARILY COMMENTED TO FIX CIRCULAR IMPORTS
-# TODO: Fix circular dependencies throughout codebase
-# from src.models import (
-#     Firm, User, Template, TemplateTask, Project, Task, ActivityLog, 
-#     Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, 
-#     Attachment, ClientUser, DocumentChecklist, ChecklistItem, 
-#     ClientDocument, DocumentTemplate, DocumentTemplateItem, 
-#     IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
-# )
-
-# Import only the essential models to avoid circular imports
-from src.models.auth import Firm, User, ActivityLog
+# Import models
+from models import (
+    Firm, User, Template, TemplateTask, Project, Task, ActivityLog, 
+    Client, TaskComment, WorkType, TaskStatus, Contact, ClientContact, 
+    Attachment, ClientUser, DocumentChecklist, ChecklistItem, 
+    ClientDocument, DocumentTemplate, DocumentTemplateItem, 
+    IncomeWorksheet, DemoAccessRequest, ClientChecklistAccess
+)
 
 migrate = Migrate()
 
 def create_app(config_name='default'):
-    # Create Flask application with correct paths
-    # Get the parent directory (project root) for templates and static files
-    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    template_dir = os.path.join(project_root, 'templates')
-    static_dir = os.path.join(project_root, 'static')
-    
-    app = Flask(__name__, 
-                template_folder=template_dir,
-                static_folder=static_dir)
+    # Create Flask application
+    app = Flask(__name__)
 
     # Load configuration
     config_class = get_config(config_name)
     app.config.from_object(config_class)
 
-    # Create necessary directories (relative to project root)
-    instance_dir = os.path.join(project_root, 'instance')
-    os.makedirs(instance_dir, exist_ok=True)
+    # Create necessary directories
+    os.makedirs('instance', exist_ok=True)
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
     # Initialize extensions
@@ -54,43 +42,24 @@ def create_app(config_name='default'):
     migrate.init_app(app, db)
 
     # Register Jinja2 template filters
-    from src.shared.utils.template_filters import register_template_filters
+    from utils.template_filters import register_template_filters
     register_template_filters(app)
     
-    # Register modules with proper error handling
-    modules_to_register = [
-        ('auth', 'Authentication'),
-        ('project', 'Project Management'), 
-        ('admin', 'Administration'),
-        ('dashboard', 'Dashboard'),
-        ('client', 'Client Management')
-    ]
+    # Register blueprints
+    from blueprints import ALL_BLUEPRINTS
+    for blueprint in ALL_BLUEPRINTS:
+        app.register_blueprint(blueprint)
     
-    for module_name, description in modules_to_register:
-        try:
-            module = __import__(f'src.modules.{module_name}', fromlist=['register_module'])
-            register_func = getattr(module, 'register_module')
-            register_func(app)
-            print(f"✅ {description} module registered")
-        except Exception as e:
-            print(f"❌ Failed to register {description} module: {e}")
+    # SEO routes
+    @app.route('/robots.txt')
+    def robots_txt():
+        """Serve robots.txt file for search engines"""
+        return send_file('static/robots.txt', mimetype='text/plain')
     
-    # Disabled modules with known import issues:
-    # - document (missing models, syntax errors)
-    # TODO: Fix these modules
-    
-    # Initialize dependency injection container
-    from src.shared.di_container import setup_service_registry
-    
-    # Set up DI system
-    try:
-        setup_service_registry()
-        print("✅ Service registry initialized")
-    except Exception as e:
-        print(f"❌ Service registry failed: {e}")
-        # Continue without DI - services will fallback to direct instantiation
-    
-    # All blueprints now registered through modules
+    @app.route('/sitemap.xml')
+    def sitemap_xml():
+        """Serve sitemap.xml file for search engines"""
+        return send_file('static/sitemap.xml', mimetype='application/xml')
 
     # Add error handlers
     from werkzeug.routing import BuildError
@@ -142,10 +111,10 @@ def create_app(config_name='default'):
         else:
             return redirect(url_for('auth.login'))
 
-    from src.shared.utils.consolidated import generate_access_code
-    # ActivityLoggingService now available through src.shared.services
-    # Services accessed through DI container to avoid coupling
-    from src.shared.di_container import get_service
+    from utils.consolidated import generate_access_code
+    from services.activity_logging_service import ActivityLoggingService as ActivityService
+    from services.task_service import TaskService
+    from services.client_service import ClientService
 
     # Business logic functions moved to appropriate services:
     # - perform_checklist_ai_analysis -> DocumentService.perform_checklist_ai_analysis
@@ -154,25 +123,17 @@ def create_app(config_name='default'):
 
     # AI Document Analysis Integration
     # AI services are now auto-detected based on available API keys in config
-    # from src.modules.document.analysis_service import AIAnalysisService  # DISABLED
+    from services.ai_service import AIService
 
     with app.app_context():
-        # Initialize service registry for dependency injection
-        try:
-            setup_service_registry()
-            print("✅ Service registry setup completed")
-        except Exception as e:
-            print(f"❌ Service registry setup failed: {e}")
-        
         print("AI Services status determined by configuration:")
         print("   Azure Document Intelligence:", "Available" if app.config.get('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT') and app.config.get('AZURE_DOCUMENT_INTELLIGENCE_KEY') else "Not configured")
         print("   Gemini API:", "Available" if app.config.get('GEMINI_API_KEY') else "Not configured")
         print("   Overall AI Services:", "Available" if config_class().AI_SERVICES_AVAILABLE else "Not configured")
         
         # Test AI service initialization
-        # ai_service = AIAnalysisService(app.config)  # DISABLED
-        # print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")  # DISABLED
-        print("   Service Registry: Initialized with dependency injection")
+        ai_service = AIService(app.config)
+        print(f"   AI Service Status: {'Ready' if ai_service.is_available() else 'Not available'}")
 
     # Recurring tasks are now integrated into the Task model
     

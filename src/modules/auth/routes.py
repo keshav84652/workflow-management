@@ -4,10 +4,8 @@ Authentication and session management blueprint
 
 from flask import Blueprint, render_template, redirect, url_for, request, session, flash, make_response, jsonify
 from datetime import datetime
-from src.shared.database.db_import import db
-from .service import AuthService
-from .session_service import SessionService
-from src.shared.service_factory import ServiceFactory
+from core.db_import import db
+from services.auth_service import AuthService
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -24,11 +22,29 @@ def landing():
     return redirect(url_for('auth.home'))
 
 
+@auth_bp.route('/cpa-tax-software')
+def cpa_tax_software():
+    """Targeted landing page for CPA tax software keyword"""
+    return render_template('auth/cpa-tax-software.html')
+
+
+@auth_bp.route('/ai-tax-preparation')
+def ai_tax_preparation():
+    """Targeted landing page for AI tax preparation keyword"""
+    return render_template('auth/ai-tax-preparation.html')
+
+
+@auth_bp.route('/cch-axcess-integration')
+def cch_axcess_integration():
+    """Targeted landing page for CCH Axcess integration keyword"""
+    return render_template('auth/cch-axcess-integration.html')
+
+
 @auth_bp.route('/login')
 def login():
-    if SessionService.is_authenticated():
+    if AuthService.is_authenticated():
         return redirect(url_for('dashboard.main'))
-    elif SessionService.is_firm_authenticated():
+    elif AuthService.is_firm_authenticated():
         return redirect(url_for('auth.select_user'))
     return render_template('auth/login.html')
 
@@ -39,7 +55,7 @@ def authenticate():
     email = request.form.get('email', '').strip()
     
     # Use AuthService for authentication
-    auth_service = ServiceFactory.create_auth_service()
+    auth_service = AuthService()
     result = auth_service.authenticate_firm(access_code, email)
     
     if result['success']:
@@ -53,26 +69,26 @@ def authenticate():
 
 @auth_bp.route('/select-user')
 def select_user():
-    if not SessionService.is_firm_authenticated():
+    if not AuthService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     firm_id = session['firm_id']
     # Use AuthService to get users
-    auth_service = ServiceFactory.create_auth_service()
+    auth_service = AuthService()
     users = auth_service.get_users_for_firm(firm_id)
     return render_template('auth/select_user.html', users=users, firm_name=session.get('firm_name', 'Your Firm'))
 
 
 @auth_bp.route('/set-user', methods=['POST'])
 def set_user():
-    if not SessionService.is_firm_authenticated():
+    if not AuthService.is_firm_authenticated():
         return redirect(url_for('auth.login'))
     
     user_id = request.form.get('user_id')
     firm_id = session['firm_id']
     
     # Use AuthService to set user in session
-    auth_service = ServiceFactory.create_auth_service()
+    auth_service = AuthService()
     result = auth_service.set_user_in_session(int(user_id), firm_id)
     
     if result['success']:
@@ -95,7 +111,7 @@ def switch_user():
 def logout():
     """Logout user with proper cache control and session clearing"""
     # Use AuthService for logout
-    SessionService.logout()
+    AuthService.logout()
     
     # Create response with proper cache control headers
     response = make_response(redirect(url_for('auth.home')))
@@ -115,7 +131,7 @@ def logout():
 def clear_session():
     """Clear session and redirect to landing page with proper cache control"""
     # Use AuthService for session clearing
-    SessionService.logout()
+    AuthService.logout()
     
     response = make_response(redirect(url_for('auth.home')))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'

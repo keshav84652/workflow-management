@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+    <!-- Homepage / Landing Page -->
+    <url>
+        <loc>https://ctrlfiling.com/</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+        <image:image>
+            <image:loc>https://ctrlfiling.com/static/images/logos/ctrlfiling-logo.svg</image:loc>
+            <image:title>CtrlFiling Logo</image:title>
+            <image:caption>AI-powered workflow management for CPA firms</image:caption>
+        </image:image>
+        <image:image>
+            <image:loc>https://ctrlfiling.com/static/images/screenshots/taxprep-bot.png</image:loc>
+            <image:title>TaxPrep Bot Interface</image:title>
+            <image:caption>AI-powered tax preparation workflow with CCH Axcess integration</image:caption>
+        </image:image>
+        <image:image>
+            <image:loc>https://ctrlfiling.com/static/images/screenshots/reconciliation-wizard.png</image:loc>
+            <image:title>Reconciliation Wizard Interface</image:title>
+            <image:caption>Automated reconciliation sheets and client-specific workflows</image:caption>
+        </image:image>
+        <image:image>
+            <image:loc>https://ctrlfiling.com/static/images/screenshots/tic-tie-slayer.png</image:loc>
+            <image:title>Tic Tie Slayer Interface</image:title>
+            <image:caption>Auto-generated bookmarks and calculation verification tools</image:caption>
+        </image:image>
+    </url>
+    
+    <!-- Login Page -->
+    <url>
+        <loc>https://ctrlfiling.com/auth/login</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+    </url>
+    
+    <!-- Admin Login -->
+    <url>
+        <loc>https://ctrlfiling.com/admin/login</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.6</priority>
+    </url>
+    
+    <!-- Future targeted pages for SEO -->
+    <!-- These would be added when the pages are created -->
+    <!--
+    <url>
+        <loc>https://ctrlfiling.com/cpa-tax-software</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+    </url>
+    
+    <url>
+        <loc>https://ctrlfiling.com/ai-tax-preparation</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+    </url>
+    
+    <url>
+        <loc>https://ctrlfiling.com/cch-axcess-integration</loc>
+        <lastmod>2025-01-03</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.9</priority>
+    </url>
+    -->
+</urlset>
